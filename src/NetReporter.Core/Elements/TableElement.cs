@@ -1,0 +1,29 @@
+using NetReporter.Core.DataBinding;
+using NetReporter.Core.Styles;
+
+namespace NetReporter.Core.Elements;
+
+public enum TableHeaderMode { PrintOnce, RepeatOnPageBreak }
+
+/// <summary>
+/// Tabla con columnas tipadas. Las filas provienen del DataSource del DetailBand que la contiene,
+/// O se pueden suministrar inline aquí (para el prototipo usamos inline).
+/// </summary>
+public sealed record TableElement<TRow> : ReportElement
+{
+    public required IReadOnlyList<TRow> Rows { get; init; }
+    public required IReadOnlyList<TableColumn<TRow>> Columns { get; init; }
+    public double RowHeight { get; init; } = 18;
+    public double HeaderHeight { get; init; } = 22;
+    public TableHeaderMode HeaderMode { get; init; } = TableHeaderMode.RepeatOnPageBreak;
+    public StyleRef HeaderStyle { get; init; } = new("TableHeader");
+    public StyleRef RowStyle { get; init; } = new("TableRow");
+    public StyleRef? AlternateRowStyle { get; init; }
+}
+
+public sealed record TableColumn<TRow>(
+    string Header,
+    IDataBinding<TRow, object?> Binding,
+    double Width,                // puntos
+    string? Format = null,
+    TextAlignment Align = TextAlignment.Left);
