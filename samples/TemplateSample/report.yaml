@@ -1,0 +1,113 @@
+# Reporte de clientes — template de demostración.
+# El data.json debe tener: { "titulo": "...", "generadoEn": "...", "clientes": [...] }
+
+name: ClientesReport
+title: Reporte de clientes
+
+page:
+  size: Letter
+  orientation: Portrait
+  margins:
+    horizontal: 1.5cm
+    vertical: 1.8cm
+
+culture: es-HN
+
+styles:
+  Default:
+    fontFamily: Helvetica
+    fontSize: 10
+    foreground: "#0F172A"
+
+  Title:
+    basedOn: Default
+    fontSize: 18
+    bold: true
+
+  Caption:
+    basedOn: Default
+    fontSize: 8
+    foreground: "#64748B"
+
+  CaptionCenter:
+    basedOn: Caption
+    align: center
+
+  TableHeader:
+    basedOn: Default
+    bold: true
+    background: "#F1F5F9"
+    padding: { horizontal: 4, vertical: 3 }
+    border:
+      bottom: { thickness: 0.5, color: "#CBD5E1" }
+
+  TableRow:
+    basedOn: Default
+    padding: { horizontal: 4, vertical: 3 }
+
+  TableRowAlt:
+    basedOn: TableRow
+    background: "#F8FAFC"
+
+bands:
+  - kind: ReportHeader
+    height: 70
+    elements:
+      - type: text
+        bounds: { x: 0, y: 0, width: 527, height: 24 }
+        content: "{{ $.titulo }}"
+        style: Title
+
+      - type: text
+        bounds: { x: 0, y: 30, width: 527, height: 12 }
+        content: "Generado: {{ $.generadoEn }}"
+        style: Caption
+
+      - type: line
+        bounds: { x: 0, y: 50, width: 527, height: 0 }
+        color: "#CBD5E1"
+        thickness: 0.5
+
+  - kind: Detail
+    height: 0
+    elements:
+      - type: table
+        bounds: { x: 0, y: 0, width: 527, height: 0 }
+        rows: "$.clientes"
+        headerStyle: TableHeader
+        rowStyle: TableRow
+        alternateRowStyle: TableRowAlt
+        headerMode: RepeatOnPageBreak
+        headerHeight: 22
+        rowHeight: 18
+        columns:
+          - header: Código
+            binding: "$.codigo"
+            width: 70
+
+          - header: Nombre
+            binding: "$.nombre"
+            width: 200
+
+          - header: Email
+            binding: "$.email"
+            width: 180
+
+          - header: Crédito
+            binding: "$.credito"
+            width: 77
+            format: "N2"
+            align: right
+
+  - kind: PageFooter
+    height: 24
+    elements:
+      - type: line
+        bounds: { x: 0, y: 0, width: 527, height: 0 }
+        color: "#CBD5E1"
+        thickness: 0.5
+
+      - type: text
+        bounds: { x: 0, y: 8, width: 527, height: 10 }
+        content: "Página {{ pageNumber }} de {{ totalPages }}"
+        style: CaptionCenter

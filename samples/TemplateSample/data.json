@@ -1,0 +1,16 @@
+{
+  "titulo": "Reporte de clientes activos",
+  "generadoEn": "2026-04-22 15:30",
+  "clientes": [
+    { "codigo": "C001", "nombre": "Distribuidora Ejemplo S. de R.L.", "email": "ventas@ejemplo.hn",       "credito":  50000.00 },
+    { "codigo": "C002", "nombre": "Comercial Palmira",                  "email": "contacto@palmira.hn",     "credito":  125000.50 },
+    { "codigo": "C003", "nombre": "Ferretería Central",                 "email": "admin@ferrecentral.hn",   "credito":  18500.00 },
+    { "codigo": "C004", "nombre": "Tecnología Moderna S.A.",            "email": "info@tecmoderna.hn",      "credito":  275000.75 },
+    { "codigo": "C005", "nombre": "Suministros Industriales",           "email": "ventas@sumind.hn",        "credito":  89200.00 },
+    { "codigo": "C006", "nombre": "Papelería El Estudiante",            "email": "papeleria@estudiante.hn", "credito":  12000.00 },
+    { "codigo": "C007", "nombre": "Constructora Roca Sólida",           "email": "admin@rocasolida.hn",    "credito":  450000.00 },
+    { "codigo": "C008", "nombre": "Transportes Rápidos",                "email": "despacho@rapidos.hn",     "credito":  65000.00 },
+    { "codigo": "C009", "nombre": "Alimentos del Campo",                "email": "pedidos@delcampo.hn",    "credito":  32500.25 },
+    { "codigo": "C010", "nombre": "Farmacia La Salud",                  "email": "compras@lasalud.hn",     "credito":  22000.00 }
+  ]
+}

@@ -1,9 +1,11 @@
 <Solution>
   <Folder Name="/samples/">
     <Project Path="samples/InvoiceSample/InvoiceSample.csproj" />
+    <Project Path="samples/TemplateSample/TemplateSample.csproj" />
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/NetReporter.Core/NetReporter.Core.csproj" />
     <Project Path="src/NetReporter.Pdf/NetReporter.Pdf.csproj" />
+    <Project Path="src/NetReporter.Templates/NetReporter.Templates.csproj" />
   </Folder>
 </Solution>
