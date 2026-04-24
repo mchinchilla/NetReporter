@@ -130,6 +130,51 @@ public static class YamlReportRewriter
                 if (patch.AlternateRowStyle is not null) e.AlternateRowStyle =
                     string.IsNullOrWhiteSpace(patch.AlternateRowStyle) ? null : patch.AlternateRowStyle;
             }
+
+            // Resize redistributivo: si cambió el ancho de una tabla, escalar columnas proporcionalmente.
+            if (kind == "table" && patch.Width is double newW &&
+                e.Columns is { Count: > 0 })
+            {
+                var currentTotal = e.Columns.Sum(c => c.Width);
+                if (currentTotal > 0 && Math.Abs(currentTotal - newW) > 0.01)
+                {
+                    var factor = newW / currentTotal;
+                    foreach (var c in e.Columns)
+                        c.Width = Math.Round(c.Width * factor, 2);
+                }
+            }
+        });
+    }
+
+    /// <summary>Reemplaza la lista de columnas completa del TableElement en <paramref name="path"/>.</summary>
+    public static string UpdateColumns(string yaml, string path, IReadOnlyList<TableColumnYaml> columns)
+    {
+        ArgumentNullException.ThrowIfNull(columns);
+
+        return UpdateElement(yaml, path, e =>
+        {
+            if ((e.Type ?? "text").ToLowerInvariant() != "table")
+                throw new InvalidOperationException(
+                    $"UpdateColumns solo aplica a tablas (kind='{e.Type}').");
+
+            // Validación mínima
+            foreach (var c in columns)
+            {
+                if (string.IsNullOrWhiteSpace(c.Header))
+                    throw new ArgumentException("Cada columna requiere 'header'.");
+                if (string.IsNullOrWhiteSpace(c.Binding))
+                    throw new ArgumentException($"Columna '{c.Header}' requiere 'binding'.");
+                if (c.Width <= 0)
+                    throw new ArgumentException($"Columna '{c.Header}' requiere 'width' > 0.");
+            }
+
+            e.Columns = columns.ToList();
+            // Ajustar bounds.Width para que coincida con la suma de widths.
+            if (e.Columns.Count > 0)
+            {
+                e.Bounds ??= new BoundsYaml();
+                e.Bounds.Width = Math.Round(e.Columns.Sum(c => c.Width), 2);
+            }
         });
     }
 

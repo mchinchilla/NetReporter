@@ -67,7 +67,8 @@ else
                              data-header-style="@(el.HeaderStyle ?? "")"
                              data-row-style="@(el.RowStyle ?? "")"
                              data-alternate-row-style="@(el.AlternateRowStyle ?? "")"
-                             data-column-count="@(el.ColumnCount?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "")">
+                             data-column-count="@(el.ColumnCount?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "")"
+                             data-columns="@(el.Columns is null ? "[]" : System.Text.Json.JsonSerializer.Serialize(el.Columns))">
                             <div class="resize-handle handle-nw" data-dir="nw"></div>
                             <div class="resize-handle handle-n"  data-dir="n"></div>
                             <div class="resize-handle handle-ne" data-dir="ne"></div>

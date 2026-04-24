@@ -143,7 +143,32 @@ public sealed record InteractiveElement(
     string? HeaderStyle = null,
     string? RowStyle = null,
     string? AlternateRowStyle = null,
-    int? ColumnCount = null);
+    int? ColumnCount = null,
+    IReadOnlyList<TableColumnView>? Columns = null);
+
+public sealed record TableColumnView(
+    string Header,
+    string Binding,
+    double Width,
+    string? Format,
+    string Align);
+
+public sealed class UpdateColumnsRequest
+{
+    public string Yaml { get; set; } = string.Empty;
+    public string Json { get; set; } = string.Empty;
+    public string Path { get; set; } = string.Empty;
+    public string ColumnsJson { get; set; } = "[]";
+}
+
+public sealed class TableColumnPayload
+{
+    public string? Header { get; set; }
+    public string? Binding { get; set; }
+    public double Width { get; set; }
+    public string? Format { get; set; }
+    public string? Align { get; set; }
+}
 
 public sealed class DesignerViewModel
 {

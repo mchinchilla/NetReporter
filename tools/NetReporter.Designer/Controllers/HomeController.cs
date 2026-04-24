@@ -86,6 +86,40 @@ public sealed class HomeController : Controller
     }
 
     [HttpPost]
+    public async Task<IActionResult> UpdateColumns([FromForm] UpdateColumnsRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        List<TableColumnYaml> cols;
+        try
+        {
+            var parsed = System.Text.Json.JsonSerializer.Deserialize<List<TableColumnPayload>>(
+                request.ColumnsJson ?? "[]",
+                new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true })
+                ?? new List<TableColumnPayload>();
+            cols = parsed.Select(p => new TableColumnYaml
+            {
+                Header = p.Header,
+                Binding = p.Binding,
+                Width = p.Width,
+                Format = string.IsNullOrWhiteSpace(p.Format) ? null : p.Format,
+                Align = string.IsNullOrWhiteSpace(p.Align) ? "left" : p.Align
+            }).ToList();
+        }
+        catch (Exception ex)
+        {
+            return Json(new { error = $"Columns JSON inválido: {ex.Message}" });
+        }
+
+        return await ApplyChange(
+            request.Json,
+            () => YamlReportRewriter.UpdateColumns(
+                request.Yaml ?? string.Empty,
+                request.Path ?? string.Empty,
+                cols));
+    }
+
+    [HttpPost]
     public async Task<IActionResult> Duplicate([FromForm] DuplicateRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -400,6 +434,13 @@ public sealed class HomeController : Controller
                 }
             };
 
+            var columns = source?.Columns?.Select(c => new TableColumnView(
+                Header: c.Header ?? "",
+                Binding: c.Binding ?? "",
+                Width: c.Width,
+                Format: c.Format,
+                Align: c.Align ?? "left")).ToArray();
+
             result.Add(new InteractiveElement(
                 path, kind,
                 agg.MinX, agg.MinY,
@@ -416,7 +457,8 @@ public sealed class HomeController : Controller
                 HeaderStyle: source?.HeaderStyle,
                 RowStyle: source?.RowStyle,
                 AlternateRowStyle: source?.AlternateRowStyle,
-                ColumnCount: source?.Columns?.Count));
+                ColumnCount: source?.Columns?.Count,
+                Columns: columns));
         }
 
         return result;

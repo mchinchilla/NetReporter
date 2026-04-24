@@ -400,9 +400,63 @@
                                        class="mt-0.5 border border-slate-300 rounded px-2 py-1 text-sm">
                             </label>
 
-                            <div class="text-[10px] text-slate-500 bg-slate-50 border border-slate-200 rounded px-2 py-1">
-                                <span x-text="form.columnCount"></span> columna<span x-show="form.columnCount !== 1">s</span>
-                                — edita el YAML para modificarlas.
+                            <!-- Editor de columnas -->
+                            <div class="border border-slate-200 rounded p-1.5 space-y-1.5">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-[10px] uppercase text-slate-500 tracking-wide">
+                                        Columnas (<span x-text="form.columns.length"></span>)
+                                    </span>
+                                    <button type="button"
+                                            @@click="addColumn()"
+                                            class="text-[10px] bg-sky-600 text-white rounded px-2 py-0.5 hover:bg-sky-700">
+                                        + col
+                                    </button>
+                                </div>
+                                <template x-for="(col, idx) in form.columns" :key="idx">
+                                    <div class="border border-slate-200 rounded p-1 bg-slate-50 space-y-0.5">
+                                        <div class="flex items-center gap-0.5">
+                                            <input type="text" x-model="col.header"
+                                                   @@input.debounce.400ms="flushColumns()"
+                                                   placeholder="Header"
+                                                   class="flex-1 border border-slate-300 rounded px-1 py-0.5 text-[11px] bg-white">
+                                            <button type="button" @@click="moveColumn(idx, -1)"
+                                                    :disabled="idx === 0"
+                                                    :class="idx === 0 ? 'opacity-20 cursor-not-allowed' : 'hover:text-slate-900'"
+                                                    class="text-[10px] text-slate-500 px-1">▲</button>
+                                            <button type="button" @@click="moveColumn(idx, 1)"
+                                                    :disabled="idx === form.columns.length - 1"
+                                                    :class="idx === form.columns.length - 1 ? 'opacity-20 cursor-not-allowed' : 'hover:text-slate-900'"
+                                                    class="text-[10px] text-slate-500 px-1">▼</button>
+                                            <button type="button" @@click="removeColumn(idx)"
+                                                    class="text-[10px] text-red-500 hover:text-red-700 px-1">✕</button>
+                                        </div>
+                                        <input type="text" x-model="col.binding"
+                                               @@input.debounce.400ms="flushColumns()"
+                                               placeholder="$.campo"
+                                               class="w-full border border-slate-300 rounded px-1 py-0.5 text-[11px] font-mono bg-white">
+                                        <div class="grid grid-cols-3 gap-0.5">
+                                            <input type="number" step="1" min="1"
+                                                   x-model.number="col.width"
+                                                   @@input.debounce.400ms="flushColumns()"
+                                                   title="Width (pt)"
+                                                   class="border border-slate-300 rounded px-1 py-0.5 text-[11px] bg-white">
+                                            <input type="text" x-model="col.format"
+                                                   @@input.debounce.400ms="flushColumns()"
+                                                   placeholder="fmt"
+                                                   title="Format (N2, dd/MM/yyyy...)"
+                                                   class="border border-slate-300 rounded px-1 py-0.5 text-[11px] bg-white">
+                                            <select x-model="col.align"
+                                                    @@change="flushColumns()"
+                                                    title="Align"
+                                                    class="border border-slate-300 rounded px-1 py-0.5 text-[11px] bg-white">
+                                                <option value="left">Left</option>
+                                                <option value="center">Center</option>
+                                                <option value="right">Right</option>
+                                                <option value="justify">Justify</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </template>
                             </div>
                         </div>
                     </template>
@@ -432,7 +486,8 @@
                 x: 0, y: 0, width: 0, height: 0,
                 style: '', content: '', color: '#000000', thickness: 0.5, fill: '#ffffff',
                 rows: '', headerMode: 'RepeatOnPageBreak', headerHeight: 22, rowHeight: 18,
-                headerStyle: '', rowStyle: '', alternateRowStyle: '', columnCount: 0
+                headerStyle: '', rowStyle: '', alternateRowStyle: '', columnCount: 0,
+                columns: []
             },
             MIN_SIZE: 4,
             MAX_HISTORY: 50,
@@ -584,6 +639,57 @@
                 evt.preventDefault();
                 const step = evt.shiftKey ? 10 : 1;
                 this.nudgeSelected(dir[0] * step, dir[1] * step);
+            },
+
+            // === Columnas de tabla ===
+
+            addColumn() {
+                this.form.columns.push({
+                    header: 'Nueva columna',
+                    binding: '$.campo',
+                    width: 80,
+                    format: '',
+                    align: 'left'
+                });
+                this.flushColumns();
+            },
+
+            removeColumn(idx) {
+                this.form.columns.splice(idx, 1);
+                this.flushColumns();
+            },
+
+            moveColumn(idx, delta) {
+                const newIdx = idx + delta;
+                if (newIdx < 0 || newIdx >= this.form.columns.length) return;
+                const [col] = this.form.columns.splice(idx, 1);
+                this.form.columns.splice(newIdx, 0, col);
+                this.flushColumns();
+            },
+
+            async flushColumns() {
+                if (!this.selected || this.selected.kind !== 'table') return;
+                const path = this.selected.path;
+                this.pushUndo();
+                this.saving = true;
+                try {
+                    const form = this.buildFormData();
+                    form.append('Path', path);
+                    form.append('ColumnsJson', JSON.stringify(this.form.columns));
+                    const res = await fetch('/Home/UpdateColumns', { method: 'POST', body: form });
+                    const data = await res.json();
+                    if (data.error) {
+                        console.error('UpdateColumns:', data.error);
+                        return;
+                    }
+                    // Actualiza YAML + preview pero PRESERVA el form.columns actual del usuario
+                    // para no robarle el foco durante edición.
+                    document.getElementById('yaml-editor').value = data.yaml;
+                    document.getElementById('preview').innerHTML = data.previewHtml;
+                    this.isDirty = true;
+                    this.refreshBandsFromPreview();
+                    this.reselectByPath(path, /* preserveFormState */ true);
+                } finally { this.saving = false; }
             },
 
             // === Band management ===
@@ -900,6 +1006,17 @@
                 this.form.rowStyle          = ds.rowStyle          || '';
                 this.form.alternateRowStyle = ds.alternateRowStyle || '';
                 this.form.columnCount       = parseInt(ds.columnCount, 10) || 0;
+                try {
+                    const parsed = JSON.parse(ds.columns || '[]');
+                    // Normaliza PascalCase ↔ camelCase (servidor emite PascalCase por JsonSerializer default).
+                    this.form.columns = parsed.map(c => ({
+                        header: c.header ?? c.Header ?? '',
+                        binding: c.binding ?? c.Binding ?? '',
+                        width: c.width ?? c.Width ?? 0,
+                        format: c.format ?? c.Format ?? '',
+                        align: c.align ?? c.Align ?? 'left'
+                    }));
+                } catch { this.form.columns = []; }
             },
 
             onPointerMove(evt) {
@@ -1052,13 +1169,14 @@
                 this.refreshBandsFromPreview();
             },
 
-            reselectByPath(path) {
-                // Tras actualizar preview, re-seleccionar el mismo path si existe.
+            reselectByPath(path, preserveFormState = false) {
                 const el = document.querySelector(`.element-overlay[data-path="${path}"]`);
                 if (!el) return;
                 el.classList.add('selected');
                 this.selected = { path: el.dataset.path, kind: el.dataset.kind, el };
-                this.syncFormFromDataset(el.dataset);
+                if (!preserveFormState) {
+                    this.syncFormFromDataset(el.dataset);
+                }
             },
 
             clearSelection() {
