@@ -5,10 +5,12 @@
     <ProjectReference Include="..\..\src\NetReporter.Templates\NetReporter.Templates.csproj" />
     <ProjectReference Include="..\..\src\NetReporter.Svg\NetReporter.Svg.csproj" />
     <ProjectReference Include="..\..\src\NetReporter.Pdf\NetReporter.Pdf.csproj" />
+    <ProjectReference Include="..\..\src\NetReporter.Html\NetReporter.Html.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="QuestPDF" Version="2026.2.4" />
+    <PackageReference Include="xunit.extensibility.core" Version="2.9.3" />
   </ItemGroup>
 
   <PropertyGroup>

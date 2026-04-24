@@ -35,20 +35,25 @@ public sealed class StyleSheet
 
     private ResolvedStyle ResolveCore(string name)
     {
-        // Detección de ciclos: máximo 16 niveles de herencia.
+        // Detección de ciclos explícita (HashSet.Add devuelve false si ya existe →
+        // detectamos y lanzamos en lugar de salir silenciosamente). Max 16 niveles.
         var visited = new HashSet<string>(StringComparer.Ordinal);
         var chain = new Stack<Style>();
         var current = name;
 
-        while (current is not null && visited.Add(current))
+        while (current is not null)
         {
+            if (!visited.Add(current))
+                throw new InvalidOperationException(
+                    $"Ciclo de herencia detectado al resolver '{name}': '{current}' aparece dos veces en la cadena.");
+
             if (!_styles.TryGetValue(current, out var style)) break;
             chain.Push(style);
             current = style.BasedOn;
 
             if (visited.Count > 16)
                 throw new InvalidOperationException(
-                    $"Ciclo o cadena excesiva de herencia en estilo '{name}'.");
+                    $"Cadena de herencia excesiva (>16 niveles) en estilo '{name}'.");
         }
 
         // Aplicar de la base hacia el derivado (último gana).

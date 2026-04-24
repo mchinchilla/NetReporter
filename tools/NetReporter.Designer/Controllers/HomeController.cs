@@ -3,6 +3,7 @@ using NetReporter.Core.Layout;
 using NetReporter.Core.RenderList;
 using NetReporter.Designer.Models;
 using NetReporter.Designer.Services;
+using NetReporter.Html;
 using NetReporter.Pdf;
 using NetReporter.Svg;
 using NetReporter.Templates;
@@ -193,6 +194,26 @@ public sealed class HomeController : Controller
         {
             return Content($"Error al exportar PDF: {ex.GetType().Name}: {ex.Message}",
                            "text/plain", System.Text.Encoding.UTF8);
+        }
+    }
+
+    [HttpPost]
+    public IActionResult ExportHtml([FromForm] PreviewRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        try
+        {
+            var template = YamlReportLoader.Parse(request.Yaml ?? string.Empty);
+            var report = template.Bind(request.Json ?? "{}");
+            var layout = new LayoutEngine().Layout(report);
+            var html = new HtmlRenderer().Render(layout,
+                new HtmlRenderOptions { Title = report.Title ?? report.Name });
+            return Content(html, "text/html", System.Text.Encoding.UTF8);
+        }
+        catch (Exception ex)
+        {
+            return Content($"<!doctype html><body><pre>Error: {System.Net.WebUtility.HtmlEncode(ex.Message)}</pre></body>",
+                           "text/html", System.Text.Encoding.UTF8);
         }
     }
 

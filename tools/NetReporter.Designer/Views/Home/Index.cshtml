@@ -54,6 +54,11 @@
                     class="px-2 py-1 border border-sky-600 rounded bg-sky-600 text-white hover:bg-sky-700">
                 ⭳ PDF
             </button>
+            <button type="button"
+                    @@click="exportHtml()"
+                    class="px-2 py-1 border border-slate-700 rounded bg-slate-700 text-white hover:bg-slate-800">
+                ⭳ HTML
+            </button>
         </div>
         <div class="text-xs text-slate-500 flex items-center gap-3">
             <div class="flex items-center gap-1">
@@ -773,11 +778,14 @@
                 } finally { this.saving = false; }
             },
 
-            exportPdf() {
-                // Usamos un form POST con target _blank para que el browser descargue/abra el PDF.
+            exportPdf() { this.exportTo('/Home/ExportPdf'); },
+            exportHtml() { this.exportTo('/Home/ExportHtml'); },
+
+            exportTo(action) {
+                // Form POST con target _blank → el browser abre/descarga la respuesta.
                 const form = document.createElement('form');
                 form.method = 'POST';
-                form.action = '/Home/ExportPdf';
+                form.action = action;
                 form.target = '_blank';
                 form.style.display = 'none';
 
