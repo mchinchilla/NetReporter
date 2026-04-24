@@ -228,8 +228,9 @@
                    x-transition:enter="transition ease-out duration-150"
                    x-transition:enter-start="translate-x-2 opacity-0"
                    x-transition:enter-end="translate-x-0 opacity-100"
-                   class="absolute top-12 right-4 w-72 bg-white rounded-lg shadow-lg border border-slate-200 text-sm overflow-hidden">
-                <header class="flex items-center justify-between px-3 py-2 bg-slate-50 border-b border-slate-200">
+                   class="absolute top-12 right-4 w-72 bg-white rounded-lg shadow-lg border border-slate-200 text-sm flex flex-col"
+                   style="max-height: calc(100vh - 6rem);">
+                <header class="flex items-center justify-between px-3 py-2 bg-slate-50 border-b border-slate-200 shrink-0 rounded-t-lg">
                     <div class="font-semibold text-slate-800">Propiedades</div>
                     <div class="flex items-center gap-1">
                         <button type="button"
@@ -243,7 +244,7 @@
                     </div>
                 </header>
 
-                <div class="p-3 space-y-3" x-show="selected">
+                <div class="p-3 space-y-3 overflow-y-auto flex-1" x-show="selected">
                     <div class="text-xs text-slate-500">
                         <code x-text="selected?.path" class="block text-slate-700"></code>
                         <span class="inline-block mt-1 px-1.5 py-0.5 bg-amber-100 text-amber-800 rounded uppercase tracking-wide text-[10px]"
@@ -418,47 +419,61 @@
                                     </button>
                                 </div>
                                 <template x-for="(col, idx) in form.columns" :key="idx">
-                                    <div class="border border-slate-200 rounded p-1 bg-slate-50 space-y-0.5">
-                                        <div class="flex items-center gap-0.5">
+                                    <div class="border border-slate-200 rounded bg-slate-50">
+                                        <!-- Fila compacta siempre visible -->
+                                        <div class="flex items-center gap-0.5 p-1">
+                                            <button type="button"
+                                                    @@click="col.expanded = !col.expanded"
+                                                    class="text-[10px] text-slate-500 hover:text-slate-900 w-3 text-center shrink-0"
+                                                    :title="col.expanded ? 'Contraer' : 'Expandir'"
+                                                    x-text="col.expanded ? '▼' : '▶'"></button>
                                             <input type="text" x-model="col.header"
                                                    @@input.debounce.400ms="flushColumns()"
                                                    placeholder="Header"
-                                                   class="flex-1 border border-slate-300 rounded px-1 py-0.5 text-[11px] bg-white">
-                                            <button type="button" @@click="moveColumn(idx, -1)"
-                                                    :disabled="idx === 0"
-                                                    :class="idx === 0 ? 'opacity-20 cursor-not-allowed' : 'hover:text-slate-900'"
-                                                    class="text-[10px] text-slate-500 px-1">▲</button>
-                                            <button type="button" @@click="moveColumn(idx, 1)"
-                                                    :disabled="idx === form.columns.length - 1"
-                                                    :class="idx === form.columns.length - 1 ? 'opacity-20 cursor-not-allowed' : 'hover:text-slate-900'"
-                                                    class="text-[10px] text-slate-500 px-1">▼</button>
-                                            <button type="button" @@click="removeColumn(idx)"
-                                                    class="text-[10px] text-red-500 hover:text-red-700 px-1">✕</button>
-                                        </div>
-                                        <input type="text" x-model="col.binding"
-                                               @@input.debounce.400ms="flushColumns()"
-                                               placeholder="$.campo"
-                                               class="w-full border border-slate-300 rounded px-1 py-0.5 text-[11px] font-mono bg-white">
-                                        <div class="grid grid-cols-3 gap-0.5">
+                                                   class="flex-1 border border-slate-300 rounded px-1 py-0.5 text-[11px] bg-white min-w-0">
                                             <input type="number" step="1" min="1"
                                                    x-model.number="col.width"
                                                    @@input.debounce.400ms="flushColumns()"
                                                    title="Width (pt)"
-                                                   class="border border-slate-300 rounded px-1 py-0.5 text-[11px] bg-white">
-                                            <input type="text" x-model="col.format"
+                                                   class="w-10 border border-slate-300 rounded px-1 py-0.5 text-[11px] bg-white shrink-0">
+                                            <button type="button" @@click="moveColumn(idx, -1)"
+                                                    :disabled="idx === 0"
+                                                    :class="idx === 0 ? 'opacity-20 cursor-not-allowed' : 'hover:text-slate-900'"
+                                                    class="text-[10px] text-slate-500 px-0.5">▲</button>
+                                            <button type="button" @@click="moveColumn(idx, 1)"
+                                                    :disabled="idx === form.columns.length - 1"
+                                                    :class="idx === form.columns.length - 1 ? 'opacity-20 cursor-not-allowed' : 'hover:text-slate-900'"
+                                                    class="text-[10px] text-slate-500 px-0.5">▼</button>
+                                            <button type="button" @@click="removeColumn(idx)"
+                                                    class="text-[10px] text-red-500 hover:text-red-700 px-0.5">✕</button>
+                                        </div>
+                                        <!-- Detalles solo cuando expandida -->
+                                        <div x-show="col.expanded" x-cloak class="px-1 pb-1 space-y-0.5 border-t border-slate-200 pt-1">
+                                            <label class="block text-[9px] uppercase text-slate-500 tracking-wide">Binding</label>
+                                            <input type="text" x-model="col.binding"
                                                    @@input.debounce.400ms="flushColumns()"
-                                                   placeholder="fmt"
-                                                   title="Format (N2, dd/MM/yyyy...)"
-                                                   class="border border-slate-300 rounded px-1 py-0.5 text-[11px] bg-white">
-                                            <select x-model="col.align"
-                                                    @@change="flushColumns()"
-                                                    title="Align"
-                                                    class="border border-slate-300 rounded px-1 py-0.5 text-[11px] bg-white">
-                                                <option value="left">Left</option>
-                                                <option value="center">Center</option>
-                                                <option value="right">Right</option>
-                                                <option value="justify">Justify</option>
-                                            </select>
+                                                   placeholder="$.campo"
+                                                   class="w-full border border-slate-300 rounded px-1 py-0.5 text-[11px] font-mono bg-white">
+                                            <div class="grid grid-cols-2 gap-0.5 mt-1">
+                                                <div>
+                                                    <label class="block text-[9px] uppercase text-slate-500 tracking-wide">Format</label>
+                                                    <input type="text" x-model="col.format"
+                                                           @@input.debounce.400ms="flushColumns()"
+                                                           placeholder="N2, dd/MM/yyyy"
+                                                           class="w-full border border-slate-300 rounded px-1 py-0.5 text-[11px] bg-white">
+                                                </div>
+                                                <div>
+                                                    <label class="block text-[9px] uppercase text-slate-500 tracking-wide">Align</label>
+                                                    <select x-model="col.align"
+                                                            @@change="flushColumns()"
+                                                            class="w-full border border-slate-300 rounded px-1 py-0.5 text-[11px] bg-white">
+                                                        <option value="left">Left</option>
+                                                        <option value="center">Center</option>
+                                                        <option value="right">Right</option>
+                                                        <option value="justify">Justify</option>
+                                                    </select>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </template>
@@ -654,7 +669,8 @@
                     binding: '$.campo',
                     width: 80,
                     format: '',
-                    align: 'left'
+                    align: 'left',
+                    expanded: true    // la nueva arranca expandida para editarla rápido
                 });
                 this.flushColumns();
             },
@@ -678,9 +694,17 @@
                 this.pushUndo();
                 this.saving = true;
                 try {
+                    // Enviar solo los campos que entiende el backend (omitir 'expanded' que es UI-only).
+                    const payload = this.form.columns.map(c => ({
+                        header: c.header,
+                        binding: c.binding,
+                        width: c.width,
+                        format: c.format,
+                        align: c.align
+                    }));
                     const form = this.buildFormData();
                     form.append('Path', path);
-                    form.append('ColumnsJson', JSON.stringify(this.form.columns));
+                    form.append('ColumnsJson', JSON.stringify(payload));
                     const res = await fetch('/Home/UpdateColumns', { method: 'POST', body: form });
                     const data = await res.json();
                     if (data.error) {
@@ -1022,7 +1046,8 @@
                         binding: c.binding ?? c.Binding ?? '',
                         width: c.width ?? c.Width ?? 0,
                         format: c.format ?? c.Format ?? '',
-                        align: c.align ?? c.Align ?? 'left'
+                        align: c.align ?? c.Align ?? 'left',
+                        expanded: false
                     }));
                 } catch { this.form.columns = []; }
             },
