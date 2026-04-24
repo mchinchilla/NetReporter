@@ -7,7 +7,8 @@
      x-data="designer()"
      :class="creating ? 'creating-mode' : ''"
      @@pointermove.window="onPointerMove($event)"
-     @@pointerup.window="onPointerUp($event)">
+     @@pointerup.window="onPointerUp($event)"
+     @@keydown.window="onKeyDown($event)">
     <!-- Header -->
     <header class="bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between shadow-sm">
         <div class="flex items-center gap-3">
@@ -18,6 +19,26 @@
             </div>
         </div>
         <div class="text-xs text-slate-500 flex items-center gap-3">
+            <div class="flex items-center gap-1">
+                <button type="button"
+                        @@click="undo()"
+                        :disabled="undoStack.length === 0"
+                        :class="undoStack.length === 0 ? 'opacity-40 cursor-not-allowed' : 'hover:bg-slate-200'"
+                        class="px-2 py-1 border border-slate-300 rounded text-xs bg-white text-slate-700"
+                        title="Deshacer (Ctrl/Cmd+Z)">
+                    ↶ <span class="hidden sm:inline">Undo</span>
+                    <span class="text-[9px] text-slate-400" x-text="undoStack.length > 0 ? '(' + undoStack.length + ')' : ''"></span>
+                </button>
+                <button type="button"
+                        @@click="redo()"
+                        :disabled="redoStack.length === 0"
+                        :class="redoStack.length === 0 ? 'opacity-40 cursor-not-allowed' : 'hover:bg-slate-200'"
+                        class="px-2 py-1 border border-slate-300 rounded text-xs bg-white text-slate-700"
+                        title="Rehacer (Ctrl/Cmd+Shift+Z)">
+                    ↷ <span class="hidden sm:inline">Redo</span>
+                    <span class="text-[9px] text-slate-400" x-text="redoStack.length > 0 ? '(' + redoStack.length + ')' : ''"></span>
+                </button>
+            </div>
             <span x-show="selected" x-cloak class="inline-flex items-center gap-1 bg-amber-100 text-amber-800 px-2 py-0.5 rounded">
                 <span x-text="selected?.kind"></span>
                 · <code x-text="selected?.path"></code>
@@ -246,6 +267,9 @@
             saving: false,
             form: { x: 0, y: 0, width: 0, height: 0, style: '', content: '', color: '#000000', thickness: 0.5, fill: '#ffffff' },
             MIN_SIZE: 4,
+            MAX_HISTORY: 50,
+            undoStack: [],
+            redoStack: [],
             tools: [
                 { kind: 'text',      label: 'Text',  icon: 'T' },
                 { kind: 'line',      label: 'Line',  icon: '━' },
@@ -266,21 +290,98 @@
                 this.creating = { kind, x: evt.clientX, y: evt.clientY };
             },
 
+            // === Undo / Redo ===
+
+            pushUndo() {
+                const yaml = document.getElementById('yaml-editor').value;
+                const last = this.undoStack[this.undoStack.length - 1];
+                if (last === yaml) return;           // no-op
+                this.undoStack.push(yaml);
+                if (this.undoStack.length > this.MAX_HISTORY) this.undoStack.shift();
+                this.redoStack = [];                 // acción nueva rompe cadena de redo
+            },
+
+            async undo() {
+                if (this.undoStack.length === 0) return;
+                const current = document.getElementById('yaml-editor').value;
+                const previous = this.undoStack.pop();
+                this.redoStack.push(current);
+                if (this.redoStack.length > this.MAX_HISTORY) this.redoStack.shift();
+                await this.restoreSnapshot(previous);
+            },
+
+            async redo() {
+                if (this.redoStack.length === 0) return;
+                const current = document.getElementById('yaml-editor').value;
+                const next = this.redoStack.pop();
+                this.undoStack.push(current);
+                if (this.undoStack.length > this.MAX_HISTORY) this.undoStack.shift();
+                await this.restoreSnapshot(next);
+            },
+
+            async restoreSnapshot(yaml) {
+                document.getElementById('yaml-editor').value = yaml;
+                const form = new FormData();
+                form.append('Yaml', yaml);
+                form.append('Json', document.getElementById('json-editor').value);
+                const res = await fetch('/Home/Preview', { method: 'POST', body: form });
+                const html = await res.text();
+                document.getElementById('preview').innerHTML = html;
+                this.clearSelection();
+            },
+
+            onKeyDown(evt) {
+                // Ignorar si foco está en un input de texto del drawer (para no interferir con Ctrl+Z nativo).
+                const tag = evt.target.tagName;
+                const inEditor = evt.target.id === 'yaml-editor' || evt.target.id === 'json-editor';
+                if (inEditor) return;  // textarea tiene su propio undo nativo
+                if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+
+                const isMod = evt.metaKey || evt.ctrlKey;
+                if (!isMod) return;
+
+                const key = evt.key.toLowerCase();
+                if (key === 'z') {
+                    evt.preventDefault();
+                    if (evt.shiftKey) this.redo();
+                    else this.undo();
+                } else if (key === 'y') {
+                    evt.preventDefault();
+                    this.redo();
+                }
+            },
+
+            hitTestDropzone(clientX, clientY) {
+                // Hit-test manual: independiente de pointer-events / stacking.
+                const zones = document.querySelectorAll('.band-dropzone');
+                for (const z of zones) {
+                    const r = z.getBoundingClientRect();
+                    if (r.width <= 0 || r.height <= 0) continue;
+                    if (clientX >= r.left && clientX <= r.right &&
+                        clientY >= r.top  && clientY <= r.bottom) {
+                        return z;
+                    }
+                }
+                return null;
+            },
+
             updateDropzoneHover(evt) {
                 document.querySelectorAll('.band-dropzone.hover').forEach(z => z.classList.remove('hover'));
-                const hit = document.elementFromPoint(evt.clientX, evt.clientY);
-                const dz = hit?.closest?.('.band-dropzone');
+                const dz = this.hitTestDropzone(evt.clientX, evt.clientY);
                 if (dz) dz.classList.add('hover');
-                return dz || null;
+                return dz;
             },
 
             async finishCreate(evt) {
                 const kind = this.creating.kind;
-                const dz = this.updateDropzoneHover(evt);
+                const dz = this.hitTestDropzone(evt.clientX, evt.clientY);
                 this.creating = null;
                 document.querySelectorAll('.band-dropzone.hover').forEach(z => z.classList.remove('hover'));
 
-                if (!dz) return;
+                if (!dz) {
+                    console.warn('[Designer] Drop fuera de dropzone — elemento no creado. Suelta sobre una banda.');
+                    return;
+                }
 
                 const bandIndex = parseInt(dz.dataset.bandIndex, 10);
                 const rect = dz.getBoundingClientRect();
@@ -293,6 +394,7 @@
                 const xYaml = Math.max(0, xInPage - marginLeft);
                 const yYaml = Math.max(0, yInBand);
 
+                this.pushUndo();
                 this.saving = true;
                 try {
                     const form = this.buildFormData();
@@ -457,6 +559,7 @@
                     if (Math.abs(x - r.origX) < 0.5 && Math.abs(y - r.origY) < 0.5 &&
                         Math.abs(w - r.origW) < 0.5 && Math.abs(h - r.origH) < 0.5) return;
 
+                    this.pushUndo();
                     this.saving = true;
                     const savedPath = r.el.dataset.path;
                     try {
@@ -489,6 +592,7 @@
                 if (!drag.moved) return;
                 drag.el.classList.remove('dragging');
 
+                this.pushUndo();
                 this.moving = true;
                 try {
                     const form = this.buildFormData();
@@ -509,6 +613,7 @@
 
             async applyPatch(patch) {
                 if (!this.selected) return;
+                this.pushUndo();
                 this.saving = true;
                 try {
                     const form = this.buildFormData();
