@@ -71,8 +71,10 @@
                         class="px-4 py-2 font-medium transition">
                     data.json
                 </button>
-                <div class="ml-auto flex items-center px-4 text-xs text-slate-400">
-                    Auto-render · click un elemento en el preview para editarlo
+                <div class="ml-auto flex items-center px-4 text-xs text-slate-400 gap-3">
+                    <span><kbd class="px-1 bg-slate-200 rounded text-slate-700">Shift</kbd> snap 5pt</span>
+                    <span><kbd class="px-1 bg-slate-200 rounded text-slate-700">← ↑ → ↓</kbd> nudge 1pt · +Shift 10pt</span>
+                    <span><kbd class="px-1 bg-slate-200 rounded text-slate-700">Ctrl+Z</kbd> undo</span>
                 </div>
             </nav>
 
@@ -268,8 +270,11 @@
             form: { x: 0, y: 0, width: 0, height: 0, style: '', content: '', color: '#000000', thickness: 0.5, fill: '#ffffff' },
             MIN_SIZE: 4,
             MAX_HISTORY: 50,
+            SNAP: 5,
             undoStack: [],
             redoStack: [],
+            pendingNudge: null,
+            nudgeTimeout: null,
             tools: [
                 { kind: 'text',      label: 'Text',  icon: 'T' },
                 { kind: 'line',      label: 'Line',  icon: '━' },
@@ -331,24 +336,89 @@
             },
 
             onKeyDown(evt) {
-                // Ignorar si foco está en un input de texto del drawer (para no interferir con Ctrl+Z nativo).
+                // Ignorar si foco está en un input de texto del drawer o los textareas.
                 const tag = evt.target.tagName;
                 const inEditor = evt.target.id === 'yaml-editor' || evt.target.id === 'json-editor';
-                if (inEditor) return;  // textarea tiene su propio undo nativo
+                if (inEditor) return;                                        // textarea tiene su propio undo nativo
                 if (tag === 'INPUT' || tag === 'TEXTAREA') return;
 
                 const isMod = evt.metaKey || evt.ctrlKey;
-                if (!isMod) return;
 
-                const key = evt.key.toLowerCase();
-                if (key === 'z') {
-                    evt.preventDefault();
-                    if (evt.shiftKey) this.redo();
-                    else this.undo();
-                } else if (key === 'y') {
-                    evt.preventDefault();
-                    this.redo();
+                // Ctrl/Cmd + Z / Shift+Z / Y → undo/redo
+                if (isMod) {
+                    const key = evt.key.toLowerCase();
+                    if (key === 'z') {
+                        evt.preventDefault();
+                        if (evt.shiftKey) this.redo();
+                        else this.undo();
+                        return;
+                    }
+                    if (key === 'y') {
+                        evt.preventDefault();
+                        this.redo();
+                        return;
+                    }
+                    return;
                 }
+
+                // Arrow keys → nudge del elemento seleccionado (sin modifier salvo Shift).
+                if (!this.selected) return;
+                const arrows = {
+                    ArrowLeft:  [-1,  0],
+                    ArrowRight: [ 1,  0],
+                    ArrowUp:    [ 0, -1],
+                    ArrowDown:  [ 0,  1]
+                };
+                const dir = arrows[evt.key];
+                if (!dir) return;
+                evt.preventDefault();
+                const step = evt.shiftKey ? 10 : 1;
+                this.nudgeSelected(dir[0] * step, dir[1] * step);
+            },
+
+            nudgeSelected(dx, dy) {
+                if (!this.selected) return;
+
+                // Feedback visual inmediato: mover el overlay.
+                const el = this.selected.el;
+                const curLeft = parseFloat(el.style.left) || 0;
+                const curTop  = parseFloat(el.style.top)  || 0;
+                el.style.left = (curLeft + dx) + 'px';
+                el.style.top  = (curTop  + dy) + 'px';
+
+                // Acumula para flush debounced.
+                if (!this.pendingNudge) {
+                    this.pendingNudge = { dx: 0, dy: 0, path: this.selected.path };
+                }
+                this.pendingNudge.dx += dx;
+                this.pendingNudge.dy += dy;
+
+                clearTimeout(this.nudgeTimeout);
+                this.nudgeTimeout = setTimeout(() => this.flushNudge(), 300);
+            },
+
+            async flushNudge() {
+                const n = this.pendingNudge;
+                if (!n) return;
+                this.pendingNudge = null;
+                if (n.dx === 0 && n.dy === 0) return;
+
+                this.pushUndo();
+                this.moving = true;
+                try {
+                    const form = this.buildFormData();
+                    form.append('Path', n.path);
+                    form.append('DeltaX', n.dx.toString());
+                    form.append('DeltaY', n.dy.toString());
+                    const res = await fetch('/Home/Move', { method: 'POST', body: form });
+                    const data = await res.json();
+                    if (!data.error) {
+                        this.applyServerResponse(data);
+                        this.reselectByPath(n.path);
+                    } else {
+                        console.error('Nudge:', data.error);
+                    }
+                } finally { this.moving = false; }
             },
 
             hitTestDropzone(clientX, clientY) {
@@ -391,8 +461,12 @@
                 const root = document.querySelector('[data-preview-root]');
                 const marginLeft = parseFloat(root?.dataset.marginLeft) || 0;
                 // bounds.X en el YAML es relativo al content origin (sin margen izquierdo de página).
-                const xYaml = Math.max(0, xInPage - marginLeft);
-                const yYaml = Math.max(0, yInBand);
+                let xYaml = Math.max(0, xInPage - marginLeft);
+                let yYaml = Math.max(0, yInBand);
+                if (evt.shiftKey) {
+                    xYaml = Math.round(xYaml / this.SNAP) * this.SNAP;
+                    yYaml = Math.round(yYaml / this.SNAP) * this.SNAP;
+                }
 
                 this.pushUndo();
                 this.saving = true;
@@ -517,8 +591,12 @@
 
                 if (this.resizing) {
                     const r = this.resizing;
-                    const dx = evt.clientX - r.startX;
-                    const dy = evt.clientY - r.startY;
+                    let dx = evt.clientX - r.startX;
+                    let dy = evt.clientY - r.startY;
+                    if (evt.shiftKey) {
+                        dx = Math.round(dx / this.SNAP) * this.SNAP;
+                        dy = Math.round(dy / this.SNAP) * this.SNAP;
+                    }
                     const nb = this.computeResize(r, dx, dy);
                     r.el.style.left   = (r.origLeft + (nb.x - r.origX)) + 'px';
                     r.el.style.top    = (r.origTop  + (nb.y - r.origY)) + 'px';
@@ -529,8 +607,12 @@
                 }
 
                 if (!this.dragging) return;
-                const dx = evt.clientX - this.dragging.startX;
-                const dy = evt.clientY - this.dragging.startY;
+                let dx = evt.clientX - this.dragging.startX;
+                let dy = evt.clientY - this.dragging.startY;
+                if (evt.shiftKey) {
+                    dx = Math.round(dx / this.SNAP) * this.SNAP;
+                    dy = Math.round(dy / this.SNAP) * this.SNAP;
+                }
                 this.dragging.dx = dx; this.dragging.dy = dy;
                 if (!this.dragging.moved && (Math.abs(dx) > 2 || Math.abs(dy) > 2)) {
                     this.dragging.moved = true;
