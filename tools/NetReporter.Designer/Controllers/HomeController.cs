@@ -188,7 +188,7 @@ public sealed class HomeController : Controller
             var report = template.Bind(request.Json ?? "{}");
             var layout = new LayoutEngine().Layout(report);
             var bytes = new PdfRenderer().Render(layout);
-            return File(bytes, "application/pdf", "report.pdf");
+            return File(bytes, "application/pdf", ResolveExportFileName(report, "pdf"));
         }
         catch (Exception ex)
         {
@@ -208,6 +208,10 @@ public sealed class HomeController : Controller
             var layout = new LayoutEngine().Layout(report);
             var html = new HtmlRenderer().Render(layout,
                 new HtmlRenderOptions { Title = report.Title ?? report.Name });
+            var fileName = ResolveExportFileName(report, "html");
+            // Content-Disposition para que el browser proponga el filename al guardar.
+            Response.Headers["Content-Disposition"] =
+                $"inline; filename=\"{fileName}\"";
             return Content(html, "text/html", System.Text.Encoding.UTF8);
         }
         catch (Exception ex)
@@ -215,6 +219,19 @@ public sealed class HomeController : Controller
             return Content($"<!doctype html><body><pre>Error: {System.Net.WebUtility.HtmlEncode(ex.Message)}</pre></body>",
                            "text/html", System.Text.Encoding.UTF8);
         }
+    }
+
+    private static string ResolveExportFileName(
+        NetReporter.Core.Definition.ReportDefinition report, string extension)
+    {
+        // Prioridad: FileName resuelto → Title sanitizado → "report".
+        var baseName = !string.IsNullOrWhiteSpace(report.FileName)
+            ? report.FileName
+            : !string.IsNullOrWhiteSpace(report.Title)
+                ? YamlReportLoader.SanitizeFileName(report.Title)
+                : null;
+        if (string.IsNullOrWhiteSpace(baseName)) baseName = "report";
+        return $"{baseName}.{extension}";
     }
 
     [HttpPost]
@@ -315,15 +332,17 @@ public sealed class HomeController : Controller
             // Mapa path → ElementYaml para enriquecer InteractiveElement con props actuales.
             var elementByPath = BuildElementIndex(yamlModel);
 
-            var bandKinds = (yamlModel.Bands ?? new List<BandYaml>())
-                .Select(b => b.Kind ?? "Detail")
-                .ToArray();
+            var yamlBands = yamlModel.Bands ?? new List<BandYaml>();
+            var bandKinds = yamlBands.Select(b => b.Kind ?? "Detail").ToArray();
+            var bandElementCounts = yamlBands.Select(b => b.Elements?.Count ?? 0).ToArray();
+            var bandDeclaredHeights = yamlBands.Select(b => b.Height).ToArray();
 
             var pages = new List<PreviewPage>(svgPages.Count);
             for (int i = 0; i < svgPages.Count; i++)
             {
                 var interactive = ExtractInteractive(layout.Pages[i], elementByPath);
-                var bands = ExtractBandRanges(layout.Pages[i], bandKinds, report.Page.Margins.Top);
+                var bands = ExtractBandRanges(layout.Pages[i], bandKinds,
+                    bandElementCounts, bandDeclaredHeights, report.Page.Margins.Top);
                 pages.Add(new PreviewPage(i + 1, svgPages[i], interactive, bands));
             }
 
@@ -361,6 +380,8 @@ public sealed class HomeController : Controller
     private static IReadOnlyList<BandRange> ExtractBandRanges(
         RenderPage page,
         IReadOnlyList<string> bandKinds,
+        IReadOnlyList<int> bandElementCounts,
+        IReadOnlyList<double> bandDeclaredHeights,
         double marginTop)
     {
         // Agrupa comandos por bandIndex extraído del SourcePath ("bands.N.elements.M").
@@ -391,14 +412,19 @@ public sealed class HomeController : Controller
 
         for (int i = 0; i < bandKinds.Count; i++)
         {
+            var elemCount = i < bandElementCounts.Count ? bandElementCounts[i] : 0;
+            var declaredH = i < bandDeclaredHeights.Count ? bandDeclaredHeights[i] : 0;
+
             if (byBand.TryGetValue(i, out var range))
             {
-                result.Add(new BandRange(i, bandKinds[i], range.MinY, range.MaxBottom - range.MinY));
+                result.Add(new BandRange(i, bandKinds[i],
+                    range.MinY, range.MaxBottom - range.MinY, elemCount, declaredH));
                 cursor = range.MaxBottom;
             }
             else
             {
-                result.Add(new BandRange(i, bandKinds[i], cursor, SyntheticHeight));
+                result.Add(new BandRange(i, bandKinds[i],
+                    cursor, SyntheticHeight, elemCount, declaredH));
                 cursor += SyntheticHeight;
             }
         }

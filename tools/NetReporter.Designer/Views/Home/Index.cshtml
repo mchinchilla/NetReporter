@@ -96,6 +96,43 @@
          :style="`left: ${creating?.x + 8}px; top: ${creating?.y + 8}px`"
          x-text="'+ ' + creating?.kind"></div>
 
+    <!-- Tooltip de banda al hover del panel -->
+    <div x-show="hoveredBand"
+         x-cloak
+         class="fixed pointer-events-none bg-slate-900 text-white text-[11px] rounded-md shadow-xl z-50 min-w-[220px] max-w-[260px]"
+         :style="`left: ${hoveredBand?.anchorLeft}px; top: ${hoveredBand?.anchorTop}px`">
+        <div class="px-3 py-2 border-b border-slate-700 flex items-center justify-between">
+            <span class="font-semibold" x-text="hoveredBand?.kind"></span>
+            <span class="text-slate-400 text-[10px]" x-text="'#' + hoveredBand?.index"></span>
+        </div>
+        <dl class="px-3 py-2 space-y-1 text-slate-200">
+            <div class="flex justify-between gap-2">
+                <dt class="text-slate-400">Height declarado</dt>
+                <dd class="font-mono" x-text="(hoveredBand?.declaredHeight || 0).toFixed(2) + ' pt'"></dd>
+            </div>
+            <div class="flex justify-between gap-2">
+                <dt class="text-slate-400">Height real</dt>
+                <dd class="font-mono" x-text="(hoveredBand?.height || 0).toFixed(2) + ' pt'"></dd>
+            </div>
+            <div class="flex justify-between gap-2">
+                <dt class="text-slate-400">Posición Y</dt>
+                <dd class="font-mono" x-text="(hoveredBand?.y || 0).toFixed(2) + ' pt'"></dd>
+            </div>
+            <div class="flex justify-between gap-2">
+                <dt class="text-slate-400">Elementos</dt>
+                <dd class="font-mono" x-text="hoveredBand?.elementCount ?? 0"></dd>
+            </div>
+            <div class="flex justify-between gap-2">
+                <dt class="text-slate-400">Path</dt>
+                <dd class="font-mono text-slate-300" x-text="'bands.' + hoveredBand?.index"></dd>
+            </div>
+        </dl>
+        <div x-show="(hoveredBand?.elementCount || 0) === 0"
+             class="px-3 py-1.5 border-t border-slate-700 text-slate-400 text-[10px] italic">
+            Sin elementos — la posición es estimada.
+        </div>
+    </div>
+
     <!-- Main: 3 columnas (editor | toolbox | preview) -->
     <div class="flex-1 flex overflow-hidden">
         <!-- Izquierda: editores con tabs -->
@@ -164,7 +201,10 @@
             <div class="mt-3 w-full border-t border-slate-300 pt-3 px-1.5">
                 <div class="text-[10px] uppercase text-slate-500 tracking-wide mb-2">Bandas</div>
                 <template x-for="(b, idx) in bands" :key="b.index">
-                    <div class="flex items-center gap-0.5 mb-1">
+                    <div class="flex items-center gap-0.5 mb-1 rounded"
+                         :class="hoveredBand?.index === b.index ? 'bg-sky-50' : ''"
+                         @@mouseenter="showBandTooltip(b, $event)"
+                         @@mouseleave="hoveredBand = null">
                         <span class="flex-1 text-[9px] text-slate-700 truncate" x-text="b.kind"></span>
                         <button type="button"
                                 @@click="moveBandUp(b.index)"
@@ -521,6 +561,7 @@
             isDirty: false,
             bands: [],
             newBandKind: 'Detail',
+            hoveredBand: null,     // { index, kind, ..., anchorTop (px viewport) }
             tools: [
                 { kind: 'text',      label: 'Text',  icon: 'T' },
                 { kind: 'line',      label: 'Line',  icon: '━' },
@@ -548,7 +589,14 @@
                     const idx = parseInt(z.dataset.bandIndex, 10);
                     if (!Number.isFinite(idx) || seen.has(idx)) continue;
                     seen.add(idx);
-                    out.push({ index: idx, kind: z.dataset.bandKind });
+                    out.push({
+                        index: idx,
+                        kind: z.dataset.bandKind || 'Detail',
+                        y: parseFloat(z.dataset.bandY) || 0,
+                        height: parseFloat(z.dataset.bandHeight) || 0,
+                        declaredHeight: parseFloat(z.dataset.bandDeclaredHeight) || 0,
+                        elementCount: parseInt(z.dataset.bandElementCount, 10) || 0
+                    });
                 }
                 out.sort((a, b) => a.index - b.index);
                 this.bands = out;
@@ -754,6 +802,15 @@
             async moveBandUp(bandIndex)   { if (bandIndex > 0) await this._moveBand(bandIndex, bandIndex - 1); },
             async moveBandDown(bandIndex) { await this._moveBand(bandIndex, bandIndex + 1); },
 
+            showBandTooltip(band, evt) {
+                const rect = evt.currentTarget.getBoundingClientRect();
+                this.hoveredBand = {
+                    ...band,
+                    anchorLeft: rect.right + 8,      // 8px a la derecha de la fila
+                    anchorTop: rect.top
+                };
+            },
+
             async _moveBand(from, to) {
                 this.pushUndo();
                 this.saving = true;
@@ -807,17 +864,19 @@
 
             exportTo(action) {
                 // Form POST con target _blank → el browser abre/descarga la respuesta.
+                // OJO: usar <textarea> (no <input>) para preservar newlines del YAML;
+                // <input type="text"> los normaliza a espacios y rompe el parse.
                 const form = document.createElement('form');
                 form.method = 'POST';
                 form.action = action;
                 form.target = '_blank';
                 form.style.display = 'none';
 
-                const yaml = document.createElement('input');
+                const yaml = document.createElement('textarea');
                 yaml.name = 'Yaml'; yaml.value = document.getElementById('yaml-editor').value;
                 form.appendChild(yaml);
 
-                const json = document.createElement('input');
+                const json = document.createElement('textarea');
                 json.name = 'Json'; json.value = document.getElementById('json-editor').value;
                 form.appendChild(json);
 

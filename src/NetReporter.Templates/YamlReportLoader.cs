@@ -46,6 +46,36 @@ public static class YamlReportLoader
         return s_deserializer.Deserialize<ReportYaml>(yaml)
                ?? throw new FormatException("Template YAML vacío o inválido.");
     }
+
+    /// <summary>
+    /// Sanitiza un filename: reemplaza chars inválidos de filesystem con '-',
+    /// colapsa secuencias, trunca a 200 chars, quita puntos/espacios/guiones terminales.
+    /// </summary>
+    public static string SanitizeFileName(string input)
+    {
+        ArgumentNullException.ThrowIfNull(input);
+        var trimmed = input.Trim();
+        if (trimmed.Length == 0) return string.Empty;
+
+        var sb = new System.Text.StringBuilder(trimmed.Length);
+        foreach (var c in trimmed)
+        {
+            if (c == '/' || c == '\\' || c == ':' || c == '*' || c == '?' ||
+                c == '"' || c == '<' || c == '>' || c == '|' || char.IsControl(c))
+            {
+                sb.Append('-');
+            }
+            else
+            {
+                sb.Append(c);
+            }
+        }
+
+        var collapsed = System.Text.RegularExpressions.Regex.Replace(sb.ToString(), @"[-\s]+", "-");
+        var result = collapsed.Trim(' ', '.', '-');
+
+        return result.Length <= 200 ? result : result[..200];
+    }
 }
 
 /// <summary>
@@ -80,11 +110,24 @@ public sealed class TemplateReport
         {
             Name = _yaml.Name ?? "Report",
             Title = _yaml.Title,
+            FileName = ResolveFileName(_yaml.FileName, data),
             Page = page,
             Styles = styles,
             Culture = culture,
             Bands = bands
         };
+    }
+
+    /// <summary>
+    /// Resuelve el template de filename contra el data root y sanitiza chars inválidos
+    /// de filesystem. Trunca a 200 chars. Devuelve null si el template resuelve a vacío.
+    /// </summary>
+    private static string? ResolveFileName(string? template, JsonElement dataRoot)
+    {
+        if (string.IsNullOrWhiteSpace(template)) return null;
+        var raw = Binding.TemplateString.Resolve(template, dataRoot);
+        var clean = YamlReportLoader.SanitizeFileName(raw);
+        return string.IsNullOrWhiteSpace(clean) ? null : clean;
     }
 
     // === Page ===

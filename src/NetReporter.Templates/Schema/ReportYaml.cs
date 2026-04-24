@@ -5,6 +5,7 @@ public sealed class ReportYaml
 {
     public string? Name { get; set; }
     public string? Title { get; set; }
+    public string? FileName { get; set; }   // plantilla con {{ $.path }}
     public PageYaml? Page { get; set; }
     public string? Culture { get; set; }
     public string? Theme { get; set; }

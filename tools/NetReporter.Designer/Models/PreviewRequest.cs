@@ -121,7 +121,9 @@ public sealed record BandRange(
     int Index,
     string Kind,
     double Y,
-    double Height);
+    double Height,
+    int ElementCount,
+    double DeclaredHeight);
 
 public sealed record InteractiveElement(
     string Path,

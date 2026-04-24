@@ -13,4 +13,10 @@ public sealed record ReportDefinition
     public required StyleSheet Styles { get; init; }
     public required IReadOnlyList<Band> Bands { get; init; }
     public CultureInfo Culture { get; init; } = CultureInfo.InvariantCulture;
+
+    /// <summary>
+    /// Nombre de archivo sugerido al exportar (sin extensión). Ya resuelto y sanitizado
+    /// por <see cref="NetReporter.Templates.YamlReportLoader"/> — sin caracteres inválidos de filesystem.
+    /// </summary>
+    public string? FileName { get; init; }
 }

@@ -16,6 +16,29 @@ namespace NetReporter.Templates.Binding;
 public static class TemplateString
 {
     /// <summary>
+    /// Resuelve un template string inmediatamente contra <paramref name="dataRoot"/>,
+    /// sin depender de contexto de layout. Placeholders como <c>{{ pageNumber }}</c> o
+    /// <c>{{ totalPages }}</c> emiten cadena vacía — útil para campos fuera de la fase
+    /// de render (filename, title dinámico, etc.).
+    /// </summary>
+    public static string Resolve(string template, JsonElement dataRoot)
+    {
+        var expr = Compile(template, dataRoot);
+        return expr.Evaluate(StaticContext.Instance);
+    }
+
+    private sealed class StaticContext : IEvaluationContext
+    {
+        public static readonly StaticContext Instance = new();
+        public int PageNumber => 0;
+        public int TotalPages => 0;
+        public int RowIndex => 0;
+        public object? CurrentRow => null;
+        public object? GetParameter(string name) => null;
+        public object? GetAggregate(string name) => null;
+    }
+
+    /// <summary>
     /// Compila un template string a <see cref="IExpression{String}"/> resolviendo
     /// los paths JSON contra <paramref name="dataRoot"/> (captured por closure).
     /// </summary>
