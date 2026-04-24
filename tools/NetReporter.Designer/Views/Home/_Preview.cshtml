@@ -59,7 +59,15 @@ else
                              data-content="@(el.Content ?? "")"
                              data-color="@(el.Color ?? "")"
                              data-thickness="@(el.Thickness?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "")"
-                             data-fill="@(el.Fill ?? "")">
+                             data-fill="@(el.Fill ?? "")"
+                             data-rows="@(el.Rows ?? "")"
+                             data-header-mode="@(el.HeaderMode ?? "")"
+                             data-header-height="@(el.HeaderHeight?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "")"
+                             data-row-height="@(el.RowHeight?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "")"
+                             data-header-style="@(el.HeaderStyle ?? "")"
+                             data-row-style="@(el.RowStyle ?? "")"
+                             data-alternate-row-style="@(el.AlternateRowStyle ?? "")"
+                             data-column-count="@(el.ColumnCount?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "")">
                             <div class="resize-handle handle-nw" data-dir="nw"></div>
                             <div class="resize-handle handle-n"  data-dir="n"></div>
                             <div class="resize-handle handle-ne" data-dir="ne"></div>

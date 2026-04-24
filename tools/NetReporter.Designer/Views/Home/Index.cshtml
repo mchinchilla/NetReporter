@@ -10,13 +10,50 @@
      @@pointerup.window="onPointerUp($event)"
      @@keydown.window="onKeyDown($event)">
     <!-- Header -->
-    <header class="bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between shadow-sm">
-        <div class="flex items-center gap-3">
+    <header class="bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between shadow-sm gap-4">
+        <div class="flex items-center gap-3 shrink-0">
             <div class="w-8 h-8 rounded bg-sky-600 flex items-center justify-center text-white font-bold">N</div>
             <div>
                 <h1 class="text-sm font-semibold text-slate-900 leading-tight">NetReporter Designer</h1>
-                <p class="text-xs text-slate-500 leading-tight">YAML template editor · drag-and-drop · edición de propiedades</p>
+                <p class="text-xs text-slate-500 leading-tight">YAML template editor · drag-and-drop · save / load</p>
             </div>
+        </div>
+
+        <!-- Template controls -->
+        <div class="flex items-center gap-2 text-xs">
+            <select x-model="currentTemplate"
+                    @@change="loadTemplate()"
+                    class="border border-slate-300 rounded px-2 py-1 bg-white text-slate-800 min-w-[160px]">
+                <option value="">(nuevo)</option>
+                <template x-for="t in availableTemplates" :key="t">
+                    <option :value="t" x-text="t"></option>
+                </template>
+            </select>
+            <span x-show="isDirty" x-cloak
+                  class="text-amber-600 font-bold"
+                  title="Hay cambios sin guardar">●</span>
+            <button type="button"
+                    @@click="saveTemplate()"
+                    class="px-2 py-1 border border-slate-300 rounded bg-white text-slate-700 hover:bg-sky-50 hover:border-sky-500">
+                Save
+            </button>
+            <button type="button"
+                    @@click="saveAsTemplate()"
+                    class="px-2 py-1 border border-slate-300 rounded bg-white text-slate-700 hover:bg-sky-50 hover:border-sky-500">
+                Save as…
+            </button>
+            <button type="button"
+                    @@click="deleteTemplate()"
+                    :disabled="!currentTemplate"
+                    :class="!currentTemplate ? 'opacity-40 cursor-not-allowed' : 'hover:bg-red-50 hover:border-red-400'"
+                    class="px-2 py-1 border border-slate-300 rounded bg-white text-slate-700">
+                Delete
+            </button>
+            <button type="button"
+                    @@click="exportPdf()"
+                    class="px-2 py-1 border border-sky-600 rounded bg-sky-600 text-white hover:bg-sky-700">
+                ⭳ PDF
+            </button>
         </div>
         <div class="text-xs text-slate-500 flex items-center gap-3">
             <div class="flex items-center gap-1">
@@ -71,9 +108,11 @@
                         class="px-4 py-2 font-medium transition">
                     data.json
                 </button>
-                <div class="ml-auto flex items-center px-4 text-xs text-slate-400 gap-3">
-                    <span><kbd class="px-1 bg-slate-200 rounded text-slate-700">Shift</kbd> snap 5pt</span>
-                    <span><kbd class="px-1 bg-slate-200 rounded text-slate-700">← ↑ → ↓</kbd> nudge 1pt · +Shift 10pt</span>
+                <div class="ml-auto flex items-center px-4 text-xs text-slate-400 gap-2 flex-wrap">
+                    <span><kbd class="px-1 bg-slate-200 rounded text-slate-700">Shift</kbd> snap</span>
+                    <span><kbd class="px-1 bg-slate-200 rounded text-slate-700">← ↑ → ↓</kbd> nudge</span>
+                    <span><kbd class="px-1 bg-slate-200 rounded text-slate-700">Ctrl+D</kbd> dup</span>
+                    <span><kbd class="px-1 bg-slate-200 rounded text-slate-700">Del</kbd> borrar</span>
                     <span><kbd class="px-1 bg-slate-200 rounded text-slate-700">Ctrl+Z</kbd> undo</span>
                 </div>
             </nav>
@@ -101,19 +140,61 @@
         </section>
 
         <!-- Toolbox vertical -->
-        <aside class="w-16 bg-slate-100 border-r border-slate-200 flex flex-col items-center py-3 gap-2">
+        <aside class="w-20 bg-slate-100 border-r border-slate-200 flex flex-col items-center py-3 gap-2 overflow-y-auto">
             <div class="text-[10px] uppercase text-slate-500 tracking-wide mb-1">Insertar</div>
             <template x-for="tool in tools" :key="tool.kind">
                 <button type="button"
-                        class="toolbox-item w-12 h-12 rounded border border-slate-300 bg-white hover:border-sky-500 hover:bg-sky-50 flex flex-col items-center justify-center gap-1 text-[10px] text-slate-700 select-none touch-none"
+                        class="toolbox-item w-14 h-12 rounded border border-slate-300 bg-white hover:border-sky-500 hover:bg-sky-50 flex flex-col items-center justify-center gap-1 text-[10px] text-slate-700 select-none touch-none"
                         :class="creating?.kind === tool.kind ? 'border-sky-600 bg-sky-100' : ''"
                         @@pointerdown.prevent="onToolPointerDown($event, tool.kind)">
                     <span x-text="tool.icon" class="text-lg leading-none"></span>
                     <span x-text="tool.label"></span>
                 </button>
             </template>
-            <div class="mt-2 text-[9px] text-slate-400 text-center leading-tight px-1">
-                Arrastra a una banda
+            <div class="mt-1 text-[9px] text-slate-400 text-center leading-tight px-1">
+                Arrastra a<br>una banda
+            </div>
+
+            <!-- Panel de bandas -->
+            <div class="mt-3 w-full border-t border-slate-300 pt-3 px-1.5">
+                <div class="text-[10px] uppercase text-slate-500 tracking-wide mb-2">Bandas</div>
+                <template x-for="(b, idx) in bands" :key="b.index">
+                    <div class="flex items-center gap-0.5 mb-1">
+                        <span class="flex-1 text-[9px] text-slate-700 truncate" x-text="b.kind"></span>
+                        <button type="button"
+                                @@click="moveBandUp(b.index)"
+                                :disabled="idx === 0"
+                                :class="idx === 0 ? 'opacity-20 cursor-not-allowed' : 'hover:text-slate-900'"
+                                class="text-[10px] text-slate-500 px-1"
+                                title="Subir">▲</button>
+                        <button type="button"
+                                @@click="moveBandDown(b.index)"
+                                :disabled="idx === bands.length - 1"
+                                :class="idx === bands.length - 1 ? 'opacity-20 cursor-not-allowed' : 'hover:text-slate-900'"
+                                class="text-[10px] text-slate-500 px-1"
+                                title="Bajar">▼</button>
+                        <button type="button"
+                                @@click="deleteBand(b.index)"
+                                class="text-[10px] text-red-500 hover:text-red-700 px-1"
+                                title="Eliminar banda">✕</button>
+                    </div>
+                </template>
+
+                <div class="mt-2">
+                    <select x-model="newBandKind"
+                            class="w-full text-[9px] border border-slate-300 rounded py-0.5 px-1 mb-1 bg-white">
+                        <option value="ReportHeader">Report Header</option>
+                        <option value="PageHeader">Page Header</option>
+                        <option value="Detail">Detail</option>
+                        <option value="PageFooter">Page Footer</option>
+                        <option value="ReportFooter">Report Footer</option>
+                    </select>
+                    <button type="button"
+                            @@click="addBand()"
+                            class="w-full text-[9px] bg-sky-600 text-white rounded px-1.5 py-1 hover:bg-sky-700">
+                        + Banda
+                    </button>
+                </div>
             </div>
         </aside>
 
@@ -145,9 +226,16 @@
                    class="absolute top-12 right-4 w-72 bg-white rounded-lg shadow-lg border border-slate-200 text-sm overflow-hidden">
                 <header class="flex items-center justify-between px-3 py-2 bg-slate-50 border-b border-slate-200">
                     <div class="font-semibold text-slate-800">Propiedades</div>
-                    <button type="button"
-                            @@click="clearSelection()"
-                            class="text-slate-400 hover:text-slate-700">✕</button>
+                    <div class="flex items-center gap-1">
+                        <button type="button"
+                                @@click="deleteSelected()"
+                                class="text-red-500 hover:text-red-700 text-base leading-none"
+                                title="Eliminar (Del)">🗑</button>
+                        <button type="button"
+                                @@click="clearSelection()"
+                                class="text-slate-400 hover:text-slate-700"
+                                title="Cerrar">✕</button>
+                    </div>
                 </header>
 
                 <div class="p-3 space-y-3" x-show="selected">
@@ -245,6 +333,79 @@
                                @@input.debounce.400ms="applyPatch({Fill: form.fill})"
                                class="mt-0.5 border border-slate-300 rounded h-8">
                     </label>
+
+                    <!-- Tabla: rows path + config -->
+                    <template x-if="selected?.kind === 'table'">
+                        <div class="space-y-2">
+                            <label class="flex flex-col text-[11px] text-slate-600">
+                                Rows (JSON Path)
+                                <input type="text"
+                                       x-model="form.rows"
+                                       @@input.debounce.400ms="applyPatch({Rows: form.rows})"
+                                       placeholder="$.items"
+                                       class="mt-0.5 border border-slate-300 rounded px-2 py-1 text-sm font-mono text-slate-900">
+                            </label>
+
+                            <div class="grid grid-cols-2 gap-2">
+                                <label class="flex flex-col text-[11px] text-slate-600">
+                                    Header height
+                                    <input type="number" step="1" min="1"
+                                           x-model.number="form.headerHeight"
+                                           @@input.debounce.400ms="applyPatch({HeaderHeight: form.headerHeight})"
+                                           class="mt-0.5 border border-slate-300 rounded px-2 py-1 text-sm">
+                                </label>
+                                <label class="flex flex-col text-[11px] text-slate-600">
+                                    Row height
+                                    <input type="number" step="1" min="1"
+                                           x-model.number="form.rowHeight"
+                                           @@input.debounce.400ms="applyPatch({RowHeight: form.rowHeight})"
+                                           class="mt-0.5 border border-slate-300 rounded px-2 py-1 text-sm">
+                                </label>
+                            </div>
+
+                            <label class="flex flex-col text-[11px] text-slate-600">
+                                Header mode
+                                <select x-model="form.headerMode"
+                                        @@change="applyPatch({HeaderMode: form.headerMode})"
+                                        class="mt-0.5 border border-slate-300 rounded px-2 py-1 text-sm bg-white">
+                                    <option value="RepeatOnPageBreak">RepeatOnPageBreak</option>
+                                    <option value="PrintOnce">PrintOnce</option>
+                                </select>
+                            </label>
+
+                            <label class="flex flex-col text-[11px] text-slate-600">
+                                Header style
+                                <input type="text" list="style-names"
+                                       x-model="form.headerStyle"
+                                       @@input.debounce.400ms="applyPatch({HeaderStyle: form.headerStyle})"
+                                       placeholder="TableHeader"
+                                       class="mt-0.5 border border-slate-300 rounded px-2 py-1 text-sm">
+                            </label>
+
+                            <label class="flex flex-col text-[11px] text-slate-600">
+                                Row style
+                                <input type="text" list="style-names"
+                                       x-model="form.rowStyle"
+                                       @@input.debounce.400ms="applyPatch({RowStyle: form.rowStyle})"
+                                       placeholder="TableRow"
+                                       class="mt-0.5 border border-slate-300 rounded px-2 py-1 text-sm">
+                            </label>
+
+                            <label class="flex flex-col text-[11px] text-slate-600">
+                                Alternate row style (opcional)
+                                <input type="text" list="style-names"
+                                       x-model="form.alternateRowStyle"
+                                       @@input.debounce.400ms="applyPatch({AlternateRowStyle: form.alternateRowStyle})"
+                                       placeholder="TableRowAlt"
+                                       class="mt-0.5 border border-slate-300 rounded px-2 py-1 text-sm">
+                            </label>
+
+                            <div class="text-[10px] text-slate-500 bg-slate-50 border border-slate-200 rounded px-2 py-1">
+                                <span x-text="form.columnCount"></span> columna<span x-show="form.columnCount !== 1">s</span>
+                                — edita el YAML para modificarlas.
+                            </div>
+                        </div>
+                    </template>
                 </div>
             </aside>
         </section>
@@ -267,7 +428,12 @@
             creating: null,          // { kind, x, y } durante drag desde toolbox
             moving: false,
             saving: false,
-            form: { x: 0, y: 0, width: 0, height: 0, style: '', content: '', color: '#000000', thickness: 0.5, fill: '#ffffff' },
+            form: {
+                x: 0, y: 0, width: 0, height: 0,
+                style: '', content: '', color: '#000000', thickness: 0.5, fill: '#ffffff',
+                rows: '', headerMode: 'RepeatOnPageBreak', headerHeight: 22, rowHeight: 18,
+                headerStyle: '', rowStyle: '', alternateRowStyle: '', columnCount: 0
+            },
             MIN_SIZE: 4,
             MAX_HISTORY: 50,
             SNAP: 5,
@@ -275,11 +441,43 @@
             redoStack: [],
             pendingNudge: null,
             nudgeTimeout: null,
+            availableTemplates: [],
+            currentTemplate: '',
+            isDirty: false,
+            bands: [],
+            newBandKind: 'Detail',
             tools: [
                 { kind: 'text',      label: 'Text',  icon: 'T' },
                 { kind: 'line',      label: 'Line',  icon: '━' },
-                { kind: 'rectangle', label: 'Rect',  icon: '▭' }
+                { kind: 'rectangle', label: 'Rect',  icon: '▭' },
+                { kind: 'table',     label: 'Table', icon: '⊞' }
             ],
+
+            async init() {
+                await this.refreshTemplates();
+                // Marcar dirty cuando el usuario edita los textareas manualmente.
+                const mark = () => { this.isDirty = true; };
+                document.getElementById('yaml-editor')?.addEventListener('input', mark);
+                document.getElementById('json-editor')?.addEventListener('input', mark);
+
+                // Refrescar lista de bandas cada vez que HTMX actualiza el preview (incluye el load inicial).
+                document.getElementById('preview')?.addEventListener('htmx:afterSwap',
+                    () => this.refreshBandsFromPreview());
+            },
+
+            refreshBandsFromPreview() {
+                const zones = document.querySelectorAll('.band-dropzone');
+                const seen = new Set();
+                const out = [];
+                for (const z of zones) {
+                    const idx = parseInt(z.dataset.bandIndex, 10);
+                    if (!Number.isFinite(idx) || seen.has(idx)) continue;
+                    seen.add(idx);
+                    out.push({ index: idx, kind: z.dataset.bandKind });
+                }
+                out.sort((a, b) => a.index - b.index);
+                this.bands = out;
+            },
 
             get busyLabel() {
                 if (this.moving) return 'Moviendo…';
@@ -358,6 +556,18 @@
                         this.redo();
                         return;
                     }
+                    if (key === 'd' && this.selected) {
+                        evt.preventDefault();
+                        this.duplicateSelected();
+                        return;
+                    }
+                    return;
+                }
+
+                // Delete / Backspace → borrar elemento seleccionado.
+                if (this.selected && (evt.key === 'Delete' || evt.key === 'Backspace')) {
+                    evt.preventDefault();
+                    this.deleteSelected();
                     return;
                 }
 
@@ -374,6 +584,108 @@
                 evt.preventDefault();
                 const step = evt.shiftKey ? 10 : 1;
                 this.nudgeSelected(dir[0] * step, dir[1] * step);
+            },
+
+            // === Band management ===
+
+            async addBand() {
+                this.pushUndo();
+                this.saving = true;
+                try {
+                    const form = this.buildFormData();
+                    form.append('Kind', this.newBandKind);
+                    form.append('Height', '40');
+                    const res = await fetch('/Home/AddBand', { method: 'POST', body: form });
+                    const data = await res.json();
+                    if (data.error) { alert('Error: ' + data.error); return; }
+                    this.applyServerResponse(data);
+                } finally { this.saving = false; }
+            },
+
+            async deleteBand(bandIndex) {
+                if (!confirm(`¿Borrar banda ${bandIndex}? Se eliminarán todos sus elementos.`)) return;
+                this.pushUndo();
+                this.saving = true;
+                try {
+                    const form = this.buildFormData();
+                    form.append('BandIndex', bandIndex.toString());
+                    const res = await fetch('/Home/DeleteBand', { method: 'POST', body: form });
+                    const data = await res.json();
+                    if (data.error) { alert('Error: ' + data.error); return; }
+                    this.applyServerResponse(data);
+                } finally { this.saving = false; }
+            },
+
+            async moveBandUp(bandIndex)   { if (bandIndex > 0) await this._moveBand(bandIndex, bandIndex - 1); },
+            async moveBandDown(bandIndex) { await this._moveBand(bandIndex, bandIndex + 1); },
+
+            async _moveBand(from, to) {
+                this.pushUndo();
+                this.saving = true;
+                try {
+                    const form = this.buildFormData();
+                    form.append('FromIndex', from.toString());
+                    form.append('ToIndex', to.toString());
+                    const res = await fetch('/Home/MoveBand', { method: 'POST', body: form });
+                    const data = await res.json();
+                    if (data.error) { alert('Error: ' + data.error); return; }
+                    this.applyServerResponse(data);
+                } finally { this.saving = false; }
+            },
+
+            async duplicateSelected() {
+                if (!this.selected) return;
+                const path = this.selected.path;
+                this.pushUndo();
+                this.saving = true;
+                try {
+                    const form = this.buildFormData();
+                    form.append('Path', path);
+                    const res = await fetch('/Home/Duplicate', { method: 'POST', body: form });
+                    const data = await res.json();
+                    if (data.error) { alert('Error: ' + data.error); return; }
+                    this.applyServerResponse(data);
+                    if (data.newPath) this.reselectByPath(data.newPath);
+                } finally { this.saving = false; }
+            },
+
+            async deleteSelected() {
+                if (!this.selected) return;
+                const path = this.selected.path;
+                this.pushUndo();
+                this.saving = true;
+                try {
+                    const form = this.buildFormData();
+                    form.append('Path', path);
+                    const res = await fetch('/Home/Delete', { method: 'POST', body: form });
+                    const data = await res.json();
+                    if (data.error) {
+                        alert('Error al borrar: ' + data.error);
+                    } else {
+                        this.applyServerResponse(data);
+                    }
+                } finally { this.saving = false; }
+            },
+
+            exportPdf() {
+                // Usamos un form POST con target _blank para que el browser descargue/abra el PDF.
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = '/Home/ExportPdf';
+                form.target = '_blank';
+                form.style.display = 'none';
+
+                const yaml = document.createElement('input');
+                yaml.name = 'Yaml'; yaml.value = document.getElementById('yaml-editor').value;
+                form.appendChild(yaml);
+
+                const json = document.createElement('input');
+                json.name = 'Json'; json.value = document.getElementById('json-editor').value;
+                form.appendChild(json);
+
+                document.body.appendChild(form);
+                form.submit();
+                document.body.removeChild(form);
             },
 
             nudgeSelected(dx, dy) {
@@ -579,6 +891,15 @@
                 this.form.color    = ds.color    || '#000000';
                 this.form.thickness= parseFloat(ds.thickness) || 0.5;
                 this.form.fill     = ds.fill     || '#ffffff';
+                // table
+                this.form.rows              = ds.rows              || '';
+                this.form.headerMode        = ds.headerMode        || 'RepeatOnPageBreak';
+                this.form.headerHeight      = parseFloat(ds.headerHeight) || 22;
+                this.form.rowHeight         = parseFloat(ds.rowHeight)    || 18;
+                this.form.headerStyle       = ds.headerStyle       || '';
+                this.form.rowStyle          = ds.rowStyle          || '';
+                this.form.alternateRowStyle = ds.alternateRowStyle || '';
+                this.form.columnCount       = parseInt(ds.columnCount, 10) || 0;
             },
 
             onPointerMove(evt) {
@@ -727,6 +1048,8 @@
                 document.getElementById('yaml-editor').value = data.yaml;
                 document.getElementById('preview').innerHTML = data.previewHtml;
                 this.selected = null;
+                this.isDirty = true;
+                this.refreshBandsFromPreview();
             },
 
             reselectByPath(path) {
@@ -741,6 +1064,87 @@
             clearSelection() {
                 document.querySelectorAll('.element-overlay.selected').forEach(e => e.classList.remove('selected'));
                 this.selected = null;
+            },
+
+            // === Template persistence ===
+
+            async refreshTemplates() {
+                try {
+                    const res = await fetch('/Home/ListTemplates');
+                    const data = await res.json();
+                    this.availableTemplates = Array.isArray(data) ? data : [];
+                } catch (err) {
+                    console.error('List templates:', err);
+                    this.availableTemplates = [];
+                }
+            },
+
+            async loadTemplate() {
+                if (!this.currentTemplate) return;
+                if (this.isDirty && !confirm('Hay cambios sin guardar. ¿Descartarlos y cargar el template?')) {
+                    // Revertir el selector al valor previo; limpiarlo es la opción más simple.
+                    this.currentTemplate = '';
+                    return;
+                }
+
+                const name = this.currentTemplate;
+                try {
+                    const res = await fetch('/Home/LoadTemplate?name=' + encodeURIComponent(name));
+                    const data = await res.json();
+                    if (data.error) { alert('Error al cargar: ' + data.error); return; }
+
+                    document.getElementById('yaml-editor').value = data.yaml || '';
+                    document.getElementById('json-editor').value = data.json || '{}';
+                    this.isDirty = false;
+                    this.undoStack = [];
+                    this.redoStack = [];
+                    this.clearSelection();
+                    await this.restoreSnapshot(data.yaml || '');
+                } catch (err) { alert('Error al cargar: ' + err); }
+            },
+
+            async saveTemplate() {
+                if (!this.currentTemplate) { await this.saveAsTemplate(); return; }
+                await this.saveToName(this.currentTemplate);
+            },
+
+            async saveAsTemplate() {
+                const name = prompt('Nombre del template (letras, dígitos, espacios, - o _):',
+                                    this.currentTemplate || '');
+                if (!name) return;
+                if (await this.saveToName(name)) {
+                    this.currentTemplate = name.trim();
+                    await this.refreshTemplates();
+                }
+            },
+
+            async saveToName(name) {
+                const form = new FormData();
+                form.append('Name', name);
+                form.append('Yaml', document.getElementById('yaml-editor').value);
+                form.append('Json', document.getElementById('json-editor').value);
+                try {
+                    const res = await fetch('/Home/SaveTemplate', { method: 'POST', body: form });
+                    const data = await res.json();
+                    if (data.error) { alert('Error al guardar: ' + data.error); return false; }
+                    this.isDirty = false;
+                    return true;
+                } catch (err) { alert('Error al guardar: ' + err); return false; }
+            },
+
+            async deleteTemplate() {
+                if (!this.currentTemplate) return;
+                if (!confirm(`¿Borrar template "${this.currentTemplate}"? Esta acción no se puede deshacer.`)) return;
+
+                const form = new FormData();
+                form.append('Name', this.currentTemplate);
+                try {
+                    const res = await fetch('/Home/DeleteTemplate', { method: 'POST', body: form });
+                    const data = await res.json();
+                    if (data.error) { alert('Error al borrar: ' + data.error); return; }
+                    this.currentTemplate = '';
+                    await this.refreshTemplates();
+                } catch (err) { alert('Error al borrar: ' + err); }
             }
         };
     }

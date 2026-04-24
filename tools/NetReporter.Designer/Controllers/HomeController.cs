@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Mvc;
 using NetReporter.Core.Layout;
 using NetReporter.Core.RenderList;
 using NetReporter.Designer.Models;
+using NetReporter.Designer.Services;
+using NetReporter.Pdf;
 using NetReporter.Svg;
 using NetReporter.Templates;
 using NetReporter.Templates.Schema;
@@ -11,6 +13,12 @@ namespace NetReporter.Designer.Controllers;
 public sealed class HomeController : Controller
 {
     private readonly SvgRenderer _svg = new();
+    private readonly TemplateStore _store;
+
+    public HomeController(TemplateStore store)
+    {
+        _store = store;
+    }
 
     public IActionResult Index()
     {
@@ -49,7 +57,14 @@ public sealed class HomeController : Controller
         {
             X = request.X, Y = request.Y, Width = request.Width, Height = request.Height,
             Style = request.Style, Content = request.Content,
-            Color = request.Color, Thickness = request.Thickness, Fill = request.Fill
+            Color = request.Color, Thickness = request.Thickness, Fill = request.Fill,
+            Rows = request.Rows,
+            HeaderMode = request.HeaderMode,
+            HeaderHeight = request.HeaderHeight,
+            RowHeight = request.RowHeight,
+            HeaderStyle = request.HeaderStyle,
+            RowStyle = request.RowStyle,
+            AlternateRowStyle = request.AlternateRowStyle
         };
         return await ApplyChange(
             request.Json,
@@ -57,6 +72,94 @@ public sealed class HomeController : Controller
                 request.Yaml ?? string.Empty,
                 request.Path ?? string.Empty,
                 patch));
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> Delete([FromForm] DeleteRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        return await ApplyChange(
+            request.Json,
+            () => YamlReportRewriter.DeleteElement(
+                request.Yaml ?? string.Empty,
+                request.Path ?? string.Empty));
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> Duplicate([FromForm] DuplicateRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        string newYaml;
+        string newPath;
+        try
+        {
+            (newYaml, newPath) = YamlReportRewriter.DuplicateElement(
+                request.Yaml ?? string.Empty,
+                request.Path ?? string.Empty);
+        }
+        catch (Exception ex)
+        {
+            return Json(new { error = $"{ex.GetType().Name}: {ex.Message}" });
+        }
+
+        var preview = BuildPreview(newYaml, request.Json ?? "{}");
+        var previewHtml = await RenderPartialToString("_Preview", preview);
+        return Json(new { yaml = newYaml, previewHtml, newPath });
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> AddBand([FromForm] AddBandRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        return await ApplyChange(
+            request.Json,
+            () => YamlReportRewriter.AddBand(
+                request.Yaml ?? string.Empty,
+                request.Kind ?? "Detail",
+                request.Height).Yaml);
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> DeleteBand([FromForm] BandIndexRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        return await ApplyChange(
+            request.Json,
+            () => YamlReportRewriter.DeleteBand(
+                request.Yaml ?? string.Empty,
+                request.BandIndex));
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> MoveBand([FromForm] MoveBandRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        return await ApplyChange(
+            request.Json,
+            () => YamlReportRewriter.MoveBand(
+                request.Yaml ?? string.Empty,
+                request.FromIndex,
+                request.ToIndex));
+    }
+
+    [HttpPost]
+    public IActionResult ExportPdf([FromForm] PreviewRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        try
+        {
+            var template = YamlReportLoader.Parse(request.Yaml ?? string.Empty);
+            var report = template.Bind(request.Json ?? "{}");
+            var layout = new LayoutEngine().Layout(report);
+            var bytes = new PdfRenderer().Render(layout);
+            return File(bytes, "application/pdf", "report.pdf");
+        }
+        catch (Exception ex)
+        {
+            return Content($"Error al exportar PDF: {ex.GetType().Name}: {ex.Message}",
+                           "text/plain", System.Text.Encoding.UTF8);
+        }
     }
 
     [HttpPost]
@@ -84,6 +187,52 @@ public sealed class HomeController : Controller
         var previewHtml = await RenderPartialToString("_Preview", preview);
         return Json(new { yaml = newYaml, previewHtml, newPath });
     }
+
+    // === Template persistence ===
+
+    [HttpGet]
+    public IActionResult ListTemplates()
+    {
+        try { return Json(_store.List()); }
+        catch (Exception ex) { return Json(new { error = $"{ex.GetType().Name}: {ex.Message}" }); }
+    }
+
+    [HttpGet]
+    public IActionResult LoadTemplate(string name)
+    {
+        try
+        {
+            var (yaml, json) = _store.Load(name ?? string.Empty);
+            return Json(new { yaml, json });
+        }
+        catch (Exception ex) { return Json(new { error = $"{ex.GetType().Name}: {ex.Message}" }); }
+    }
+
+    [HttpPost]
+    public IActionResult SaveTemplate([FromForm] SaveTemplateRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        try
+        {
+            _store.Save(request.Name ?? string.Empty, request.Yaml ?? string.Empty, request.Json ?? "{}");
+            return Json(new { saved = true });
+        }
+        catch (Exception ex) { return Json(new { error = $"{ex.GetType().Name}: {ex.Message}" }); }
+    }
+
+    [HttpPost]
+    public IActionResult DeleteTemplate([FromForm] DeleteTemplateRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        try
+        {
+            _store.Delete(request.Name ?? string.Empty);
+            return Json(new { deleted = true });
+        }
+        catch (Exception ex) { return Json(new { error = $"{ex.GetType().Name}: {ex.Message}" }); }
+    }
+
+    // === Helpers ===
 
     private async Task<IActionResult> ApplyChange(string? json, Func<string> rewrite)
     {
@@ -206,35 +355,68 @@ public sealed class HomeController : Controller
         RenderPage page,
         IReadOnlyDictionary<string, ElementYaml> elementByPath)
     {
-        // Tomamos el primer comando por SourcePath. Para text/line/rectangle hay uno solo.
-        // Filtramos tabla (por ahora no movible).
-        var seen = new HashSet<string>(StringComparer.Ordinal);
-        var result = new List<InteractiveElement>();
+        // Agrupa todos los commands por SourcePath y calcula el bounding box.
+        // Para text/line/rectangle hay un solo command → bbox = el mismo rect.
+        // Para tablas, múltiples commands (header + cells) → bbox = unión.
+        var byPath = new Dictionary<string, (double MinX, double MinY, double MaxRight, double MaxBottom, RenderCommand First)>(
+            StringComparer.Ordinal);
 
         foreach (var cmd in page.Commands)
         {
             if (cmd.SourcePath is null) continue;
-            if (!seen.Add(cmd.SourcePath)) continue;
-
-            var kind = cmd switch
+            if (byPath.TryGetValue(cmd.SourcePath, out var agg))
             {
-                DrawTextCommand      => "text",
-                DrawLineCommand      => "line",
-                DrawRectangleCommand => "rectangle",
-                _ => "unknown"
+                byPath[cmd.SourcePath] = (
+                    Math.Min(agg.MinX, cmd.Bounds.X),
+                    Math.Min(agg.MinY, cmd.Bounds.Y),
+                    Math.Max(agg.MaxRight, cmd.Bounds.Right),
+                    Math.Max(agg.MaxBottom, cmd.Bounds.Bottom),
+                    agg.First);
+            }
+            else
+            {
+                byPath[cmd.SourcePath] = (cmd.Bounds.X, cmd.Bounds.Y, cmd.Bounds.Right, cmd.Bounds.Bottom, cmd);
+            }
+        }
+
+        var result = new List<InteractiveElement>(byPath.Count);
+        foreach (var (path, agg) in byPath)
+        {
+            elementByPath.TryGetValue(path, out var source);
+
+            // Preferimos Type del YAML si está disponible (detecta 'table'); fallback al command.
+            var kind = source?.Type?.ToLowerInvariant() switch
+            {
+                "table"     => "table",
+                "text"      => "text",
+                "line"      => "line",
+                "rectangle" => "rectangle",
+                _ => agg.First switch
+                {
+                    DrawTextCommand      => "text",
+                    DrawLineCommand      => "line",
+                    DrawRectangleCommand => "rectangle",
+                    _ => "unknown"
+                }
             };
 
-            elementByPath.TryGetValue(cmd.SourcePath, out var source);
-
             result.Add(new InteractiveElement(
-                cmd.SourcePath, kind,
-                cmd.Bounds.X, cmd.Bounds.Y,
-                cmd.Bounds.Width, cmd.Bounds.Height,
+                path, kind,
+                agg.MinX, agg.MinY,
+                agg.MaxRight - agg.MinX, agg.MaxBottom - agg.MinY,
                 Style: source?.Style,
                 Content: source?.Content,
                 Color: source?.Color,
                 Thickness: source?.Thickness,
-                Fill: source?.Fill));
+                Fill: source?.Fill,
+                Rows: source?.Rows,
+                HeaderMode: source?.HeaderMode,
+                HeaderHeight: source?.HeaderHeight,
+                RowHeight: source?.RowHeight,
+                HeaderStyle: source?.HeaderStyle,
+                RowStyle: source?.RowStyle,
+                AlternateRowStyle: source?.AlternateRowStyle,
+                ColumnCount: source?.Columns?.Count));
         }
 
         return result;

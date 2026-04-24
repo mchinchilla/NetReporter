@@ -30,6 +30,15 @@ public sealed class UpdateRequest
     public string? Color { get; set; }
     public double? Thickness { get; set; }
     public string? Fill { get; set; }
+
+    // table
+    public string? Rows { get; set; }
+    public string? HeaderMode { get; set; }
+    public double? HeaderHeight { get; set; }
+    public double? RowHeight { get; set; }
+    public string? HeaderStyle { get; set; }
+    public string? RowStyle { get; set; }
+    public string? AlternateRowStyle { get; set; }
 }
 
 public sealed class AddRequest
@@ -40,6 +49,55 @@ public sealed class AddRequest
     public string Kind { get; set; } = "text";
     public double X { get; set; }
     public double Y { get; set; }
+}
+
+public sealed class DeleteRequest
+{
+    public string Yaml { get; set; } = string.Empty;
+    public string Json { get; set; } = string.Empty;
+    public string Path { get; set; } = string.Empty;
+}
+
+public sealed class DuplicateRequest
+{
+    public string Yaml { get; set; } = string.Empty;
+    public string Json { get; set; } = string.Empty;
+    public string Path { get; set; } = string.Empty;
+}
+
+public sealed class AddBandRequest
+{
+    public string Yaml { get; set; } = string.Empty;
+    public string Json { get; set; } = string.Empty;
+    public string Kind { get; set; } = "Detail";
+    public double Height { get; set; } = 40;
+}
+
+public sealed class BandIndexRequest
+{
+    public string Yaml { get; set; } = string.Empty;
+    public string Json { get; set; } = string.Empty;
+    public int BandIndex { get; set; }
+}
+
+public sealed class MoveBandRequest
+{
+    public string Yaml { get; set; } = string.Empty;
+    public string Json { get; set; } = string.Empty;
+    public int FromIndex { get; set; }
+    public int ToIndex { get; set; }
+}
+
+public sealed class SaveTemplateRequest
+{
+    public string Name { get; set; } = string.Empty;
+    public string Yaml { get; set; } = string.Empty;
+    public string Json { get; set; } = string.Empty;
+}
+
+public sealed class DeleteTemplateRequest
+{
+    public string Name { get; set; } = string.Empty;
 }
 
 public sealed class PreviewViewModel
@@ -76,7 +134,16 @@ public sealed record InteractiveElement(
     string? Content,
     string? Color,
     double? Thickness,
-    string? Fill);
+    string? Fill,
+    // table-specific
+    string? Rows = null,
+    string? HeaderMode = null,
+    double? HeaderHeight = null,
+    double? RowHeight = null,
+    string? HeaderStyle = null,
+    string? RowStyle = null,
+    string? AlternateRowStyle = null,
+    int? ColumnCount = null);
 
 public sealed class DesignerViewModel
 {

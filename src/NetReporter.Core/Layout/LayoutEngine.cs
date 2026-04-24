@@ -179,6 +179,7 @@ public sealed class LayoutEngine
     {
         var currentPage = workingPage;
         var maxY = origin.Y + pageHeaderH + usableHeight;
+        var sourcePath = table.SourcePath;
 
         var headerStyle = report.Styles.Resolve(table.HeaderStyle);
         var rowStyle = report.Styles.Resolve(table.RowStyle);
@@ -198,13 +199,13 @@ public sealed class LayoutEngine
                 currentPage.Commands.Add(new DrawRectangleCommand(
                     new Rect(colX, y, col.Width, table.HeaderHeight),
                     cellStyle.Background == Color.Transparent ? null : cellStyle.Background,
-                    cellStyle.Border?.Bottom));
+                    cellStyle.Border?.Bottom) { SourcePath = sourcePath });
                 currentPage.Commands.Add(new DrawTextCommand(
                     new Rect(colX + cellStyle.Padding.Left, y + cellStyle.Padding.Top,
                              col.Width - cellStyle.Padding.Horizontal,
                              table.HeaderHeight - cellStyle.Padding.Vertical),
                     col.Header,
-                    cellStyle));
+                    cellStyle) { SourcePath = sourcePath });
                 colX += col.Width;
             }
         }
@@ -247,7 +248,7 @@ public sealed class LayoutEngine
                 {
                     currentPage.Commands.Add(new DrawRectangleCommand(
                         new Rect(colX, cursorY, col.Width, table.RowHeight),
-                        effectiveStyle.Background, null));
+                        effectiveStyle.Background, null) { SourcePath = sourcePath });
                 }
 
                 // Aplicar alineación específica de la columna (override)
@@ -258,7 +259,7 @@ public sealed class LayoutEngine
                              col.Width - cellStyle.Padding.Horizontal,
                              table.RowHeight - cellStyle.Padding.Vertical),
                     text,
-                    cellStyle));
+                    cellStyle) { SourcePath = sourcePath });
 
                 colX += col.Width;
             }

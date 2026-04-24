@@ -20,4 +20,13 @@ public sealed class ElementPatch
     public string? Color { get; init; }     // line
     public double? Thickness { get; init; } // line
     public string? Fill { get; init; }      // rectangle
+
+    // table
+    public string? Rows { get; init; }
+    public string? HeaderMode { get; init; }
+    public double? HeaderHeight { get; init; }
+    public double? RowHeight { get; init; }
+    public string? HeaderStyle { get; init; }
+    public string? RowStyle { get; init; }
+    public string? AlternateRowStyle { get; init; }
 }
