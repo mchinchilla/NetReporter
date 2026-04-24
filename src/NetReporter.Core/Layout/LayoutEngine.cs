@@ -322,12 +322,13 @@ public sealed class LayoutEngine
             bandTopY + element.Bounds.Y,
             element.Bounds.Width,
             element.Bounds.Height);
+        var path = element.SourcePath;
 
         switch (element)
         {
             case TextElement text:
                 page.Commands.Add(new DrawTextCommand(
-                    absBounds, text.Content.Evaluate(ctx), style));
+                    absBounds, text.Content.Evaluate(ctx), style) { SourcePath = path });
                 break;
 
             case LineElement line:
@@ -336,12 +337,13 @@ public sealed class LayoutEngine
                        new Point(absBounds.Right, absBounds.Y))
                     : (new Point(absBounds.X, absBounds.Y),
                        new Point(absBounds.X, absBounds.Bottom));
-                page.Commands.Add(new DrawLineCommand(from, to, line.Thickness, line.Color));
+                page.Commands.Add(new DrawLineCommand(from, to, line.Thickness, line.Color)
+                    { SourcePath = path });
                 break;
 
             case RectangleElement rect:
                 page.Commands.Add(new DrawRectangleCommand(
-                    absBounds, rect.Fill, rect.BorderLine));
+                    absBounds, rect.Fill, rect.BorderLine) { SourcePath = path });
                 break;
 
             default:

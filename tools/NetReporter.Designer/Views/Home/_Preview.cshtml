@@ -1,0 +1,146 @@
+@model NetReporter.Designer.Models.PreviewViewModel
+
+@if (Model.Error is not null)
+{
+    <div class="bg-red-50 border border-red-200 text-red-800 rounded px-4 py-3 text-sm font-mono whitespace-pre-wrap">
+        <div class="font-sans font-semibold text-red-900 mb-2">Error al renderizar</div>
+        @Model.Error
+    </div>
+}
+else if (Model.Pages.Count == 0)
+{
+    <p class="text-sm text-slate-500 text-center mt-8">El reporte no produjo páginas.</p>
+}
+else
+{
+    <datalist id="style-names">
+        @foreach (var s in Model.StyleNames) { <option value="@s"></option> }
+    </datalist>
+    <div class="space-y-6"
+         data-preview-root
+         data-margin-left="@Model.MarginLeftPt"
+         data-margin-top="@Model.MarginTopPt">
+        @foreach (var pg in Model.Pages)
+        {
+            <div class="relative mx-auto svg-page"
+                 style="width: @(Model.PageWidthPt)px; height: @(Model.PageHeightPt)px;">
+
+                <div class="absolute inset-0 pointer-events-none">
+                    @Html.Raw(pg.Svg)
+                </div>
+
+                <!-- Capa de dropzones (una por banda) -->
+                <div class="absolute inset-0 dropzone-layer">
+                    @foreach (var b in pg.Bands)
+                    {
+                        <div class="band-dropzone absolute"
+                             style="left: 0; top: @(b.Y)px; width: @(Model.PageWidthPt)px; height: @(b.Height)px;"
+                             data-band-index="@b.Index"
+                             data-band-kind="@b.Kind"
+                             data-band-y="@b.Y"></div>
+                    }
+                </div>
+
+                <div class="absolute inset-0">
+                    @foreach (var el in pg.Interactive)
+                    {
+                        var hitH = Math.Max(el.Height, 8.0);
+                        var hitW = Math.Max(el.Width, 8.0);
+                        var hitY = el.Height < 8.0 ? el.Y - 4.0 : el.Y;
+                        <div class="element-overlay absolute cursor-move"
+                             style="left: @(el.X)px; top: @(hitY)px; width: @(hitW)px; height: @(hitH)px;"
+                             data-path="@el.Path"
+                             data-kind="@el.Kind"
+                             data-x="@el.X"
+                             data-y="@el.Y"
+                             data-w="@el.Width"
+                             data-h="@el.Height"
+                             data-style="@(el.Style ?? "")"
+                             data-content="@(el.Content ?? "")"
+                             data-color="@(el.Color ?? "")"
+                             data-thickness="@(el.Thickness?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "")"
+                             data-fill="@(el.Fill ?? "")">
+                            <div class="resize-handle handle-nw" data-dir="nw"></div>
+                            <div class="resize-handle handle-n"  data-dir="n"></div>
+                            <div class="resize-handle handle-ne" data-dir="ne"></div>
+                            <div class="resize-handle handle-w"  data-dir="w"></div>
+                            <div class="resize-handle handle-e"  data-dir="e"></div>
+                            <div class="resize-handle handle-sw" data-dir="sw"></div>
+                            <div class="resize-handle handle-s"  data-dir="s"></div>
+                            <div class="resize-handle handle-se" data-dir="se"></div>
+                        </div>
+                    }
+                </div>
+            </div>
+            <p class="text-xs text-slate-500 text-center">Página @pg.Number de @Model.Pages.Count</p>
+        }
+    </div>
+}
+
+<style>
+    .element-overlay {
+        border: 1px dashed transparent;
+        transition: border-color 120ms, background-color 120ms;
+    }
+    .element-overlay:hover {
+        border-color: rgba(14, 165, 233, 0.5);
+        background-color: rgba(14, 165, 233, 0.08);
+    }
+    .element-overlay.selected {
+        border-color: rgb(245, 158, 11);
+        background-color: rgba(245, 158, 11, 0.12);
+    }
+    .element-overlay.dragging {
+        border-style: solid;
+        border-color: rgb(217, 119, 6);
+        background-color: rgba(245, 158, 11, 0.2);
+    }
+
+    /* Resize handles: visibles solo cuando el elemento está seleccionado */
+    .resize-handle {
+        position: absolute;
+        width: 8px;
+        height: 8px;
+        background: rgb(217, 119, 6);
+        border: 1px solid white;
+        box-sizing: border-box;
+        display: none;
+        z-index: 2;
+    }
+    .element-overlay.selected > .resize-handle { display: block; }
+
+    .handle-nw { left: -4px;  top: -4px;    cursor: nw-resize; }
+    .handle-n  { left: 50%;   top: -4px;    cursor: ns-resize; transform: translateX(-50%); }
+    .handle-ne { right: -4px; top: -4px;    cursor: ne-resize; }
+    .handle-w  { left: -4px;  top: 50%;     cursor: ew-resize; transform: translateY(-50%); }
+    .handle-e  { right: -4px; top: 50%;     cursor: ew-resize; transform: translateY(-50%); }
+    .handle-sw { left: -4px;  bottom: -4px; cursor: sw-resize; }
+    .handle-s  { left: 50%;   bottom: -4px; cursor: ns-resize; transform: translateX(-50%); }
+    .handle-se { right: -4px; bottom: -4px; cursor: se-resize; }
+
+    .element-overlay.resizing {
+        border-style: solid;
+        border-color: rgb(217, 119, 6);
+        background-color: rgba(245, 158, 11, 0.2);
+    }
+
+    /* Dropzones por banda: visibles solo durante modo 'creating' */
+    .dropzone-layer { pointer-events: none; }
+    .band-dropzone {
+        display: none;
+        border: 2px dashed rgba(14, 165, 233, 0);
+        background: rgba(14, 165, 233, 0);
+        transition: border-color 120ms, background-color 120ms;
+    }
+    .creating-mode .dropzone-layer { pointer-events: auto; }
+    .creating-mode .band-dropzone {
+        display: block;
+        border-color: rgba(14, 165, 233, 0.4);
+        background-color: rgba(14, 165, 233, 0.05);
+    }
+    .creating-mode .band-dropzone.hover {
+        border-color: rgba(14, 165, 233, 1);
+        background-color: rgba(14, 165, 233, 0.15);
+    }
+    .creating-mode .element-overlay { pointer-events: none; }
+</style>

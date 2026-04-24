@@ -3,7 +3,14 @@ using NetReporter.Core.Styles;
 
 namespace NetReporter.Core.RenderList;
 
-public abstract record RenderCommand(Rect Bounds);
+public abstract record RenderCommand(Rect Bounds)
+{
+    /// <summary>
+    /// Path en el template fuente del elemento que generó este comando.
+    /// Se copia desde <see cref="Elements.ReportElement.SourcePath"/> al emitir.
+    /// </summary>
+    public string? SourcePath { get; init; }
+}
 
 public sealed record DrawTextCommand(
     Rect Bounds,

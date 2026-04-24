@@ -1,0 +1,560 @@
+@model NetReporter.Designer.Models.DesignerViewModel
+@{
+    ViewData["Title"] = "Designer";
+}
+
+<div class="h-screen flex flex-col"
+     x-data="designer()"
+     :class="creating ? 'creating-mode' : ''"
+     @@pointermove.window="onPointerMove($event)"
+     @@pointerup.window="onPointerUp($event)">
+    <!-- Header -->
+    <header class="bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between shadow-sm">
+        <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded bg-sky-600 flex items-center justify-center text-white font-bold">N</div>
+            <div>
+                <h1 class="text-sm font-semibold text-slate-900 leading-tight">NetReporter Designer</h1>
+                <p class="text-xs text-slate-500 leading-tight">YAML template editor · drag-and-drop · edición de propiedades</p>
+            </div>
+        </div>
+        <div class="text-xs text-slate-500 flex items-center gap-3">
+            <span x-show="selected" x-cloak class="inline-flex items-center gap-1 bg-amber-100 text-amber-800 px-2 py-0.5 rounded">
+                <span x-text="selected?.kind"></span>
+                · <code x-text="selected?.path"></code>
+            </span>
+            <span x-show="!selected" class="text-slate-400">Ningún elemento seleccionado</span>
+        </div>
+    </header>
+
+    <!-- Ghost que sigue el cursor durante la creación -->
+    <div x-show="creating"
+         x-cloak
+         class="fixed pointer-events-none bg-sky-600 text-white text-xs rounded px-2 py-1 shadow-lg z-50 select-none"
+         :style="`left: ${creating?.x + 8}px; top: ${creating?.y + 8}px`"
+         x-text="'+ ' + creating?.kind"></div>
+
+    <!-- Main: 3 columnas (editor | toolbox | preview) -->
+    <div class="flex-1 flex overflow-hidden">
+        <!-- Izquierda: editores con tabs -->
+        <section class="w-1/2 flex flex-col border-r border-slate-200 bg-white">
+            <nav class="flex border-b border-slate-200 bg-slate-50 text-sm">
+                <button type="button"
+                        @@click="tab = 'yaml'"
+                        :class="tab === 'yaml' ? 'bg-white text-slate-900 border-b-2 border-sky-600' : 'text-slate-600 hover:text-slate-900'"
+                        class="px-4 py-2 font-medium transition">
+                    report.yaml
+                </button>
+                <button type="button"
+                        @@click="tab = 'json'"
+                        :class="tab === 'json' ? 'bg-white text-slate-900 border-b-2 border-sky-600' : 'text-slate-600 hover:text-slate-900'"
+                        class="px-4 py-2 font-medium transition">
+                    data.json
+                </button>
+                <div class="ml-auto flex items-center px-4 text-xs text-slate-400">
+                    Auto-render · click un elemento en el preview para editarlo
+                </div>
+            </nav>
+
+            <form id="editor-form"
+                  class="flex-1 flex flex-col"
+                  hx-post="/Home/Preview"
+                  hx-target="#preview"
+                  hx-swap="innerHTML"
+                  hx-trigger="input delay:700ms from:textarea, load"
+                  hx-indicator="#preview-loader">
+
+                <div x-show="tab === 'yaml'" class="flex-1 flex flex-col" x-cloak>
+                    <textarea id="yaml-editor" name="Yaml"
+                              class="editor flex-1 w-full p-3 border-0 focus:ring-0 resize-none text-slate-900 bg-white outline-none"
+                              spellcheck="false">@Model.Yaml</textarea>
+                </div>
+
+                <div x-show="tab === 'json'" class="flex-1 flex flex-col">
+                    <textarea id="json-editor" name="Json"
+                              class="editor flex-1 w-full p-3 border-0 focus:ring-0 resize-none text-slate-900 bg-white outline-none"
+                              spellcheck="false">@Model.Json</textarea>
+                </div>
+            </form>
+        </section>
+
+        <!-- Toolbox vertical -->
+        <aside class="w-16 bg-slate-100 border-r border-slate-200 flex flex-col items-center py-3 gap-2">
+            <div class="text-[10px] uppercase text-slate-500 tracking-wide mb-1">Insertar</div>
+            <template x-for="tool in tools" :key="tool.kind">
+                <button type="button"
+                        class="toolbox-item w-12 h-12 rounded border border-slate-300 bg-white hover:border-sky-500 hover:bg-sky-50 flex flex-col items-center justify-center gap-1 text-[10px] text-slate-700 select-none touch-none"
+                        :class="creating?.kind === tool.kind ? 'border-sky-600 bg-sky-100' : ''"
+                        @@pointerdown.prevent="onToolPointerDown($event, tool.kind)">
+                    <span x-text="tool.icon" class="text-lg leading-none"></span>
+                    <span x-text="tool.label"></span>
+                </button>
+            </template>
+            <div class="mt-2 text-[9px] text-slate-400 text-center leading-tight px-1">
+                Arrastra a una banda
+            </div>
+        </aside>
+
+        <!-- Derecha: preview + drawer de propiedades -->
+        <section class="flex-1 flex flex-col bg-slate-200 relative">
+            <div class="flex items-center justify-between px-4 py-2 border-b border-slate-300 bg-slate-100 text-sm">
+                <span class="font-medium text-slate-700">Preview</span>
+                <span id="preview-loader" class="htmx-indicator text-xs text-sky-700 flex items-center gap-1">
+                    <svg class="animate-spin w-3 h-3" viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" stroke-opacity="0.25"/>
+                        <path fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+                    </svg>
+                    <span x-text="busyLabel">Renderizando…</span>
+                </span>
+            </div>
+
+            <div id="preview"
+                 class="flex-1 overflow-auto p-6"
+                 @@pointerdown="onOverlayPointerDown($event)">
+                <p class="text-sm text-slate-500 text-center mt-8">Cargando preview…</p>
+            </div>
+
+            <!-- Drawer de propiedades del elemento seleccionado -->
+            <aside x-show="selected"
+                   x-cloak
+                   x-transition:enter="transition ease-out duration-150"
+                   x-transition:enter-start="translate-x-2 opacity-0"
+                   x-transition:enter-end="translate-x-0 opacity-100"
+                   class="absolute top-12 right-4 w-72 bg-white rounded-lg shadow-lg border border-slate-200 text-sm overflow-hidden">
+                <header class="flex items-center justify-between px-3 py-2 bg-slate-50 border-b border-slate-200">
+                    <div class="font-semibold text-slate-800">Propiedades</div>
+                    <button type="button"
+                            @@click="clearSelection()"
+                            class="text-slate-400 hover:text-slate-700">✕</button>
+                </header>
+
+                <div class="p-3 space-y-3" x-show="selected">
+                    <div class="text-xs text-slate-500">
+                        <code x-text="selected?.path" class="block text-slate-700"></code>
+                        <span class="inline-block mt-1 px-1.5 py-0.5 bg-amber-100 text-amber-800 rounded uppercase tracking-wide text-[10px]"
+                              x-text="selected?.kind"></span>
+                    </div>
+
+                    <!-- Bounds -->
+                    <fieldset class="border border-slate-200 rounded p-2">
+                        <legend class="text-[10px] uppercase text-slate-500 px-1">Bounds (pt)</legend>
+                        <div class="grid grid-cols-2 gap-2">
+                            <label class="flex flex-col text-[11px] text-slate-600">
+                                X
+                                <input type="number" step="0.5"
+                                       x-model.number="form.x"
+                                       @@input.debounce.400ms="applyPatch({X: form.x})"
+                                       class="mt-0.5 border border-slate-300 rounded px-2 py-1 text-sm text-slate-900">
+                            </label>
+                            <label class="flex flex-col text-[11px] text-slate-600">
+                                Y
+                                <input type="number" step="0.5"
+                                       x-model.number="form.y"
+                                       @@input.debounce.400ms="applyPatch({Y: form.y})"
+                                       class="mt-0.5 border border-slate-300 rounded px-2 py-1 text-sm text-slate-900">
+                            </label>
+                            <label class="flex flex-col text-[11px] text-slate-600">
+                                Ancho
+                                <input type="number" step="0.5"
+                                       x-model.number="form.width"
+                                       @@input.debounce.400ms="applyPatch({Width: form.width})"
+                                       class="mt-0.5 border border-slate-300 rounded px-2 py-1 text-sm text-slate-900">
+                            </label>
+                            <label class="flex flex-col text-[11px] text-slate-600">
+                                Alto
+                                <input type="number" step="0.5"
+                                       x-model.number="form.height"
+                                       @@input.debounce.400ms="applyPatch({Height: form.height})"
+                                       class="mt-0.5 border border-slate-300 rounded px-2 py-1 text-sm text-slate-900">
+                            </label>
+                        </div>
+                    </fieldset>
+
+                    <!-- Estilo (text + rectangle) -->
+                    <label x-show="selected?.kind === 'text' || selected?.kind === 'rectangle'"
+                           class="flex flex-col text-[11px] text-slate-600">
+                        Estilo
+                        <input type="text" list="style-names"
+                               x-model="form.style"
+                               @@input.debounce.400ms="applyPatch({Style: form.style})"
+                               class="mt-0.5 border border-slate-300 rounded px-2 py-1 text-sm text-slate-900"
+                               placeholder="Default">
+                    </label>
+
+                    <!-- Contenido (text) -->
+                    <label x-show="selected?.kind === 'text'"
+                           class="flex flex-col text-[11px] text-slate-600">
+                        Contenido
+                        <textarea rows="3"
+                                  x-model="form.content"
+                                  @@input.debounce.400ms="applyPatch({Content: form.content})"
+                                  class="mt-0.5 border border-slate-300 rounded px-2 py-1 text-sm text-slate-900 font-mono"></textarea>
+                        <span class="text-[10px] text-slate-400 mt-0.5">
+                            Soporta <code>{{'{{ '}}$.path{{' }}'}}</code>, <code>{{'{{ '}}pageNumber{{' }}'}}</code>, <code>{{'{{ '}}totalPages{{' }}'}}</code>.
+                        </span>
+                    </label>
+
+                    <!-- Línea: color + grosor -->
+                    <template x-if="selected?.kind === 'line'">
+                        <div class="grid grid-cols-2 gap-2">
+                            <label class="flex flex-col text-[11px] text-slate-600">
+                                Color
+                                <input type="color"
+                                       x-model="form.color"
+                                       @@input.debounce.400ms="applyPatch({Color: form.color})"
+                                       class="mt-0.5 border border-slate-300 rounded h-8">
+                            </label>
+                            <label class="flex flex-col text-[11px] text-slate-600">
+                                Grosor
+                                <input type="number" step="0.1" min="0.1"
+                                       x-model.number="form.thickness"
+                                       @@input.debounce.400ms="applyPatch({Thickness: form.thickness})"
+                                       class="mt-0.5 border border-slate-300 rounded px-2 py-1 text-sm text-slate-900">
+                            </label>
+                        </div>
+                    </template>
+
+                    <!-- Rectángulo: fill -->
+                    <label x-show="selected?.kind === 'rectangle'"
+                           class="flex flex-col text-[11px] text-slate-600">
+                        Fill
+                        <input type="color"
+                               x-model="form.fill"
+                               @@input.debounce.400ms="applyPatch({Fill: form.fill})"
+                               class="mt-0.5 border border-slate-300 rounded h-8">
+                    </label>
+                </div>
+            </aside>
+        </section>
+    </div>
+</div>
+
+<style>
+    .htmx-indicator { opacity: 0; transition: opacity 200ms; }
+    .htmx-request .htmx-indicator { opacity: 1; }
+    .htmx-request.htmx-indicator { opacity: 1; }
+</style>
+
+<script>
+    function designer() {
+        return {
+            tab: 'yaml',
+            selected: null,
+            dragging: null,
+            resizing: null,
+            creating: null,          // { kind, x, y } durante drag desde toolbox
+            moving: false,
+            saving: false,
+            form: { x: 0, y: 0, width: 0, height: 0, style: '', content: '', color: '#000000', thickness: 0.5, fill: '#ffffff' },
+            MIN_SIZE: 4,
+            tools: [
+                { kind: 'text',      label: 'Text',  icon: 'T' },
+                { kind: 'line',      label: 'Line',  icon: '━' },
+                { kind: 'rectangle', label: 'Rect',  icon: '▭' }
+            ],
+
+            get busyLabel() {
+                if (this.moving) return 'Moviendo…';
+                if (this.resizing) return 'Redimensionando…';
+                if (this.creating) return 'Creando…';
+                if (this.saving) return 'Guardando…';
+                return 'Renderizando…';
+            },
+
+            onToolPointerDown(evt, kind) {
+                evt.preventDefault();
+                this.clearSelection();
+                this.creating = { kind, x: evt.clientX, y: evt.clientY };
+            },
+
+            updateDropzoneHover(evt) {
+                document.querySelectorAll('.band-dropzone.hover').forEach(z => z.classList.remove('hover'));
+                const hit = document.elementFromPoint(evt.clientX, evt.clientY);
+                const dz = hit?.closest?.('.band-dropzone');
+                if (dz) dz.classList.add('hover');
+                return dz || null;
+            },
+
+            async finishCreate(evt) {
+                const kind = this.creating.kind;
+                const dz = this.updateDropzoneHover(evt);
+                this.creating = null;
+                document.querySelectorAll('.band-dropzone.hover').forEach(z => z.classList.remove('hover'));
+
+                if (!dz) return;
+
+                const bandIndex = parseInt(dz.dataset.bandIndex, 10);
+                const rect = dz.getBoundingClientRect();
+                const xInPage = evt.clientX - rect.left;
+                const yInBand = evt.clientY - rect.top;
+
+                const root = document.querySelector('[data-preview-root]');
+                const marginLeft = parseFloat(root?.dataset.marginLeft) || 0;
+                // bounds.X en el YAML es relativo al content origin (sin margen izquierdo de página).
+                const xYaml = Math.max(0, xInPage - marginLeft);
+                const yYaml = Math.max(0, yInBand);
+
+                this.saving = true;
+                try {
+                    const form = this.buildFormData();
+                    form.append('BandIndex', bandIndex.toString());
+                    form.append('Kind', kind);
+                    form.append('X', xYaml.toFixed(2));
+                    form.append('Y', yYaml.toFixed(2));
+                    const res = await fetch('/Home/Add', { method: 'POST', body: form });
+                    const data = await res.json();
+                    if (data.error) {
+                        console.error('Add:', data.error);
+                    } else {
+                        this.applyServerResponse(data);
+                        if (data.newPath) this.reselectByPath(data.newPath);
+                    }
+                } finally { this.saving = false; }
+            },
+
+            onOverlayPointerDown(evt) {
+                // 1) Si clickearon un resize handle (solo en elemento ya seleccionado), iniciar resize.
+                const handle = evt.target.closest('.resize-handle');
+                if (handle) {
+                    this.startResize(evt, handle);
+                    return;
+                }
+
+                // 2) Si clickearon un overlay, seleccionar e iniciar drag potencial.
+                const target = evt.target.closest('.element-overlay');
+                if (!target) { this.clearSelection(); return; }
+                evt.preventDefault();
+
+                this.clearSelection();
+                target.classList.add('selected');
+                this.selected = {
+                    path: target.dataset.path,
+                    kind: target.dataset.kind,
+                    el: target
+                };
+                this.syncFormFromDataset(target.dataset);
+
+                this.dragging = {
+                    path: target.dataset.path,
+                    startX: evt.clientX,
+                    startY: evt.clientY,
+                    dx: 0, dy: 0,
+                    el: target,
+                    origLeft: parseFloat(target.style.left) || 0,
+                    origTop:  parseFloat(target.style.top)  || 0,
+                    moved: false
+                };
+                target.setPointerCapture?.(evt.pointerId);
+            },
+
+            startResize(evt, handle) {
+                evt.preventDefault();
+                evt.stopPropagation();
+                const el = handle.closest('.element-overlay');
+                if (!el || !el.classList.contains('selected')) return;
+
+                el.classList.add('resizing');
+                this.resizing = {
+                    dir: handle.dataset.dir,
+                    el,
+                    startX: evt.clientX,
+                    startY: evt.clientY,
+                    origX: parseFloat(el.dataset.x) || 0,
+                    origY: parseFloat(el.dataset.y) || 0,
+                    origW: parseFloat(el.dataset.w) || 0,
+                    origH: parseFloat(el.dataset.h) || 0,
+                    origLeft: parseFloat(el.style.left) || 0,
+                    origTop:  parseFloat(el.style.top)  || 0,
+                    origStyleW: parseFloat(el.style.width)  || 0,
+                    origStyleH: parseFloat(el.style.height) || 0,
+                    pendingBounds: null
+                };
+                el.setPointerCapture?.(evt.pointerId);
+            },
+
+            computeResize(r, dx, dy) {
+                let nx = r.origX, ny = r.origY, nw = r.origW, nh = r.origH;
+                if (r.dir.includes('w')) { nx = r.origX + dx; nw = r.origW - dx; }
+                if (r.dir.includes('e')) { nw = r.origW + dx; }
+                if (r.dir.includes('n')) { ny = r.origY + dy; nh = r.origH - dy; }
+                if (r.dir.includes('s')) { nh = r.origH + dy; }
+
+                // Clamp mínimo: si el ancho/alto cae bajo el mínimo, compensar en el origen
+                // para que el lado opuesto quede anclado.
+                if (nw < this.MIN_SIZE) {
+                    const excess = this.MIN_SIZE - nw;
+                    if (r.dir.includes('w')) nx -= excess;
+                    nw = this.MIN_SIZE;
+                }
+                if (nh < this.MIN_SIZE) {
+                    const excess = this.MIN_SIZE - nh;
+                    if (r.dir.includes('n')) ny -= excess;
+                    nh = this.MIN_SIZE;
+                }
+                return { x: nx, y: ny, w: nw, h: nh };
+            },
+
+            syncFormFromDataset(ds) {
+                this.form.x      = parseFloat(ds.x) || 0;
+                this.form.y      = parseFloat(ds.y) || 0;
+                this.form.width  = parseFloat(ds.w) || 0;
+                this.form.height = parseFloat(ds.h) || 0;
+                this.form.style    = ds.style    || '';
+                this.form.content  = ds.content  || '';
+                this.form.color    = ds.color    || '#000000';
+                this.form.thickness= parseFloat(ds.thickness) || 0.5;
+                this.form.fill     = ds.fill     || '#ffffff';
+            },
+
+            onPointerMove(evt) {
+                if (this.creating) {
+                    this.creating.x = evt.clientX;
+                    this.creating.y = evt.clientY;
+                    this.updateDropzoneHover(evt);
+                    return;
+                }
+
+                if (this.resizing) {
+                    const r = this.resizing;
+                    const dx = evt.clientX - r.startX;
+                    const dy = evt.clientY - r.startY;
+                    const nb = this.computeResize(r, dx, dy);
+                    r.el.style.left   = (r.origLeft + (nb.x - r.origX)) + 'px';
+                    r.el.style.top    = (r.origTop  + (nb.y - r.origY)) + 'px';
+                    r.el.style.width  = Math.max(nb.w, this.MIN_SIZE) + 'px';
+                    r.el.style.height = Math.max(nb.h, this.MIN_SIZE) + 'px';
+                    r.pendingBounds = nb;
+                    return;
+                }
+
+                if (!this.dragging) return;
+                const dx = evt.clientX - this.dragging.startX;
+                const dy = evt.clientY - this.dragging.startY;
+                this.dragging.dx = dx; this.dragging.dy = dy;
+                if (!this.dragging.moved && (Math.abs(dx) > 2 || Math.abs(dy) > 2)) {
+                    this.dragging.moved = true;
+                    this.dragging.el.classList.add('dragging');
+                }
+                if (this.dragging.moved) {
+                    this.dragging.el.style.left = (this.dragging.origLeft + dx) + 'px';
+                    this.dragging.el.style.top  = (this.dragging.origTop  + dy) + 'px';
+                }
+            },
+
+            async onPointerUp(evt) {
+                if (this.creating) {
+                    await this.finishCreate(evt);
+                    return;
+                }
+
+                if (this.resizing) {
+                    const r = this.resizing;
+                    this.resizing = null;
+                    r.el.classList.remove('resizing');
+                    if (!r.pendingBounds) return;
+
+                    const { x, y, w, h } = r.pendingBounds;
+                    // Skip si no hubo cambio real
+                    if (Math.abs(x - r.origX) < 0.5 && Math.abs(y - r.origY) < 0.5 &&
+                        Math.abs(w - r.origW) < 0.5 && Math.abs(h - r.origH) < 0.5) return;
+
+                    this.saving = true;
+                    const savedPath = r.el.dataset.path;
+                    try {
+                        const form = this.buildFormData();
+                        form.append('Path', savedPath);
+                        form.append('X', x.toString());
+                        form.append('Y', y.toString());
+                        form.append('Width', w.toString());
+                        form.append('Height', h.toString());
+                        const res = await fetch('/Home/Update', { method: 'POST', body: form });
+                        const data = await res.json();
+                        if (data.error) {
+                            // Restaurar visualmente
+                            r.el.style.left = r.origLeft + 'px';
+                            r.el.style.top  = r.origTop  + 'px';
+                            r.el.style.width  = r.origStyleW + 'px';
+                            r.el.style.height = r.origStyleH + 'px';
+                            console.error('Resize:', data.error);
+                        } else {
+                            this.applyServerResponse(data);
+                            this.reselectByPath(savedPath);
+                        }
+                    } finally { this.saving = false; }
+                    return;
+                }
+
+                const drag = this.dragging;
+                if (!drag) return;
+                this.dragging = null;
+                if (!drag.moved) return;
+                drag.el.classList.remove('dragging');
+
+                this.moving = true;
+                try {
+                    const form = this.buildFormData();
+                    form.append('Path', drag.path);
+                    form.append('DeltaX', drag.dx.toString());
+                    form.append('DeltaY', drag.dy.toString());
+                    const res = await fetch('/Home/Move', { method: 'POST', body: form });
+                    const data = await res.json();
+                    if (data.error) {
+                        drag.el.style.left = drag.origLeft + 'px';
+                        drag.el.style.top  = drag.origTop  + 'px';
+                        console.error('Move:', data.error);
+                    } else {
+                        this.applyServerResponse(data);
+                    }
+                } finally { this.moving = false; }
+            },
+
+            async applyPatch(patch) {
+                if (!this.selected) return;
+                this.saving = true;
+                try {
+                    const form = this.buildFormData();
+                    form.append('Path', this.selected.path);
+                    for (const [k, v] of Object.entries(patch)) {
+                        if (v === null || v === undefined || v === '') continue;
+                        form.append(k, String(v));
+                    }
+                    const res = await fetch('/Home/Update', { method: 'POST', body: form });
+                    const data = await res.json();
+                    if (data.error) {
+                        console.error('Update:', data.error);
+                    } else {
+                        const preservedPath = this.selected.path;
+                        this.applyServerResponse(data);
+                        this.reselectByPath(preservedPath);
+                    }
+                } finally { this.saving = false; }
+            },
+
+            buildFormData() {
+                const form = new FormData();
+                form.append('Yaml', document.getElementById('yaml-editor').value);
+                form.append('Json', document.getElementById('json-editor').value);
+                return form;
+            },
+
+            applyServerResponse(data) {
+                document.getElementById('yaml-editor').value = data.yaml;
+                document.getElementById('preview').innerHTML = data.previewHtml;
+                this.selected = null;
+            },
+
+            reselectByPath(path) {
+                // Tras actualizar preview, re-seleccionar el mismo path si existe.
+                const el = document.querySelector(`.element-overlay[data-path="${path}"]`);
+                if (!el) return;
+                el.classList.add('selected');
+                this.selected = { path: el.dataset.path, kind: el.dataset.kind, el };
+                this.syncFormFromDataset(el.dataset);
+            },
+
+            clearSelection() {
+                document.querySelectorAll('.element-overlay.selected').forEach(e => e.classList.remove('selected'));
+                this.selected = null;
+            }
+        };
+    }
+</script>

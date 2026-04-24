@@ -36,9 +36,15 @@ public static class YamlReportLoader
     public static TemplateReport Parse(string yaml)
     {
         ArgumentNullException.ThrowIfNull(yaml);
-        var model = s_deserializer.Deserialize<ReportYaml>(yaml)
-                    ?? throw new FormatException("Template YAML vacío o inválido.");
-        return new TemplateReport(model);
+        return new TemplateReport(ParseModel(yaml));
+    }
+
+    /// <summary>Deserializa YAML directamente al POCO <see cref="ReportYaml"/> sin construir el IR.</summary>
+    public static ReportYaml ParseModel(string yaml)
+    {
+        ArgumentNullException.ThrowIfNull(yaml);
+        return s_deserializer.Deserialize<ReportYaml>(yaml)
+               ?? throw new FormatException("Template YAML vacío o inválido.");
     }
 }
 
@@ -65,7 +71,10 @@ public sealed class TemplateReport
         var page = ResolvePage(_yaml.Page);
         var styles = ResolveStyles(_yaml, themes);
         var culture = ResolveCulture(_yaml.Culture);
-        var bands = (_yaml.Bands ?? new List<BandYaml>()).Select(b => BuildBand(b, data)).ToArray();
+        var yamlBands = _yaml.Bands ?? new List<BandYaml>();
+        var bands = yamlBands
+            .Select((b, i) => BuildBand(b, data, i))
+            .ToArray();
 
         return new ReportDefinition
         {
@@ -230,10 +239,10 @@ public sealed class TemplateReport
 
     // === Bands ===
 
-    private static Band BuildBand(BandYaml b, JsonElement data)
+    private static Band BuildBand(BandYaml b, JsonElement data, int bandIndex)
     {
         var elements = (b.Elements ?? new List<ElementYaml>())
-            .Select(e => BuildElement(e, data))
+            .Select((e, j) => BuildElement(e, data, $"bands.{bandIndex}.elements.{j}"))
             .ToArray();
 
         var kind = (b.Kind ?? "Detail").ToLowerInvariant();
@@ -252,13 +261,13 @@ public sealed class TemplateReport
 
     // === Elements ===
 
-    private static ReportElement BuildElement(ElementYaml e, JsonElement data)
+    private static ReportElement BuildElement(ElementYaml e, JsonElement data, string sourcePath)
     {
         var type = (e.Type ?? "text").ToLowerInvariant();
         var bounds = ResolveBounds(e.Bounds);
         var style = e.Style is not null ? new StyleRef(e.Style) : StyleRef.Default;
 
-        return type switch
+        ReportElement built = type switch
         {
             "text"      => BuildText(e, bounds, style, data),
             "table"     => BuildTable(e, bounds, style, data),
@@ -267,6 +276,9 @@ public sealed class TemplateReport
             _ => throw new FormatException(
                 $"Element.type desconocido: '{e.Type}'. Usa text/table/line/rectangle.")
         };
+
+        // Etiqueta el elemento con su origen en el template para que el Designer pueda editarlo.
+        return built with { SourcePath = sourcePath };
     }
 
     private static Rect ResolveBounds(BoundsYaml? b) =>

@@ -2,11 +2,10 @@
 
   <ItemGroup>
     <ProjectReference Include="..\NetReporter.Core\NetReporter.Core.csproj" />
-    <ProjectReference Include="..\NetReporter.Svg\NetReporter.Svg.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="QuestPDF" Version="2026.2.4" />
+    <PackageReference Include="SkiaSharp" Version="3.119.2" />
   </ItemGroup>
 
   <PropertyGroup>

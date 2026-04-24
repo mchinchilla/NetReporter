@@ -6,6 +6,10 @@
   <Folder Name="/src/">
     <Project Path="src/NetReporter.Core/NetReporter.Core.csproj" />
     <Project Path="src/NetReporter.Pdf/NetReporter.Pdf.csproj" />
+    <Project Path="src/NetReporter.Svg/NetReporter.Svg.csproj" />
     <Project Path="src/NetReporter.Templates/NetReporter.Templates.csproj" />
+  </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/NetReporter.Designer/NetReporter.Designer.csproj" />
   </Folder>
 </Solution>
