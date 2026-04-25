@@ -12,15 +12,21 @@ namespace NetReporter.Core.Layout;
 public sealed class LayoutEngine
 {
     private readonly ITextMeasurer _textMeasurer;
+    private readonly IBarcodeMatrixGenerator _barcodeGenerator;
 
-    public LayoutEngine() : this(EstimateTextMeasurer.Instance) { }
+    public LayoutEngine() : this(EstimateTextMeasurer.Instance, ThrowingBarcodeGenerator.Instance) { }
+
+    public LayoutEngine(ITextMeasurer textMeasurer)
+        : this(textMeasurer, ThrowingBarcodeGenerator.Instance) { }
 
     /// <summary>
-    /// Crea un layout engine con un measurer custom (ej. SkiaTextMeasurer para medición precisa).
+    /// Constructor con measurer + barcode generator. Usa <c>ZXingBarcodeGenerator.Instance</c>
+    /// del proyecto NetReporter.Barcodes para soporte de QR/Code128/etc.
     /// </summary>
-    public LayoutEngine(ITextMeasurer textMeasurer)
+    public LayoutEngine(ITextMeasurer textMeasurer, IBarcodeMatrixGenerator barcodeGenerator)
     {
         _textMeasurer = textMeasurer ?? throw new ArgumentNullException(nameof(textMeasurer));
+        _barcodeGenerator = barcodeGenerator ?? throw new ArgumentNullException(nameof(barcodeGenerator));
     }
 
     public RlRenderList Layout(ReportDefinition report)
@@ -558,9 +564,60 @@ public sealed class LayoutEngine
                     absBounds, rect.Fill, rect.BorderLine) { SourcePath = path });
                 return absBounds.Bottom;
 
+            case ImageElement image:
+                page.Commands.Add(new DrawImageCommand(
+                    absBounds, image.Data, image.MimeType, image.Fit) { SourcePath = path });
+                return absBounds.Bottom;
+
+            case BarcodeElement barcode:
+                EmitBarcode(barcode, absBounds, path, ctx, page);
+                return absBounds.Bottom;
+
             default:
                 // Tablas se manejan en RenderTableElement.
                 return absBounds.Bottom;
+        }
+    }
+
+    /// <summary>
+    /// Convierte un <see cref="BarcodeElement"/> en N <see cref="DrawRectangleCommand"/>
+    /// (uno por módulo) — el código resulta vectorial.
+    /// </summary>
+    private void EmitBarcode(
+        BarcodeElement barcode, Rect absBounds, string? sourcePath,
+        LayoutContext ctx, PageBuilder page)
+    {
+        var value = barcode.Value.Evaluate(ctx) ?? string.Empty;
+        if (absBounds.Width <= 0 || absBounds.Height <= 0) return;
+
+        // El generator devuelve el matrix natural (un píxel por módulo).
+        // El LayoutEngine escala los módulos al rect destino.
+        var matrix = _barcodeGenerator.Generate(value, barcode.Format);
+
+        var moduleW = absBounds.Width  / matrix.GetLength(0);
+        var moduleH = absBounds.Height / matrix.GetLength(1);
+
+        // Fondo opcional (un solo rect en vez de pintar módulos claros).
+        if (barcode.Background.A > 0)
+        {
+            page.Commands.Add(new DrawRectangleCommand(
+                absBounds, barcode.Background, null) { SourcePath = sourcePath });
+        }
+
+        // Pintar módulos oscuros como rectángulos. Coalescing horizontal opcional para
+        // reducir comandos — por ahora simple: un rect por módulo. Ok para tamaños típicos.
+        for (int x = 0; x < matrix.GetLength(0); x++)
+        {
+            for (int y = 0; y < matrix.GetLength(1); y++)
+            {
+                if (!matrix[x, y]) continue;
+                var modRect = new Rect(
+                    absBounds.X + x * moduleW,
+                    absBounds.Y + y * moduleH,
+                    moduleW, moduleH);
+                page.Commands.Add(new DrawRectangleCommand(
+                    modRect, barcode.Foreground, null) { SourcePath = sourcePath });
+            }
         }
     }
 

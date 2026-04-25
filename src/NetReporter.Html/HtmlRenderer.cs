@@ -82,6 +82,7 @@ public sealed class HtmlRenderer
                 case DrawTextCommand t:      WriteText(sb, t); break;
                 case DrawLineCommand l:      WriteLine(sb, l); break;
                 case DrawRectangleCommand r: WriteRectangle(sb, r); break;
+                case DrawImageCommand i:     WriteImage(sb, i); break;
             }
         }
         sb.AppendLine("</section>");
@@ -148,6 +149,25 @@ public sealed class HtmlRenderer
         if (cmd.Border is { } border)
             sb.Append("border:").Append(Px(border.Thickness)).Append("px solid ").Append(Hex(border.Color)).Append(';');
         sb.AppendLine("\"></div>");
+    }
+
+    private static void WriteImage(StringBuilder sb, DrawImageCommand cmd)
+    {
+        if (cmd.Data is null || cmd.Data.Length == 0) return;
+
+        var base64 = Convert.ToBase64String(cmd.Data);
+        var fitStyle = cmd.Fit == NetReporter.Core.Elements.ImageFit.Fill
+            ? "fill"        // distorsiona para llenar (object-fit: fill)
+            : "contain";    // preserva aspect ratio
+
+        sb.Append("<img class=\"nr-el\" alt=\"\" style=\"");
+        WriteRect(sb, cmd.Bounds);
+        sb.Append("object-fit:").Append(fitStyle).Append(';');
+        sb.Append("\" src=\"data:");
+        sb.Append(WebUtility.HtmlEncode(cmd.MimeType));
+        sb.Append(";base64,");
+        sb.Append(base64);
+        sb.AppendLine("\">");
     }
 
     // === Helpers ===

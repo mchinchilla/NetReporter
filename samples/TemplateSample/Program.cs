@@ -1,3 +1,4 @@
+using NetReporter.Barcodes;
 using NetReporter.Core.Layout;
 using NetReporter.Pdf;
 using NetReporter.Svg;
@@ -6,10 +7,14 @@ using NetReporter.Templates;
 QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
 
 var baseDir = AppContext.BaseDirectory;
+// Paths relativos en YAML (ej. logo.png) se resuelven contra el cwd; lo apuntamos
+// al directorio donde están los assets copiados por CopyToOutputDirectory.
+Directory.SetCurrentDirectory(baseDir);
 
 // Usar SkiaTextMeasurer para medición precisa de texto (mismo motor que el renderer).
-// Sin él, el LayoutEngine usa estimación lineal aproximada.
+// Y ZXingBarcodeGenerator para QR/Code128 vectoriales.
 var measurer = SkiaTextMeasurer.Instance;
+var barcodeGen = ZXingBarcodeGenerator.Instance;
 
 // === Demo original: reporte de clientes ===
 RenderToPdf(
@@ -41,13 +46,19 @@ RenderToPdf(
     Path.Combine(baseDir, "grouped-invoice-data.json"),
     "grouped-invoice.pdf");
 
+// === Demo con logo PNG + QR del CAI (Fase 4) ===
+RenderToPdf(
+    Path.Combine(baseDir, "invoice-with-qr.yaml"),
+    Path.Combine(baseDir, "invoice-data.json"),    // reusa data de la factura simple
+    "invoice-with-qr.pdf");
+
 
 void RenderToPdf(string templatePath, string dataPath, string outputName)
 {
     var template = YamlReportLoader.Load(templatePath);
     var json = File.ReadAllText(dataPath);
     var report = template.Bind(json);
-    var layout = new LayoutEngine(measurer).Layout(report);
+    var layout = new LayoutEngine(measurer, barcodeGen).Layout(report);
     var pdfBytes = new PdfRenderer().Render(layout);
 
     var outputPath = Path.Combine(baseDir, outputName);

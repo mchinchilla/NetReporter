@@ -31,3 +31,9 @@ public sealed record DrawRectangleCommand(
     Rect Bounds,
     Color? Fill,
     BorderLine? Border) : RenderCommand(Bounds);
+
+public sealed record DrawImageCommand(
+    Rect Bounds,
+    byte[] Data,
+    string MimeType,
+    Elements.ImageFit Fit = Elements.ImageFit.Contain) : RenderCommand(Bounds);

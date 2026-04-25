@@ -318,8 +318,10 @@ public sealed class TemplateReport
             "table"     => BuildTable(e, bounds, style, data),
             "line"      => BuildLine(e, bounds, style),
             "rectangle" => BuildRectangle(e, bounds, style),
+            "image"     => BuildImage(e, bounds, style),
+            "barcode"   => BuildBarcode(e, bounds, style, data),
             _ => throw new FormatException(
-                $"Element.type desconocido: '{e.Type}'. Usa text/table/line/rectangle.")
+                $"Element.type desconocido: '{e.Type}'. Usa text/table/line/rectangle/image/barcode.")
         };
 
         // Etiqueta el elemento con su origen en el template para que el Designer pueda editarlo.
@@ -463,5 +465,92 @@ public sealed class TemplateReport
             Fill = e.Fill is not null ? Color.FromHex(e.Fill) : null,
             BorderLine = e.BorderLine is not null ? ResolveBorderLine(e.BorderLine) : null
         };
+    }
+
+    private static ImageElement BuildImage(ElementYaml e, Rect bounds, StyleRef style)
+    {
+        if (string.IsNullOrWhiteSpace(e.Source))
+            throw new FormatException("Element.type=image requiere 'source' (path local o data URI).");
+
+        var (data, mime) = LoadImageSource(e.Source);
+        var fit = (e.Fit ?? "contain").ToLowerInvariant() switch
+        {
+            "fill"    => ImageFit.Fill,
+            "contain" => ImageFit.Contain,
+            _ => throw new FormatException($"Image.fit inválido: '{e.Fit}'. Usa contain/fill.")
+        };
+
+        return new ImageElement
+        {
+            Bounds = bounds,
+            Style = style,
+            Data = data,
+            MimeType = mime,
+            Fit = fit
+        };
+    }
+
+    private static BarcodeElement BuildBarcode(ElementYaml e, Rect bounds, StyleRef style, JsonElement data)
+    {
+        if (string.IsNullOrWhiteSpace(e.Value))
+            throw new FormatException("Element.type=barcode requiere 'value' (template string o literal).");
+
+        var format = (e.Format ?? "qr").ToLowerInvariant() switch
+        {
+            "qr" or "qrcode" => BarcodeFormat.QrCode,
+            "code128"        => BarcodeFormat.Code128,
+            "code39"         => BarcodeFormat.Code39,
+            "ean13"          => BarcodeFormat.Ean13,
+            _ => throw new FormatException(
+                $"Barcode.format inválido: '{e.Format}'. Usa qr/code128/code39/ean13.")
+        };
+
+        return new BarcodeElement
+        {
+            Bounds = bounds,
+            Style = style,
+            Value = TemplateString.Compile(e.Value, data),
+            Format = format,
+            Foreground = e.BarcodeForeground is not null ? Color.FromHex(e.BarcodeForeground) : Color.Black,
+            Background = e.BarcodeBackground is not null ? Color.FromHex(e.BarcodeBackground) : Color.Transparent
+        };
+    }
+
+    /// <summary>
+    /// Carga un source de imagen: data URI <c>data:image/png;base64,XXX</c> o path local.
+    /// </summary>
+    private static (byte[] Data, string Mime) LoadImageSource(string source)
+    {
+        if (source.StartsWith("data:", StringComparison.OrdinalIgnoreCase))
+        {
+            // data:image/png;base64,XXXXX
+            var commaIdx = source.IndexOf(',');
+            if (commaIdx < 0) throw new FormatException("Data URI sin coma separadora.");
+            var meta = source.Substring(5, commaIdx - 5); // "image/png;base64"
+            var payload = source[(commaIdx + 1)..];
+
+            var mime = meta.Split(';')[0];
+            if (string.IsNullOrEmpty(mime)) mime = "image/png";
+
+            // Asume base64 (formato más común en data URIs).
+            var bytes = Convert.FromBase64String(payload);
+            return (bytes, mime);
+        }
+
+        // Path local — lee del filesystem.
+        if (!File.Exists(source))
+            throw new FileNotFoundException($"Imagen no encontrada: '{source}'.");
+
+        var ext = Path.GetExtension(source).ToLowerInvariant();
+        var mimeFromExt = ext switch
+        {
+            ".png"  => "image/png",
+            ".jpg" or ".jpeg" => "image/jpeg",
+            ".gif"  => "image/gif",
+            ".webp" => "image/webp",
+            ".bmp"  => "image/bmp",
+            _ => "image/png"      // default seguro
+        };
+        return (File.ReadAllBytes(source), mimeFromExt);
     }
 }

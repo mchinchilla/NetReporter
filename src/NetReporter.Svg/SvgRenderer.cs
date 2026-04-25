@@ -63,7 +63,51 @@ public sealed class SvgRenderer
                 case DrawRectangleCommand rect:
                     DrawRectangle(canvas, rect);
                     break;
+                case DrawImageCommand img:
+                    DrawImage(canvas, img);
+                    break;
             }
+        }
+    }
+
+    private static void DrawImage(SKCanvas canvas, DrawImageCommand cmd)
+    {
+        if (cmd.Data is null || cmd.Data.Length == 0) return;
+        using var image = SKImage.FromEncodedData(cmd.Data);
+        if (image is null) return;     // datos inválidos
+
+        var dest = new SKRect(
+            (float)cmd.Bounds.X,
+            (float)cmd.Bounds.Y,
+            (float)cmd.Bounds.Right,
+            (float)cmd.Bounds.Bottom);
+
+        if (cmd.Fit == NetReporter.Core.Elements.ImageFit.Fill)
+        {
+            canvas.DrawImage(image, dest);
+        }
+        else
+        {
+            // Contain: preserva aspect ratio, centrando dentro del rect.
+            var imgRatio = (double)image.Width / image.Height;
+            var dstRatio = cmd.Bounds.Width / cmd.Bounds.Height;
+            SKRect target;
+            if (imgRatio > dstRatio)
+            {
+                // Limitado por ancho
+                var h = cmd.Bounds.Width / imgRatio;
+                var top = cmd.Bounds.Y + (cmd.Bounds.Height - h) / 2;
+                target = new SKRect((float)cmd.Bounds.X, (float)top,
+                                    (float)cmd.Bounds.Right, (float)(top + h));
+            }
+            else
+            {
+                var w = cmd.Bounds.Height * imgRatio;
+                var left = cmd.Bounds.X + (cmd.Bounds.Width - w) / 2;
+                target = new SKRect((float)left, (float)cmd.Bounds.Y,
+                                    (float)(left + w), (float)cmd.Bounds.Bottom);
+            }
+            canvas.DrawImage(image, target);
         }
     }
 

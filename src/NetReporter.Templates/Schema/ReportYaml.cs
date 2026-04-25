@@ -106,6 +106,16 @@ public sealed class ElementYaml
     // rectangle
     public string? Fill { get; set; }
     public BorderLineYaml? BorderLine { get; set; }
+
+    // image: source es path local o data URI; fit: contain | fill
+    public string? Source { get; set; }
+    public string? Fit { get; set; }
+
+    // barcode: value (template), format: qr | code128 | code39 | ean13
+    public string? Value { get; set; }
+    public string? Format { get; set; }
+    public string? BarcodeForeground { get; set; }
+    public string? BarcodeBackground { get; set; }
 }
 
 public sealed class GroupHeaderYaml

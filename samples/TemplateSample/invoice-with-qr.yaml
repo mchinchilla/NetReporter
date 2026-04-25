@@ -1,0 +1,132 @@
+# Factura con logo (PNG) en el header y QR del CAI en el footer.
+# Demuestra: ImageElement con source local, BarcodeElement con QR.
+
+name: InvoiceWithQR
+title: "Factura {{ $.numero }}"
+fileName: "factura-qr-{{ $.numero }}"
+
+page:
+  size: Letter
+  margins: { all: 1.5cm }
+
+styles:
+  Default: { fontFamily: Helvetica, fontSize: 10, foreground: "#0F172A" }
+  Title: { basedOn: Default, fontSize: 18, bold: true }
+  Caption: { basedOn: Default, fontSize: 8, foreground: "#64748B" }
+  CaptionCenter: { basedOn: Caption, align: center }
+  Label: { basedOn: Default, fontSize: 9, foreground: "#64748B" }
+  TableHeader: { basedOn: Default, bold: true, background: "#F1F5F9", padding: { horizontal: 4, vertical: 3 } }
+  TableRow: { basedOn: Default, padding: { horizontal: 4, vertical: 3 } }
+  TableRowAlt: { basedOn: TableRow, background: "#F8FAFC" }
+
+bands:
+  - kind: ReportHeader
+    height: 100
+    elements:
+      # Logo de la empresa (PNG local)
+      - type: image
+        bounds: { x: 0, y: 0, width: 120, height: 60 }
+        source: logo.png
+        fit: contain
+
+      # Datos del emisor a la derecha
+      - type: text
+        bounds: { x: 350, y: 0, width: 177, height: 12 }
+        content: "{{ $.emisor.nombre }}"
+        style: Default
+      - type: text
+        bounds: { x: 350, y: 14, width: 177, height: 10 }
+        content: "RTN: {{ $.emisor.rtn }}"
+        style: Caption
+      - type: text
+        bounds: { x: 350, y: 26, width: 177, height: 10 }
+        content: "{{ $.emisor.direccion }}"
+        style: Caption
+
+      # Título y número
+      - type: text
+        bounds: { x: 0, y: 70, width: 527, height: 24 }
+        content: "FACTURA {{ $.numero }}"
+        style: Title
+
+  - kind: Detail
+    height: 0
+    autoHeight: true
+    elements:
+      - type: table
+        bounds: { x: 0, y: 0, width: 527, height: 0 }
+        rows: "$.lineas"
+        headerStyle: TableHeader
+        rowStyle: TableRow
+        alternateRowStyle: TableRowAlt
+        headerHeight: 22
+        rowHeight: 18
+        columns:
+          - { header: "Codigo",      binding: "$.codigo",      width: 80,  align: left }
+          - { header: "Descripcion", binding: "$.descripcion", width: 260, align: left }
+          - { header: "Cant.",       binding: "$.cantidad",    width: 50,  align: right }
+          - { header: "P. Unit.",    binding: "$.precio",      width: 67,  format: "N2", align: right }
+          - { header: "Subtotal",    binding: "$.total",       width: 70,  format: "N2", align: right }
+
+  - kind: ReportFooter
+    height: 130
+    elements:
+      # Línea separadora
+      - type: line
+        bounds: { x: 0, y: 8, width: 527, height: 0 }
+        color: "#CBD5E1"
+        thickness: 0.5
+
+      # QR con el CAI (a la izquierda)
+      - type: barcode
+        bounds: { x: 0, y: 16, width: 90, height: 90 }
+        value: "{{ $.cai }}"
+        format: qr
+        barcodeForeground: "#0F172A"
+
+      # Etiqueta del QR
+      - type: text
+        bounds: { x: 0, y: 108, width: 90, height: 10 }
+        content: "CAI: {{ $.cai }}"
+        style: Caption
+
+      # Totales a la derecha
+      - type: text
+        bounds: { x: 350, y: 16, width: 100, height: 14 }
+        content: "Subtotal:"
+        style: Label
+      - type: text
+        bounds: { x: 450, y: 16, width: 77, height: 14 }
+        content: "{{ $.subtotal }}"
+        style: Default
+
+      - type: text
+        bounds: { x: 350, y: 32, width: 100, height: 14 }
+        content: "ISV 15%:"
+        style: Label
+      - type: text
+        bounds: { x: 450, y: 32, width: 77, height: 14 }
+        content: "{{ $.isv }}"
+        style: Default
+
+      - type: line
+        bounds: { x: 350, y: 50, width: 177, height: 0 }
+        color: "#0F172A"
+        thickness: 1
+
+      - type: text
+        bounds: { x: 350, y: 56, width: 100, height: 16 }
+        content: "Total:"
+        style: Title
+      - type: text
+        bounds: { x: 450, y: 56, width: 77, height: 16 }
+        content: "{{ $.total }}"
+        style: Title
+
+  - kind: PageFooter
+    height: 24
+    elements:
+      - type: text
+        bounds: { x: 0, y: 8, width: 527, height: 10 }
+        content: "Pagina {{ pageNumber }} de {{ totalPages }}"
+        style: CaptionCenter

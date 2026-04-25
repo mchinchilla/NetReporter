@@ -4,6 +4,7 @@
     <Project Path="samples/TemplateSample/TemplateSample.csproj" />
   </Folder>
   <Folder Name="/src/">
+    <Project Path="src/NetReporter.Barcodes/NetReporter.Barcodes.csproj" />
     <Project Path="src/NetReporter.Core/NetReporter.Core.csproj" />
     <Project Path="src/NetReporter.Html/NetReporter.Html.csproj" />
     <Project Path="src/NetReporter.Pdf/NetReporter.Pdf.csproj" />
@@ -11,6 +12,7 @@
     <Project Path="src/NetReporter.Templates/NetReporter.Templates.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/NetReporter.Barcodes.Tests/NetReporter.Barcodes.Tests.csproj" />
     <Project Path="tests/NetReporter.Core.Tests/NetReporter.Core.Tests.csproj" />
     <Project Path="tests/NetReporter.Html.Tests/NetReporter.Html.Tests.csproj" />
     <Project Path="tests/NetReporter.Templates.Tests/NetReporter.Templates.Tests.csproj" />

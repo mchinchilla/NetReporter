@@ -5,6 +5,7 @@
     <ProjectReference Include="..\..\src\NetReporter.Pdf\NetReporter.Pdf.csproj" />
     <ProjectReference Include="..\..\src\NetReporter.Templates\NetReporter.Templates.csproj" />
     <ProjectReference Include="..\..\src\NetReporter.Svg\NetReporter.Svg.csproj" />
+    <ProjectReference Include="..\..\src\NetReporter.Barcodes\NetReporter.Barcodes.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -30,6 +31,8 @@
     <None Update="wrap-data.json" CopyToOutputDirectory="PreserveNewest" />
     <None Update="grouped-invoice.yaml" CopyToOutputDirectory="PreserveNewest" />
     <None Update="grouped-invoice-data.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="invoice-with-qr.yaml" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="logo.png" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>
