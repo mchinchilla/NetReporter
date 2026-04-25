@@ -1,0 +1,132 @@
+# Factura con logo (PNG) en el header y QR del CAI en el footer.
+# Demuestra: ImageElement con source local, BarcodeElement con QR.
+
+name: InvoiceWithQR
+title: "Factura {{ $.numero }}"
+fileName: "factura-qr-{{ $.numero }}"
+
+page:
+  size: Letter
+  margins: { all: 1.5cm }
+
+styles:
+  Default: { fontFamily: Helvetica, fontSize: 10, foreground: "#0F172A" }
+  Title: { basedOn: Default, fontSize: 18, bold: true }
+  Caption: { basedOn: Default, fontSize: 8, foreground: "#64748B" }
+  CaptionCenter: { basedOn: Caption, align: center }
+  Label: { basedOn: Default, fontSize: 9, foreground: "#64748B" }
+  TableHeader: { basedOn: Default, bold: true, background: "#F1F5F9", padding: { horizontal: 4, vertical: 3 } }
+  TableRow: { basedOn: Default, padding: { horizontal: 4, vertical: 3 } }
+  TableRowAlt: { basedOn: TableRow, background: "#F8FAFC" }
+
+bands:
+  - kind: ReportHeader
+    height: 100
+    elements:
+      # Logo de la empresa (PNG local)
+      - type: image
+        bounds: { x: 0, y: 0, width: 120, height: 60 }
+        source: "data:image/png;base64,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"
+        fit: contain
+
+      # Datos del emisor a la derecha
+      - type: text
+        bounds: { x: 350, y: 0, width: 177, height: 12 }
+        content: "{{ $.emisor.nombre }}"
+        style: Default
+      - type: text
+        bounds: { x: 350, y: 14, width: 177, height: 10 }
+        content: "RTN: {{ $.emisor.rtn }}"
+        style: Caption
+      - type: text
+        bounds: { x: 350, y: 26, width: 177, height: 10 }
+        content: "{{ $.emisor.direccion }}"
+        style: Caption
+
+      # Título y número
+      - type: text
+        bounds: { x: 0, y: 70, width: 527, height: 24 }
+        content: "FACTURA {{ $.numero }}"
+        style: Title
+
+  - kind: Detail
+    height: 0
+    autoHeight: true
+    elements:
+      - type: table
+        bounds: { x: 0, y: 0, width: 527, height: 0 }
+        rows: "$.lineas"
+        headerStyle: TableHeader
+        rowStyle: TableRow
+        alternateRowStyle: TableRowAlt
+        headerHeight: 22
+        rowHeight: 18
+        columns:
+          - { header: "Codigo",      binding: "$.codigo",      width: 80,  align: left }
+          - { header: "Descripcion", binding: "$.descripcion", width: 260, align: left }
+          - { header: "Cant.",       binding: "$.cantidad",    width: 50,  align: right }
+          - { header: "P. Unit.",    binding: "$.precio",      width: 67,  format: "N2", align: right }
+          - { header: "Subtotal",    binding: "$.total",       width: 70,  format: "N2", align: right }
+
+  - kind: ReportFooter
+    height: 130
+    elements:
+      # Línea separadora
+      - type: line
+        bounds: { x: 0, y: 8, width: 527, height: 0 }
+        color: "#CBD5E1"
+        thickness: 0.5
+
+      # QR con el CAI (a la izquierda)
+      - type: barcode
+        bounds: { x: 0, y: 16, width: 90, height: 90 }
+        value: "{{ $.cai }}"
+        format: qr
+        barcodeForeground: "#0F172A"
+
+      # Etiqueta del QR
+      - type: text
+        bounds: { x: 0, y: 108, width: 90, height: 10 }
+        content: "CAI: {{ $.cai }}"
+        style: Caption
+
+      # Totales a la derecha
+      - type: text
+        bounds: { x: 350, y: 16, width: 100, height: 14 }
+        content: "Subtotal:"
+        style: Label
+      - type: text
+        bounds: { x: 450, y: 16, width: 77, height: 14 }
+        content: "{{ $.subtotal }}"
+        style: Default
+
+      - type: text
+        bounds: { x: 350, y: 32, width: 100, height: 14 }
+        content: "ISV 15%:"
+        style: Label
+      - type: text
+        bounds: { x: 450, y: 32, width: 77, height: 14 }
+        content: "{{ $.isv }}"
+        style: Default
+
+      - type: line
+        bounds: { x: 350, y: 50, width: 177, height: 0 }
+        color: "#0F172A"
+        thickness: 1
+
+      - type: text
+        bounds: { x: 350, y: 56, width: 100, height: 16 }
+        content: "Total:"
+        style: Title
+      - type: text
+        bounds: { x: 450, y: 56, width: 77, height: 16 }
+        content: "{{ $.total }}"
+        style: Title
+
+  - kind: PageFooter
+    height: 24
+    elements:
+      - type: text
+        bounds: { x: 0, y: 8, width: 527, height: 10 }
+        content: "Pagina {{ pageNumber }} de {{ totalPages }}"
+        style: CaptionCenter

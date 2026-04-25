@@ -3,6 +3,7 @@ using NetReporter.Core.Layout;
 using NetReporter.Core.RenderList;
 using NetReporter.Designer.Models;
 using NetReporter.Designer.Services;
+using NetReporter.Barcodes;
 using NetReporter.Html;
 using NetReporter.Pdf;
 using NetReporter.Svg;
@@ -188,7 +189,7 @@ public sealed class HomeController : Controller
         {
             var template = YamlReportLoader.Parse(request.Yaml ?? string.Empty);
             var report = template.Bind(request.Json ?? "{}");
-            var layout = new LayoutEngine().Layout(report);
+            var layout = new LayoutEngine(SkiaTextMeasurer.Instance, ZXingBarcodeGenerator.Instance).Layout(report);
             var bytes = new PdfRenderer().Render(layout);
             return File(bytes, "application/pdf", ResolveExportFileName(report, "pdf"));
         }
@@ -207,7 +208,7 @@ public sealed class HomeController : Controller
         {
             var template = YamlReportLoader.Parse(request.Yaml ?? string.Empty);
             var report = template.Bind(request.Json ?? "{}");
-            var layout = new LayoutEngine().Layout(report);
+            var layout = new LayoutEngine(SkiaTextMeasurer.Instance, ZXingBarcodeGenerator.Instance).Layout(report);
             var html = new HtmlRenderer().Render(layout,
                 new HtmlRenderOptions { Title = report.Title ?? report.Name });
             var fileName = ResolveExportFileName(report, "html");
@@ -348,7 +349,7 @@ public sealed class HomeController : Controller
             var template = YamlReportLoader.Parse(yaml ?? string.Empty);
             var yamlModel = YamlReportLoader.ParseModel(yaml ?? string.Empty);
             var report = template.Bind(json ?? "{}");
-            var layout = new LayoutEngine().Layout(report);
+            var layout = new LayoutEngine(SkiaTextMeasurer.Instance, ZXingBarcodeGenerator.Instance).Layout(report);
             var svgPages = _svg.Render(layout);
 
             // Mapa path → ElementYaml para enriquecer InteractiveElement con props actuales.
