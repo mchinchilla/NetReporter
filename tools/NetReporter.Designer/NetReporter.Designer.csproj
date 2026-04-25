@@ -10,7 +10,19 @@
 
   <ItemGroup>
     <PackageReference Include="QuestPDF" Version="2026.2.4" />
-    <PackageReference Include="xunit.extensibility.core" Version="2.9.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\samples\TemplateSample\report.yaml"
+                      LogicalName="Samples.clientes.yaml" />
+    <EmbeddedResource Include="..\..\samples\TemplateSample\data.json"
+                      LogicalName="Samples.clientes.json" />
+    <EmbeddedResource Include="..\..\samples\TemplateSample\invoice-laser.yaml"
+                      LogicalName="Samples.invoice-laser.yaml" />
+    <EmbeddedResource Include="..\..\samples\TemplateSample\invoice-paperoll.yaml"
+                      LogicalName="Samples.invoice-paperoll.yaml" />
+    <EmbeddedResource Include="..\..\samples\TemplateSample\invoice-data.json"
+                      LogicalName="Samples.invoice.json" />
   </ItemGroup>
 
   <PropertyGroup>

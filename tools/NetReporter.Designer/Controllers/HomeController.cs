@@ -15,10 +15,12 @@ public sealed class HomeController : Controller
 {
     private readonly SvgRenderer _svg = new();
     private readonly TemplateStore _store;
+    private readonly SampleStore _samples;
 
-    public HomeController(TemplateStore store)
+    public HomeController(TemplateStore store, SampleStore samples)
     {
         _store = store;
+        _samples = samples;
     }
 
     public IActionResult Index()
@@ -300,6 +302,26 @@ public sealed class HomeController : Controller
         {
             _store.Delete(request.Name ?? string.Empty);
             return Json(new { deleted = true });
+        }
+        catch (Exception ex) { return Json(new { error = $"{ex.GetType().Name}: {ex.Message}" }); }
+    }
+
+    // === Samples (builtin, read-only) ===
+
+    [HttpGet]
+    public IActionResult ListSamples()
+    {
+        try { return Json(_samples.List()); }
+        catch (Exception ex) { return Json(new { error = $"{ex.GetType().Name}: {ex.Message}" }); }
+    }
+
+    [HttpGet]
+    public IActionResult LoadSample(string name)
+    {
+        try
+        {
+            var (yaml, json) = _samples.Load(name ?? string.Empty);
+            return Json(new { yaml, json });
         }
         catch (Exception ex) { return Json(new { error = $"{ex.GetType().Name}: {ex.Message}" }); }
     }

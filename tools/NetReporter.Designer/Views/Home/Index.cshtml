@@ -21,17 +21,32 @@
 
         <!-- Template controls -->
         <div class="flex items-center gap-2 text-xs">
-            <select x-model="currentTemplate"
-                    @@change="loadTemplate()"
-                    class="border border-slate-300 rounded px-2 py-1 bg-white text-slate-800 min-w-[160px]">
+            <select x-model="currentSelection"
+                    @@change="onSelectionChange()"
+                    class="border border-slate-300 rounded px-2 py-1 bg-white text-slate-800 min-w-[180px]">
                 <option value="">(nuevo)</option>
-                <template x-for="t in availableTemplates" :key="t">
-                    <option :value="t" x-text="t"></option>
-                </template>
+                <optgroup label="📦 Samples" x-show="availableSamples.length > 0">
+                    <template x-for="s in availableSamples" :key="s">
+                        <option :value="'sample:' + s" x-text="s"></option>
+                    </template>
+                </optgroup>
+                <optgroup label="Mis templates" x-show="availableTemplates.length > 0">
+                    <template x-for="t in availableTemplates" :key="t">
+                        <option :value="'user:' + t" x-text="t"></option>
+                    </template>
+                </optgroup>
             </select>
             <span x-show="isDirty" x-cloak
                   class="text-amber-600 font-bold"
                   title="Hay cambios sin guardar">●</span>
+            <button type="button"
+                    @@click="importFile()"
+                    title="Importar archivo .yaml o .json desde disco"
+                    class="px-2 py-1 border border-slate-300 rounded bg-white text-slate-700 hover:bg-sky-50 hover:border-sky-500">
+                ↥ Importar
+            </button>
+            <input type="file" id="import-input" accept=".yaml,.yml,.json" multiple
+                   class="hidden" @@change="onImportFiles($event)">
             <button type="button"
                     @@click="saveTemplate()"
                     class="px-2 py-1 border border-slate-300 rounded bg-white text-slate-700 hover:bg-sky-50 hover:border-sky-500">
@@ -44,8 +59,8 @@
             </button>
             <button type="button"
                     @@click="deleteTemplate()"
-                    :disabled="!currentTemplate"
-                    :class="!currentTemplate ? 'opacity-40 cursor-not-allowed' : 'hover:bg-red-50 hover:border-red-400'"
+                    :disabled="!isUserTemplate"
+                    :class="!isUserTemplate ? 'opacity-40 cursor-not-allowed' : 'hover:bg-red-50 hover:border-red-400'"
                     class="px-2 py-1 border border-slate-300 rounded bg-white text-slate-700">
                 Delete
             </button>
@@ -557,8 +572,14 @@
             pendingNudge: null,
             nudgeTimeout: null,
             availableTemplates: [],
-            currentTemplate: '',
+            availableSamples: [],
+            currentSelection: '',     // "" | "sample:<name>" | "user:<name>"
             isDirty: false,
+
+            get currentTemplate()    { return this.currentSelection.startsWith('user:') ? this.currentSelection.slice(5) : ''; },
+            get currentSampleName()  { return this.currentSelection.startsWith('sample:') ? this.currentSelection.slice(7) : ''; },
+            get isUserTemplate()     { return this.currentSelection.startsWith('user:'); },
+
             bands: [],
             newBandKind: 'Detail',
             hoveredBand: null,     // { index, kind, ..., anchorTop (px viewport) }
@@ -570,7 +591,7 @@
             ],
 
             async init() {
-                await this.refreshTemplates();
+                await Promise.all([this.refreshTemplates(), this.refreshSamples()]);
                 // Marcar dirty cuando el usuario edita los textareas manualmente.
                 const mark = () => { this.isDirty = true; };
                 document.getElementById('yaml-editor')?.addEventListener('input', mark);
@@ -579,6 +600,14 @@
                 // Refrescar lista de bandas cada vez que HTMX actualiza el preview (incluye el load inicial).
                 document.getElementById('preview')?.addEventListener('htmx:afterSwap',
                     () => this.refreshBandsFromPreview());
+            },
+
+            async refreshSamples() {
+                try {
+                    const res = await fetch('/Home/ListSamples');
+                    const data = await res.json();
+                    this.availableSamples = Array.isArray(data) ? data : [];
+                } catch { this.availableSamples = []; }
             },
 
             refreshBandsFromPreview() {
@@ -1289,28 +1318,71 @@
                 }
             },
 
-            async loadTemplate() {
-                if (!this.currentTemplate) return;
+            async onSelectionChange() {
+                if (!this.currentSelection) return;
                 if (this.isDirty && !confirm('Hay cambios sin guardar. ¿Descartarlos y cargar el template?')) {
-                    // Revertir el selector al valor previo; limpiarlo es la opción más simple.
-                    this.currentTemplate = '';
+                    this.currentSelection = '';
                     return;
                 }
 
-                const name = this.currentTemplate;
+                const isSample = this.currentSelection.startsWith('sample:');
+                const name = isSample ? this.currentSampleName : this.currentTemplate;
+                const url = isSample
+                    ? '/Home/LoadSample?name=' + encodeURIComponent(name)
+                    : '/Home/LoadTemplate?name=' + encodeURIComponent(name);
+
                 try {
-                    const res = await fetch('/Home/LoadTemplate?name=' + encodeURIComponent(name));
+                    const res = await fetch(url);
                     const data = await res.json();
                     if (data.error) { alert('Error al cargar: ' + data.error); return; }
-
-                    document.getElementById('yaml-editor').value = data.yaml || '';
-                    document.getElementById('json-editor').value = data.json || '{}';
-                    this.isDirty = false;
-                    this.undoStack = [];
-                    this.redoStack = [];
-                    this.clearSelection();
-                    await this.restoreSnapshot(data.yaml || '');
+                    await this.applyLoadedContent(data.yaml || '', data.json || '{}');
                 } catch (err) { alert('Error al cargar: ' + err); }
+            },
+
+            async applyLoadedContent(yaml, json) {
+                document.getElementById('yaml-editor').value = yaml;
+                document.getElementById('json-editor').value = json;
+                this.isDirty = false;
+                this.undoStack = [];
+                this.redoStack = [];
+                this.clearSelection();
+                await this.restoreSnapshot(yaml);
+            },
+
+            // === Importar archivo desde disco ===
+
+            importFile() {
+                document.getElementById('import-input').click();
+            },
+
+            async onImportFiles(evt) {
+                const files = Array.from(evt.target.files || []);
+                if (files.length === 0) return;
+                if (this.isDirty && !confirm('Hay cambios sin guardar. ¿Descartarlos al importar?')) {
+                    evt.target.value = '';
+                    return;
+                }
+
+                let yamlText = null, jsonText = null;
+                for (const f of files) {
+                    const lower = f.name.toLowerCase();
+                    const text = await f.text();
+                    if (lower.endsWith('.yaml') || lower.endsWith('.yml')) yamlText = text;
+                    else if (lower.endsWith('.json')) jsonText = text;
+                }
+
+                evt.target.value = '';   // permitir re-seleccionar el mismo archivo en el futuro
+
+                if (yamlText === null && jsonText === null) {
+                    alert('Selecciona al menos un .yaml o .json válido.');
+                    return;
+                }
+
+                // Si solo uno fue importado, mantener el otro tal cual está.
+                const currentYaml = document.getElementById('yaml-editor').value;
+                const currentJson = document.getElementById('json-editor').value;
+                this.currentSelection = '';   // template importado deja de ser sample/user
+                await this.applyLoadedContent(yamlText ?? currentYaml, jsonText ?? currentJson);
             },
 
             async saveTemplate() {
@@ -1320,10 +1392,10 @@
 
             async saveAsTemplate() {
                 const name = prompt('Nombre del template (letras, dígitos, espacios, - o _):',
-                                    this.currentTemplate || '');
+                                    this.currentTemplate || this.currentSampleName || '');
                 if (!name) return;
                 if (await this.saveToName(name)) {
-                    this.currentTemplate = name.trim();
+                    this.currentSelection = 'user:' + name.trim();
                     await this.refreshTemplates();
                 }
             },
@@ -1343,16 +1415,17 @@
             },
 
             async deleteTemplate() {
-                if (!this.currentTemplate) return;
-                if (!confirm(`¿Borrar template "${this.currentTemplate}"? Esta acción no se puede deshacer.`)) return;
+                if (!this.isUserTemplate) return;
+                const name = this.currentTemplate;
+                if (!confirm(`¿Borrar template "${name}"? Esta acción no se puede deshacer.`)) return;
 
                 const form = new FormData();
-                form.append('Name', this.currentTemplate);
+                form.append('Name', name);
                 try {
                     const res = await fetch('/Home/DeleteTemplate', { method: 'POST', body: form });
                     const data = await res.json();
                     if (data.error) { alert('Error al borrar: ' + data.error); return; }
-                    this.currentTemplate = '';
+                    this.currentSelection = '';
                     await this.refreshTemplates();
                 } catch (err) { alert('Error al borrar: ' + err); }
             }
