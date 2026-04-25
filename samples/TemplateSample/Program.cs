@@ -3,6 +3,7 @@ using NetReporter.Core.Layout;
 using NetReporter.Pdf;
 using NetReporter.Svg;
 using NetReporter.Templates;
+using NetReporter.Xlsx;
 
 QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
 
@@ -82,5 +83,10 @@ void RenderToPdf(string templatePath, string dataPath, string outputName)
     var outputPath = Path.Combine(baseDir, outputName);
     File.WriteAllBytes(outputPath, pdfBytes);
 
-    Console.WriteLine($"{outputName,-28}  {layout.Pages.Count} pag  ({layout.Pages.Sum(p => p.Commands.Count)} cmds)");
+    // Paralelo: emitir XLSX semántico desde el mismo IR. No usa LayoutEngine.
+    var xlsxBytes = new XlsxRenderer().Render(report);
+    var xlsxPath = Path.ChangeExtension(outputPath, ".xlsx");
+    File.WriteAllBytes(xlsxPath, xlsxBytes);
+
+    Console.WriteLine($"{outputName,-28}  {layout.Pages.Count} pag  ({layout.Pages.Sum(p => p.Commands.Count)} cmds)  +xlsx {xlsxBytes.Length,7} b");
 }

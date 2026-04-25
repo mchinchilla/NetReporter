@@ -224,6 +224,27 @@ public sealed class HomeController : Controller
         }
     }
 
+    [HttpPost]
+    public IActionResult ExportXlsx([FromForm] PreviewRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        try
+        {
+            var template = YamlReportLoader.Parse(request.Yaml ?? string.Empty);
+            var report = template.Bind(request.Json ?? "{}");
+            // XlsxRenderer es semántico: consume ReportDefinition directo, no usa LayoutEngine.
+            var bytes = new NetReporter.Xlsx.XlsxRenderer().Render(report);
+            return File(bytes,
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                ResolveExportFileName(report, "xlsx"));
+        }
+        catch (Exception ex)
+        {
+            return Content($"Error al exportar XLSX: {ex.GetType().Name}: {ex.Message}",
+                           "text/plain", System.Text.Encoding.UTF8);
+        }
+    }
+
     private static string ResolveExportFileName(
         NetReporter.Core.Definition.ReportDefinition report, string extension)
     {

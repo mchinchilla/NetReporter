@@ -10,12 +10,14 @@
     <Project Path="src/NetReporter.Pdf/NetReporter.Pdf.csproj" />
     <Project Path="src/NetReporter.Svg/NetReporter.Svg.csproj" />
     <Project Path="src/NetReporter.Templates/NetReporter.Templates.csproj" />
+    <Project Path="src/NetReporter.Xlsx/NetReporter.Xlsx.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/NetReporter.Barcodes.Tests/NetReporter.Barcodes.Tests.csproj" />
     <Project Path="tests/NetReporter.Core.Tests/NetReporter.Core.Tests.csproj" />
     <Project Path="tests/NetReporter.Html.Tests/NetReporter.Html.Tests.csproj" />
     <Project Path="tests/NetReporter.Templates.Tests/NetReporter.Templates.Tests.csproj" />
+    <Project Path="tests/NetReporter.Xlsx.Tests/NetReporter.Xlsx.Tests.csproj" />
   </Folder>
   <Folder Name="/tools/">
     <Project Path="tools/NetReporter.Designer/NetReporter.Designer.csproj" />

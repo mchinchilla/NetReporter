@@ -6,6 +6,7 @@
     <ProjectReference Include="..\..\src\NetReporter.Templates\NetReporter.Templates.csproj" />
     <ProjectReference Include="..\..\src\NetReporter.Svg\NetReporter.Svg.csproj" />
     <ProjectReference Include="..\..\src\NetReporter.Barcodes\NetReporter.Barcodes.csproj" />
+    <ProjectReference Include="..\..\src\NetReporter.Xlsx\NetReporter.Xlsx.csproj" />
   </ItemGroup>
 
   <ItemGroup>

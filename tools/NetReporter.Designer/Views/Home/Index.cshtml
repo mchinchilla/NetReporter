@@ -74,6 +74,11 @@
                     class="px-2 py-1 border border-slate-700 rounded bg-slate-700 text-white hover:bg-slate-800">
                 ⭳ HTML
             </button>
+            <button type="button"
+                    @@click="exportXlsx()"
+                    class="px-2 py-1 border border-emerald-700 rounded bg-emerald-700 text-white hover:bg-emerald-800">
+                ⭳ XLSX
+            </button>
         </div>
         <div class="text-xs text-slate-500 flex items-center gap-3">
             <div class="flex items-center gap-1">
@@ -890,6 +895,7 @@
 
             exportPdf() { this.exportTo('/Home/ExportPdf'); },
             exportHtml() { this.exportTo('/Home/ExportHtml'); },
+            exportXlsx() { this.exportTo('/Home/ExportXlsx'); },
 
             exportTo(action) {
                 // Form POST con target _blank → el browser abre/descarga la respuesta.
