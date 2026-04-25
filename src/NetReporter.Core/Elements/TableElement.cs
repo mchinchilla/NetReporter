@@ -19,6 +19,15 @@ public sealed record TableElement<TRow> : ReportElement
     public StyleRef HeaderStyle { get; init; } = new("TableHeader");
     public StyleRef RowStyle { get; init; } = new("TableRow");
     public StyleRef? AlternateRowStyle { get; init; }
+
+    /// <summary>
+    /// Si está presente, las filas consecutivas con el mismo valor de <see cref="GroupBy"/>
+    /// se agrupan. Entre grupos se emite <see cref="GroupHeader"/> y al final <see cref="GroupFooter"/>.
+    /// </summary>
+    public IDataBinding<TRow, object?>? GroupBy { get; init; }
+
+    public GroupHeader? GroupHeader { get; init; }
+    public GroupFooter? GroupFooter { get; init; }
 }
 
 public sealed record TableColumn<TRow>(

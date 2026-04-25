@@ -70,6 +70,7 @@ public sealed class BandYaml
     public string? Kind { get; set; }
     public double Height { get; set; }
     public bool? AutoHeight { get; set; }
+    public bool? KeepTogether { get; set; }
     public List<ElementYaml>? Elements { get; set; }
 }
 
@@ -92,6 +93,11 @@ public sealed class ElementYaml
     public string? HeaderMode { get; set; }
     public List<TableColumnYaml>? Columns { get; set; }
 
+    // table groups
+    public string? GroupBy { get; set; }
+    public GroupHeaderYaml? GroupHeader { get; set; }
+    public GroupFooterYaml? GroupFooter { get; set; }
+
     // line
     public string? Orientation { get; set; }
     public double? Thickness { get; set; }
@@ -100,6 +106,28 @@ public sealed class ElementYaml
     // rectangle
     public string? Fill { get; set; }
     public BorderLineYaml? BorderLine { get; set; }
+}
+
+public sealed class GroupHeaderYaml
+{
+    public double Height { get; set; } = 18;
+    public string? Content { get; set; }
+    public string? Style { get; set; }
+}
+
+public sealed class GroupFooterYaml
+{
+    public double Height { get; set; } = 16;
+    public string? Style { get; set; }
+    public List<GroupFooterCellYaml?>? Cells { get; set; }
+}
+
+public sealed class GroupFooterCellYaml
+{
+    public string? Content { get; set; }
+    public string? Aggregate { get; set; }   // "sum" | "count" | "avg"
+    public string? Format { get; set; }
+    public string? Align { get; set; }
 }
 
 public sealed class BoundsYaml

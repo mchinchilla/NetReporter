@@ -51,8 +51,15 @@ public sealed class LayoutEngine
         // ReportHeader
         if (reportHeader is not null)
         {
+            // Pre-emit: si KeepTogether y la banda no cabe completa, page break antes de emitir.
+            if (NeedsBreakForKeepTogether(reportHeader, cursorY, maxY))
+            {
+                FinishPage(workingPage, pageHeader, pages, origin, contentWidth, report, ctx);
+                workingPage = new PageBuilder(pages.Count + 1);
+                cursorY = origin.Y + pageHeaderH;
+            }
             EmitBand(reportHeader, workingPage, origin.X, ref cursorY, report, ctx);
-            // Si sobrepasa, abrimos página (poco común para ReportHeader, pero robusto)
+            // Post-emit: si sobrepasa (sin KeepTogether), abrimos página igual.
             if (cursorY > maxY)
             {
                 FinishPage(workingPage, pageHeader, pages, origin, contentWidth, report, ctx);
@@ -68,7 +75,8 @@ public sealed class LayoutEngine
                 pageHeaderH, contentWidth, pages, ctx, ref maxY);
         }
 
-        // ReportFooter
+        // ReportFooter — siempre se mueve a página nueva si su Height declarado no cabe
+        // (comportamiento histórico). KeepTogether explícito lo refuerza pero no lo cambia.
         if (reportFooter is not null)
         {
             if (cursorY + reportFooter.Height > maxY)
@@ -107,6 +115,11 @@ public sealed class LayoutEngine
         LayoutContext ctx,
         ref double maxY)
     {
+        // Nota: KeepTogether en DetailBand no se aplica aquí por la limitación de ref locals
+        // (no podemos reasignar workingPage en este scope). Para bandas de totales o resumen
+        // que no deben partirse, usa ReportFooter (que ya hace el check) o ReportHeader con
+        // KeepTogether=true. Las tablas grandes manejan su propia paginación por fila.
+
         // Para el prototipo, un DetailBand tiene elementos, y uno de esos puede ser una
         // TableElement<T>. Otros elementos se dibujan en sus Bounds relativos a la banda.
         var bandTop = cursorY;
@@ -242,25 +255,9 @@ public sealed class LayoutEngine
         DrawHeader(cursorY);
         cursorY += table.HeaderHeight;
 
-        // Filas
-        var rowIndex = 0;
-        foreach (var row in table.Rows)
+        // Helper: emite una fila normal de datos.
+        void EmitRow(TRow row, int rowIndex)
         {
-            // Si no cabe esta fila en la página, abrimos nueva
-            if (cursorY + table.RowHeight > maxY)
-            {
-                // Cerrar página actual
-                pages.Add(currentPage.Build());
-                currentPage = new PageBuilder(pages.Count + 1);
-                cursorY = origin.Y + pageHeaderH;
-
-                if (table.HeaderMode == TableHeaderMode.RepeatOnPageBreak)
-                {
-                    DrawHeader(cursorY);
-                    cursorY += table.HeaderHeight;
-                }
-            }
-
             var effectiveStyle = (rowIndex % 2 == 1) ? altRowStyle : rowStyle;
             var colX = tableX;
 
@@ -272,7 +269,6 @@ public sealed class LayoutEngine
                 var value = col.Binding.Evaluate(row);
                 var text = FormatValue(value, col.Format, report.Culture);
 
-                // Fondo de celda (si el estilo define background)
                 if (effectiveStyle.Background != Color.Transparent)
                 {
                     currentPage.Commands.Add(new DrawRectangleCommand(
@@ -280,9 +276,7 @@ public sealed class LayoutEngine
                         effectiveStyle.Background, null) { SourcePath = sourcePath });
                 }
 
-                // Aplicar alineación específica de la columna (override)
                 var cellStyle = effectiveStyle with { TextAlign = col.Align };
-
                 currentPage.Commands.Add(new DrawTextCommand(
                     new Rect(colX + cellStyle.Padding.Left, cursorY + cellStyle.Padding.Top,
                              col.Width - cellStyle.Padding.Horizontal,
@@ -292,9 +286,154 @@ public sealed class LayoutEngine
 
                 colX += col.Width;
             }
-
             cursorY += table.RowHeight;
-            rowIndex++;
+        }
+
+        // Helper: page-break check + repeat header si aplica.
+        void EnsureSpace(double rowHeight)
+        {
+            if (cursorY + rowHeight > maxY)
+            {
+                pages.Add(currentPage.Build());
+                currentPage = new PageBuilder(pages.Count + 1);
+                cursorY = origin.Y + pageHeaderH;
+                if (table.HeaderMode == TableHeaderMode.RepeatOnPageBreak)
+                {
+                    DrawHeader(cursorY);
+                    cursorY += table.HeaderHeight;
+                }
+            }
+        }
+
+        // === Sin agrupación: loop simple ===
+        if (table.GroupBy is null)
+        {
+            var rowIndex = 0;
+            foreach (var row in table.Rows)
+            {
+                EnsureSpace(table.RowHeight);
+                EmitRow(row, rowIndex);
+                rowIndex++;
+            }
+        }
+        else
+        {
+            // === Con agrupación: filas consecutivas con mismo key forman un grupo ===
+            // Para que GroupHeader pueda usar {{ #count }} con el conteo total del grupo,
+            // bufferear el grupo entero antes de emitir.
+            var groupBuffer = new List<TRow>();
+            object? currentKey = null;
+            int globalRowIndex = 0;
+
+            void EmitCurrentGroup()
+            {
+                if (groupBuffer.Count == 0) return;
+
+                // === Group header ===
+                if (table.GroupHeader is not null)
+                {
+                    EnsureSpace(table.GroupHeader.Height);
+                    ctx.GroupKey = currentKey;
+                    ctx.GroupRowCount = groupBuffer.Count;
+                    var ghStyle = report.Styles.Resolve(table.GroupHeader.Style);
+                    if (ghStyle.Background != Color.Transparent)
+                    {
+                        currentPage.Commands.Add(new DrawRectangleCommand(
+                            new Rect(tableX, cursorY, tableWidth, table.GroupHeader.Height),
+                            ghStyle.Background, ghStyle.Border?.Bottom) { SourcePath = sourcePath });
+                    }
+                    var content = table.GroupHeader.Content.Evaluate(ctx);
+                    currentPage.Commands.Add(new DrawTextCommand(
+                        new Rect(tableX + ghStyle.Padding.Left, cursorY + ghStyle.Padding.Top,
+                                 tableWidth - ghStyle.Padding.Horizontal,
+                                 table.GroupHeader.Height - ghStyle.Padding.Vertical),
+                        content, ghStyle) { SourcePath = sourcePath });
+                    cursorY += table.GroupHeader.Height;
+                }
+
+                // === Filas del grupo ===
+                foreach (var row in groupBuffer)
+                {
+                    EnsureSpace(table.RowHeight);
+                    EmitRow(row, globalRowIndex++);
+                }
+
+                // === Group footer ===
+                if (table.GroupFooter is not null)
+                {
+                    EnsureSpace(table.GroupFooter.Height);
+                    ctx.GroupKey = currentKey;
+                    ctx.GroupRowCount = groupBuffer.Count;
+                    var gfStyle = report.Styles.Resolve(table.GroupFooter.Style);
+                    var colX = tableX;
+
+                    for (int i = 0; i < table.Columns.Count; i++)
+                    {
+                        var col = table.Columns[i];
+                        var cell = i < table.GroupFooter.Cells.Count ? table.GroupFooter.Cells[i] : null;
+
+                        if (gfStyle.Background != Color.Transparent)
+                        {
+                            currentPage.Commands.Add(new DrawRectangleCommand(
+                                new Rect(colX, cursorY, col.Width, table.GroupFooter.Height),
+                                gfStyle.Background, null) { SourcePath = sourcePath });
+                        }
+
+                        string text = "";
+                        if (cell is not null)
+                        {
+                            if (cell.Aggregate is { } kind)
+                            {
+                                var values = groupBuffer.Select(r => col.Binding.Evaluate(r));
+                                var num = ComputeAggregate(kind, values);
+                                text = FormatValue(num, cell.Format ?? col.Format, report.Culture);
+                            }
+                            else if (cell.Content is not null)
+                            {
+                                text = cell.Content.Evaluate(ctx);
+                            }
+                        }
+
+                        var alignedStyle = gfStyle with { TextAlign = cell?.Align ?? col.Align };
+                        currentPage.Commands.Add(new DrawTextCommand(
+                            new Rect(colX + alignedStyle.Padding.Left, cursorY + alignedStyle.Padding.Top,
+                                     col.Width - alignedStyle.Padding.Horizontal,
+                                     table.GroupFooter.Height - alignedStyle.Padding.Vertical),
+                            text, alignedStyle) { SourcePath = sourcePath });
+
+                        colX += col.Width;
+                    }
+                    cursorY += table.GroupFooter.Height;
+                }
+            }
+
+            foreach (var row in table.Rows)
+            {
+                var key = table.GroupBy.Evaluate(row);
+                if (groupBuffer.Count == 0)
+                {
+                    currentKey = key;
+                    groupBuffer.Add(row);
+                }
+                else if (ObjectsEqual(currentKey, key))
+                {
+                    groupBuffer.Add(row);
+                }
+                else
+                {
+                    // Cambia de grupo: emitir actual, empezar nuevo.
+                    EmitCurrentGroup();
+                    groupBuffer = new List<TRow> { row };
+                    currentKey = key;
+                }
+            }
+
+            // Último grupo
+            EmitCurrentGroup();
+
+            // Reset group state en el contexto.
+            ctx.GroupKey = null;
+            ctx.GroupRowCount = 0;
         }
 
         // Importante: transferir el estado final al workingPage original
@@ -311,6 +450,41 @@ public sealed class LayoutEngine
 
         return cursorY;
     }
+
+    private static bool ObjectsEqual(object? a, object? b)
+    {
+        if (a is null && b is null) return true;
+        if (a is null || b is null) return false;
+        return a.Equals(b);
+    }
+
+    /// <summary>Aplica Sum/Count/Avg sobre una secuencia de valores (con conversión segura a double).</summary>
+    private static double ComputeAggregate(AggregateKind kind, IEnumerable<object?> values)
+    {
+        if (kind == AggregateKind.Count)
+            return values.Count(v => v is not null);
+
+        var nums = values.Select(ToDouble).Where(v => v.HasValue).Select(v => v!.Value).ToList();
+        return kind switch
+        {
+            AggregateKind.Sum => nums.Sum(),
+            AggregateKind.Avg => nums.Count == 0 ? 0 : nums.Average(),
+            _ => 0
+        };
+    }
+
+    private static double? ToDouble(object? v) => v switch
+    {
+        null     => null,
+        double d => d,
+        float f  => f,
+        int i    => i,
+        long l   => l,
+        decimal m => (double)m,
+        string s => double.TryParse(s, System.Globalization.NumberStyles.Any,
+                        CultureInfo.InvariantCulture, out var d) ? d : null,
+        _ => null
+    };
 
     private static string FormatValue(object? value, string? format, CultureInfo culture)
     {
@@ -388,6 +562,17 @@ public sealed class LayoutEngine
                 // Tablas se manejan en RenderTableElement.
                 return absBounds.Bottom;
         }
+    }
+
+    /// <summary>
+    /// Devuelve <c>true</c> si la banda tiene KeepTogether y su altura declarada no cabe
+    /// en lo que queda de la página actual.
+    /// </summary>
+    private static bool NeedsBreakForKeepTogether(Band band, double cursorY, double maxY)
+    {
+        if (!band.KeepTogether) return false;
+        if (band.Height <= 0) return false;     // sin altura conocida no podemos decidir
+        return cursorY + band.Height > maxY;
     }
 
     /// <summary>

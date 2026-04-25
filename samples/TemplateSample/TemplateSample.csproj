@@ -28,6 +28,8 @@
     <None Update="invoice-data.json" CopyToOutputDirectory="PreserveNewest" />
     <None Update="wrap-demo.yaml" CopyToOutputDirectory="PreserveNewest" />
     <None Update="wrap-data.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="grouped-invoice.yaml" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="grouped-invoice-data.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

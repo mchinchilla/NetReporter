@@ -10,6 +10,8 @@ internal sealed class LayoutContext : IEvaluationContext
     public int TotalPages { get; set; }
     public int RowIndex { get; set; }
     public object? CurrentRow { get; set; }
+    public object? GroupKey { get; set; }
+    public int GroupRowCount { get; set; }
     public CultureInfo Culture { get; set; } = CultureInfo.InvariantCulture;
 
     public object? GetParameter(string name) => null;  // prototipo

@@ -1,0 +1,17 @@
+{
+  "numero": "FAC-001",
+  "cliente": "Distribuidora Ejemplo",
+  "fecha": "2026-04-25",
+  "lineas": [
+    { "categoria": "Computadoras",  "codigo": "A001", "descripcion": "Laptop Dell Latitude 5540",     "cantidad": 2, "precio": 28500.00, "total":  57000.00 },
+    { "categoria": "Computadoras",  "codigo": "A002", "descripcion": "Laptop HP ProBook 450 G10",     "cantidad": 3, "precio": 22000.00, "total":  66000.00 },
+    { "categoria": "Computadoras",  "codigo": "A003", "descripcion": "MacBook Air M3 13\"",            "cantidad": 1, "precio": 35000.00, "total":  35000.00 },
+    { "categoria": "Periféricos",   "codigo": "B100", "descripcion": "Teclado mecánico Keychron K2",  "cantidad": 5, "precio":  2150.00, "total":  10750.00 },
+    { "categoria": "Periféricos",   "codigo": "B101", "descripcion": "Mouse Logitech MX Master 3S",   "cantidad": 5, "precio":  2850.00, "total":  14250.00 },
+    { "categoria": "Periféricos",   "codigo": "B200", "descripcion": "Monitor LG 27\" UltraGear",      "cantidad": 3, "precio":  8750.00, "total":  26250.00 },
+    { "categoria": "Cables",        "codigo": "C220", "descripcion": "Cable HDMI 2.1 de 2 metros",    "cantidad": 10, "precio":   395.00, "total":   3950.00 },
+    { "categoria": "Cables",        "codigo": "C221", "descripcion": "Adaptador USB-C a HDMI",         "cantidad": 8, "precio":   675.00, "total":   5400.00 },
+    { "categoria": "Cables",        "codigo": "C222", "descripcion": "Cable USB-C 100W de 1m",         "cantidad": 12, "precio":   320.00, "total":   3840.00 }
+  ],
+  "total_general": "222,440.00"
+}

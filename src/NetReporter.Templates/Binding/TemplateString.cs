@@ -113,10 +113,12 @@ public static class TemplateString
             "pageNumber" => PageNumberPart.Instance,
             "totalPages" => TotalPagesPart.Instance,
             "rowIndex"   => RowIndexPart.Instance,
+            "#group"     => GroupKeyPart.Instance,
+            "#count"     => GroupCountPart.Instance,
             _ when expr.StartsWith('$') => new JsonPathPart(expr),
             _ => throw new FormatException(
                 $"Expresión de template no reconocida: '{{{{ {expr} }}}}'. " +
-                "Soportado: pageNumber, totalPages, rowIndex, $.path")
+                "Soportado: pageNumber, totalPages, rowIndex, #group, #count, $.path")
         };
     }
 
@@ -153,6 +155,25 @@ public static class TemplateString
         public static readonly RowIndexPart Instance = new();
         public override string Evaluate(IEvaluationContext ctx, JsonElement _) =>
             ctx.RowIndex.ToString();
+    }
+
+    private sealed class GroupKeyPart : TemplatePart
+    {
+        public static readonly GroupKeyPart Instance = new();
+        public override string Evaluate(IEvaluationContext ctx, JsonElement _)
+        {
+            var key = ctx.GroupKey;
+            if (key is null) return string.Empty;
+            if (key is JsonElement je) return JsonPath.ToDisplayString(je);
+            return key.ToString() ?? string.Empty;
+        }
+    }
+
+    private sealed class GroupCountPart : TemplatePart
+    {
+        public static readonly GroupCountPart Instance = new();
+        public override string Evaluate(IEvaluationContext ctx, JsonElement _) =>
+            ctx.GroupRowCount.ToString();
     }
 
     private sealed class JsonPathPart : TemplatePart

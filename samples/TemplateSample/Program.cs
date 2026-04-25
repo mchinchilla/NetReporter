@@ -35,6 +35,12 @@ RenderToPdf(
     Path.Combine(baseDir, "wrap-data.json"),
     "wrap-demo.pdf");
 
+// === Demo de grupos + subtotales ===
+RenderToPdf(
+    Path.Combine(baseDir, "grouped-invoice.yaml"),
+    Path.Combine(baseDir, "grouped-invoice-data.json"),
+    "grouped-invoice.pdf");
+
 
 void RenderToPdf(string templatePath, string dataPath, string outputName)
 {

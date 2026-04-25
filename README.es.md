@@ -7,7 +7,7 @@
 **Motor de reportes para .NET 10 con IR — un mismo template produce PDF, HTML y SVG.**
 
 [![.NET 10](https://img.shields.io/badge/.NET-10.0-512BD4?style=flat-square&logo=dotnet)](https://dotnet.microsoft.com/)
-[![Tests](https://img.shields.io/badge/tests-138%20passing-22c55e?style=flat-square&logo=xunit)](#-tests)
+[![Tests](https://img.shields.io/badge/tests-165%20passing-22c55e?style=flat-square&logo=xunit)](#-tests)
 [![License](https://img.shields.io/badge/license-TBD-lightgrey?style=flat-square)](#-licencias)
 [![Status](https://img.shields.io/badge/status-prototipo%20funcional-f59e0b?style=flat-square)](#estado)
 
@@ -85,6 +85,9 @@ NetReporter separa el reporte en cuatro capas con interfaces claras. **El templa
 ### Engine
 - ⚡ **Pipeline IR** — un template, múltiples salidas
 - 📐 **Layout engine** con paginación, repetición de headers de tabla, bandas (Report/Page Header/Footer + Detail)
+- 📝 **Word wrap real** + auto-height — el texto se rompe naturalmente, las bandas crecen para acomodar el contenido
+- 🔒 **KeepTogether** — bloques atómicos no se parten entre páginas
+- 📊 **Tablas agrupadas con subtotales** — `groupBy` + group headers/footers con `Sum`/`Count`/`Avg`
 - 🎨 **StyleSheet con herencia** — `BasedOn` chain con detección de ciclos y caché
 - 🔢 **Cultura por reporte** — formato de números/fechas localizado (probado con `es-HN`)
 - 📋 **Tablas tipadas** — `TableElement<TRow>` con columnas tipadas, alineación y formato por columna
@@ -92,7 +95,7 @@ NetReporter separa el reporte en cuatro capas con interfaces claras. **El templa
 ### Templates YAML
 - 📝 **Schema declarativo** — page, styles, bands, elements
 - 🔗 **JSON Path bindings** — `$.cliente.nombre`, `$.lineas[*]`
-- 🪝 **Template strings** — `{{ pageNumber }}`, `{{ totalPages }}`, `{{ $.titulo }}`
+- 🪝 **Template strings** — `{{ pageNumber }}`, `{{ totalPages }}`, `{{ $.titulo }}`, `{{ #group }}`, `{{ #count }}`
 - 📁 **FileName con templates** — `fileName: "factura-{{ $.numero }}"` resuelto al exportar
 - 🎯 **Multi-formato** — Letter, Legal, A3-A6, B4-B5, Tabloid, custom (paperoll 80mm/58mm)
 
@@ -176,7 +179,7 @@ flowchart TB
 | Frontend interactivo | **Alpine.js** 3.14 (CDN) | State + reactivity sin build pipeline |
 | Network reactividad | **HTMX** 2.0 (CDN) | Live preview con debounce |
 | CSS | **Tailwind CSS** (CDN play) | Utility-first |
-| Tests | **xUnit** 2.9 | 138 tests en 3 proyectos |
+| Tests | **xUnit** 2.9 | 165 tests en 3 proyectos |
 | JSON | `System.Text.Json` (BCL) | Sin Newtonsoft |
 
 ---
@@ -415,10 +418,18 @@ bands:
 
 | Tipo | Campos clave |
 |---|---|
-| `text` | `content` (template), `style` |
+| `text` | `content` (template), `style`, `wordWrap`, `autoHeight` |
 | `line` | `orientation` (horizontal/vertical), `color`, `thickness` |
 | `rectangle` | `fill`, `borderLine: { thickness, color }` |
-| `table` | `rows` (JSON Path), `columns[]`, `headerStyle`, `rowStyle`, `alternateRowStyle`, `headerHeight`, `rowHeight`, `headerMode` |
+| `table` | `rows` (JSON Path), `columns[]`, `headerStyle`, `rowStyle`, `alternateRowStyle`, `headerHeight`, `rowHeight`, `headerMode`, `groupBy`, `groupHeader`, `groupFooter` |
+
+### Propiedades de banda
+
+| Propiedad | Efecto |
+|---|---|
+| `height` | Altura mínima reservada (pt) |
+| `autoHeight: true` | La banda crece para acomodar su contenido (max con `height`) |
+| `keepTogether: true` | Si la banda no cabe en la página actual, page break antes de emitirla |
 
 ### Tabla con columnas
 
@@ -440,6 +451,37 @@ bands:
     - { header: "Total",       binding: "$.total",       width: 75,  format: "N2", align: right }
 ```
 
+### Tablas agrupadas (subtotales)
+
+Agrupa filas consecutivas con la misma clave, emite un header por grupo y un footer con agregados:
+
+```yaml
+- type: table
+  rows: "$.lineas"
+  groupBy: "$.categoria"           # agrupa filas consecutivas por esta expresión
+
+  groupHeader:
+    height: 20
+    style: GroupHeader
+    content: "▸ {{ #group }} ({{ #count }} items)"
+
+  groupFooter:
+    height: 18
+    style: GroupFooter
+    cells:                          # celdas paralelas a las columnas por índice
+      - { content: "Subtotal {{ #group }}:" }
+      - null                        # vacía
+      - { aggregate: count, format: "N0", align: right }
+      - { content: "Promedio:", align: right }
+      - { aggregate: sum, format: "N2", align: right }
+
+  columns: [...]
+```
+
+Agregadores disponibles: `sum` · `count` · `avg`. Cada celda del footer agrega el **binding de la columna en su mismo índice**. Conversión numérica segura desde `int`/`long`/`decimal`/`double`/`float`/strings parseables.
+
+> **Limitación:** las filas deben venir pre-ordenadas por la clave de grupo — no hay sort interno. Solo un nivel de anidamiento (sin grupos anidados).
+
 ### Template strings
 
 | Placeholder | Resuelve a |
@@ -448,6 +490,8 @@ bands:
 | `{{ totalPages }}` | Total de páginas |
 | `{{ rowIndex }}` | Índice de fila (en contexto de tabla) |
 | `{{ $.path.to.field }}` | Valor del JSON Path |
+| `{{ #group }}` | Clave del grupo actual (en contexto de group header/footer) |
+| `{{ #count }}` | Cantidad de filas en el grupo actual |
 
 ### Unidades
 
@@ -530,36 +574,34 @@ dotnet test
 ┌─────────────────────────────────────┬───────┐
 │ Proyecto                            │ Tests │
 ├─────────────────────────────────────┼───────┤
-│ NetReporter.Core.Tests              │   33  │
+│ NetReporter.Core.Tests              │   60  │
 │ NetReporter.Templates.Tests         │   92  │
 │ NetReporter.Html.Tests              │   13  │
 ├─────────────────────────────────────┼───────┤
-│ Total                               │  138  │
+│ Total                               │  165  │
 └─────────────────────────────────────┴───────┘
 ```
 
 **Cobertura por área:**
 
-- 🧠 **Core**: Color hex parsing, PageSetup transformations, StyleSheet (herencia + ciclos + cache), BorderSet factories.
-- 📝 **Templates**: JSON Path (Select/SelectMany/edge cases), TemplateString (placeholders + literals + escape), YamlReportRewriter (los 11 métodos × casos felices y errores).
+- 🧠 **Core**: Color hex parsing, PageSetup transformations, StyleSheet (herencia + ciclos + cache), BorderSet factories, **algoritmo word-wrap**, **band auto-height**, **KeepTogether page-break**, **tablas agrupadas con sum/count/avg**.
+- 📝 **Templates**: JSON Path (Select/SelectMany/edge cases), TemplateString (placeholders + literals + escape), YamlReportRewriter (los 11 métodos × casos felices y errores), FileName resolución.
 - 🌐 **Html**: HTML válido, escape de chars especiales, fonts, alignments, líneas, rectangles, multi-page, print CSS.
 
 ---
 
 ## ⚠️ Limitaciones conocidas
 
-### No implementado (Fase 3)
+### No implementado (Fase 4+)
 
 | Feature | Estado | Workaround actual |
 |---|---|---|
-| **Word wrap real** | ❌ | El texto se trunca con clipping al borde del bounds |
-| **Auto-height** en bandas/text | ❌ | Bandas con altura fija |
-| **KeepTogether** | ❌ | Posible page break en medio de un bloque |
-| **Grupos con subtotales** | ❌ | Pre-calcular agregados fuera del reporte |
 | **Imágenes / barcodes / QR** | ❌ | — |
 | **Charts** | ❌ | — |
 | **XLSX renderer** | ❌ | Pendiente (mismo IR sirve) |
 | **Subreportes** | ❌ | — |
+| **Grupos multinivel** | ❌ | Solo un nivel de anidamiento soportado |
+| **KeepTogether en DetailBand** | ⚠️ | Usa ReportHeader/Footer (limitación de ref-locals del engine) |
 
 ### Deuda técnica documentada
 
@@ -584,19 +626,22 @@ dotnet test
 - [x] **Fase 2.8** — Editor de columnas inline + resize redistributivo
 - [x] **Fase 2.9** — Samples builtin + import file
 - [x] **Fase 2.10** — `fileName` con template strings + sanitización
-- [x] **Tests** — 138 tests verdes en 3 proyectos
+- [x] **Fase 3.1** — Word wrap real (`ITextMeasurer` + `SkiaTextMeasurer`)
+- [x] **Fase 3.2** — Auto-height en bandas y text elements
+- [x] **Fase 3.3** — `KeepTogether` para bloques atómicos
+- [x] **Fase 3.4** — Tablas agrupadas con subtotales (`groupBy` + headers/footers + sum/count/avg)
+- [x] **Tests** — 165 tests verdes en 3 proyectos
 
 ### 🚧 En consideración
 
-- [ ] Word wrap real con SkiaSharp metrics
-- [ ] Auto-height en bandas y text elements
 - [ ] Imágenes (data URI o binary embed)
 - [ ] Barcode / QR code (zxing.net o nativo)
-- [ ] Grupos con subtotales (`GroupHeaderBand`/`GroupFooterBand` + agregados)
+- [ ] Grupos multinivel (nested groups)
 - [ ] XLSX renderer (mismo IR)
 - [ ] Multi-selección + copy/paste en Designer
 - [ ] Charts simples (bar / line / pie)
 - [ ] DSL parsed expressions (en lugar de closures C#)
+- [ ] KeepTogether en DetailBand (requiere refactor del engine)
 
 ---
 

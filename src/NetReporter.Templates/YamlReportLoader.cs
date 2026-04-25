@@ -290,13 +290,14 @@ public sealed class TemplateReport
 
         var kind = (b.Kind ?? "Detail").ToLowerInvariant();
         var autoHeight = b.AutoHeight ?? false;
+        var keepTogether = b.KeepTogether ?? false;
         return kind switch
         {
-            "reportheader" => new ReportHeaderBand { Height = b.Height, Elements = elements, AutoHeight = autoHeight },
-            "pageheader"   => new PageHeaderBand   { Height = b.Height, Elements = elements, AutoHeight = autoHeight },
-            "detail"       => new DetailBand       { Height = b.Height, Elements = elements, AutoHeight = autoHeight },
-            "pagefooter"   => new PageFooterBand   { Height = b.Height, Elements = elements, AutoHeight = autoHeight },
-            "reportfooter" => new ReportFooterBand { Height = b.Height, Elements = elements, AutoHeight = autoHeight },
+            "reportheader" => new ReportHeaderBand { Height = b.Height, Elements = elements, AutoHeight = autoHeight, KeepTogether = keepTogether },
+            "pageheader"   => new PageHeaderBand   { Height = b.Height, Elements = elements, AutoHeight = autoHeight, KeepTogether = keepTogether },
+            "detail"       => new DetailBand       { Height = b.Height, Elements = elements, AutoHeight = autoHeight, KeepTogether = keepTogether },
+            "pagefooter"   => new PageFooterBand   { Height = b.Height, Elements = elements, AutoHeight = autoHeight, KeepTogether = keepTogether },
+            "reportfooter" => new ReportFooterBand { Height = b.Height, Elements = elements, AutoHeight = autoHeight, KeepTogether = keepTogether },
             _ => throw new FormatException(
                 $"Band.kind desconocido: '{b.Kind}'. " +
                 "Usa ReportHeader, PageHeader, Detail, PageFooter o ReportFooter.")
@@ -367,7 +368,54 @@ public sealed class TemplateReport
             HeaderMode = headerMode,
             HeaderStyle = e.HeaderStyle is not null ? new StyleRef(e.HeaderStyle) : new StyleRef("TableHeader"),
             RowStyle    = e.RowStyle    is not null ? new StyleRef(e.RowStyle)    : new StyleRef("TableRow"),
-            AlternateRowStyle = e.AlternateRowStyle is not null ? new StyleRef(e.AlternateRowStyle) : null
+            AlternateRowStyle = e.AlternateRowStyle is not null ? new StyleRef(e.AlternateRowStyle) : null,
+            GroupBy = e.GroupBy is not null ? new JsonPathBinding(e.GroupBy) : null,
+            GroupHeader = e.GroupHeader is not null ? BuildGroupHeader(e.GroupHeader, data) : null,
+            GroupFooter = e.GroupFooter is not null ? BuildGroupFooter(e.GroupFooter, data) : null
+        };
+    }
+
+    private static GroupHeader BuildGroupHeader(GroupHeaderYaml g, JsonElement data) => new()
+    {
+        Height = g.Height,
+        Content = TemplateString.Compile(g.Content ?? string.Empty, data),
+        Style = g.Style is not null ? new StyleRef(g.Style) : new StyleRef("GroupHeader")
+    };
+
+    private static GroupFooter BuildGroupFooter(GroupFooterYaml g, JsonElement data)
+    {
+        var cells = (g.Cells ?? new List<GroupFooterCellYaml?>())
+            .Select(c => c is null ? null : BuildGroupFooterCell(c, data))
+            .ToList();
+        return new GroupFooter
+        {
+            Height = g.Height,
+            Cells = cells,
+            Style = g.Style is not null ? new StyleRef(g.Style) : new StyleRef("GroupFooter")
+        };
+    }
+
+    private static GroupFooterCell? BuildGroupFooterCell(GroupFooterCellYaml c, JsonElement data)
+    {
+        AggregateKind? aggregate = null;
+        if (!string.IsNullOrWhiteSpace(c.Aggregate))
+        {
+            aggregate = c.Aggregate.ToLowerInvariant() switch
+            {
+                "sum"   => AggregateKind.Sum,
+                "count" => AggregateKind.Count,
+                "avg"   => AggregateKind.Avg,
+                _ => throw new FormatException(
+                    $"Aggregate desconocido: '{c.Aggregate}'. Usa sum/count/avg.")
+            };
+        }
+
+        return new GroupFooterCell
+        {
+            Content = c.Content is not null ? TemplateString.Compile(c.Content, data) : null,
+            Aggregate = aggregate,
+            Format = c.Format,
+            Align = c.Align is not null ? ParseAlign(c.Align) : null
         };
     }
 

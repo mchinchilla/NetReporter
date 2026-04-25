@@ -26,6 +26,14 @@ public abstract record Band(BandKind Kind)
     /// max bottom de los elementos (tras aplicar word-wrap y auto-height de TextElement).
     /// </summary>
     public bool AutoHeight { get; init; } = false;
+
+    /// <summary>
+    /// Si <c>true</c>, la banda no se parte entre páginas: si su altura declarada no cabe
+    /// en lo que queda de la página actual, el engine fuerza un page break antes de emitirla.
+    /// Útil para bloques atómicos como totales o cuadros de firma.
+    /// Sin efecto si <see cref="Height"/> es 0 (no hay altura conocida para reservar).
+    /// </summary>
+    public bool KeepTogether { get; init; } = false;
 }
 
 public sealed record ReportHeaderBand() : Band(BandKind.ReportHeader);

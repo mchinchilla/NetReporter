@@ -1,0 +1,126 @@
+# Factura agrupada por categoría con subtotales por grupo + total general.
+# Demuestra: groupBy + groupHeader + groupFooter con sum/count/avg.
+
+name: GroupedInvoice
+title: "Factura agrupada"
+fileName: "factura-agrupada-{{ $.numero }}"
+
+page:
+  size: Letter
+  margins: { all: 1.5cm }
+
+culture: es-HN
+
+styles:
+  Default:
+    fontFamily: Helvetica
+    fontSize: 10
+  Title:
+    basedOn: Default
+    fontSize: 18
+    bold: true
+  Caption:
+    basedOn: Default
+    fontSize: 8
+    foreground: "#64748B"
+  TableHeader:
+    basedOn: Default
+    bold: true
+    background: "#0F172A"
+    foreground: "#FFFFFF"
+    padding: { horizontal: 4, vertical: 3 }
+  TableRow:
+    basedOn: Default
+    padding: { horizontal: 4, vertical: 3 }
+  TableRowAlt:
+    basedOn: TableRow
+    background: "#F8FAFC"
+  GroupHeader:
+    basedOn: Default
+    bold: true
+    background: "#0284C7"
+    foreground: "#FFFFFF"
+    padding: { horizontal: 6, vertical: 3 }
+  GroupFooter:
+    basedOn: Default
+    bold: true
+    background: "#E0F2FE"
+    foreground: "#0F172A"
+    padding: { horizontal: 4, vertical: 3 }
+  Total:
+    basedOn: Default
+    fontSize: 12
+    bold: true
+    align: right
+
+bands:
+  - kind: ReportHeader
+    height: 60
+    elements:
+      - type: text
+        bounds: { x: 0, y: 0, width: 527, height: 26 }
+        content: "Factura {{ $.numero }} — Productos por Categoría"
+        style: Title
+      - type: text
+        bounds: { x: 0, y: 32, width: 527, height: 12 }
+        content: "Cliente: {{ $.cliente }} · Fecha: {{ $.fecha }}"
+        style: Caption
+
+  - kind: Detail
+    height: 0
+    autoHeight: true
+    elements:
+      - type: table
+        bounds: { x: 0, y: 0, width: 527, height: 0 }
+        rows: "$.lineas"
+        groupBy: "$.categoria"
+        headerStyle: TableHeader
+        rowStyle: TableRow
+        alternateRowStyle: TableRowAlt
+        headerHeight: 22
+        rowHeight: 18
+        columns:
+          - { header: "Codigo",      binding: "$.codigo",      width: 80,  align: left }
+          - { header: "Descripcion", binding: "$.descripcion", width: 220, align: left }
+          - { header: "Cant.",       binding: "$.cantidad",    width: 60,  align: right }
+          - { header: "Precio",      binding: "$.precio",      width: 80,  format: "N2", align: right }
+          - { header: "Total",       binding: "$.total",       width: 87,  format: "N2", align: right }
+
+        groupHeader:
+          height: 20
+          style: GroupHeader
+          content: "▸ Categoría: {{ #group }} ({{ #count }} productos)"
+
+        groupFooter:
+          height: 18
+          style: GroupFooter
+          cells:
+            - { content: "Subtotal {{ #group }}:" }
+            - null
+            - { aggregate: count, format: "N0", align: right }
+            - { content: "Promedio:", align: right }
+            - { aggregate: sum, format: "N2", align: right }
+
+  - kind: ReportFooter
+    height: 60
+    elements:
+      - type: line
+        bounds: { x: 250, y: 8, width: 277, height: 0 }
+        color: "#0F172A"
+        thickness: 1
+      - type: text
+        bounds: { x: 250, y: 14, width: 180, height: 16 }
+        content: "TOTAL GENERAL:"
+        style: Total
+      - type: text
+        bounds: { x: 430, y: 14, width: 97, height: 16 }
+        content: "{{ $.total_general }}"
+        style: Total
+
+  - kind: PageFooter
+    height: 24
+    elements:
+      - type: text
+        bounds: { x: 0, y: 8, width: 527, height: 10 }
+        content: "Página {{ pageNumber }} de {{ totalPages }}"
+        style: Caption
