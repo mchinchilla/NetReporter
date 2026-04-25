@@ -7,7 +7,7 @@
 **Motor de reportes para .NET 10 con IR — un mismo template produce PDF, HTML y SVG.**
 
 [![.NET 10](https://img.shields.io/badge/.NET-10.0-512BD4?style=flat-square&logo=dotnet)](https://dotnet.microsoft.com/)
-[![Tests](https://img.shields.io/badge/tests-165%20passing-22c55e?style=flat-square&logo=xunit)](#-tests)
+[![Tests](https://img.shields.io/badge/tests-172%20passing-22c55e?style=flat-square&logo=xunit)](#-tests)
 [![License](https://img.shields.io/badge/license-TBD-lightgrey?style=flat-square)](#-licencias)
 [![Status](https://img.shields.io/badge/status-prototipo%20funcional-f59e0b?style=flat-square)](#estado)
 
@@ -88,6 +88,8 @@ NetReporter separa el reporte en cuatro capas con interfaces claras. **El templa
 - 📝 **Word wrap real** + auto-height — el texto se rompe naturalmente, las bandas crecen para acomodar el contenido
 - 🔒 **KeepTogether** — bloques atómicos no se parten entre páginas
 - 📊 **Tablas agrupadas con subtotales** — `groupBy` + group headers/footers con `Sum`/`Count`/`Avg`
+- 🖼️ **Imágenes embebidas** (PNG/JPEG/GIF/WebP) — source por path o data URI
+- ▦ **Barcodes y QR vectoriales** — QR / Code 128 / Code 39 / EAN-13 (vía ZXing, opt-in)
 - 🎨 **StyleSheet con herencia** — `BasedOn` chain con detección de ciclos y caché
 - 🔢 **Cultura por reporte** — formato de números/fechas localizado (probado con `es-HN`)
 - 📋 **Tablas tipadas** — `TableElement<TRow>` con columnas tipadas, alineación y formato por columna
@@ -179,7 +181,8 @@ flowchart TB
 | Frontend interactivo | **Alpine.js** 3.14 (CDN) | State + reactivity sin build pipeline |
 | Network reactividad | **HTMX** 2.0 (CDN) | Live preview con debounce |
 | CSS | **Tailwind CSS** (CDN play) | Utility-first |
-| Tests | **xUnit** 2.9 | 165 tests en 3 proyectos |
+| Barcodes (opt-in) | **ZXing.Net** 0.16 | Apache 2.0 · QR / Code128 / Code39 / EAN-13 |
+| Tests | **xUnit** 2.9 | 172 tests en 4 proyectos |
 | JSON | `System.Text.Json` (BCL) | Sin Newtonsoft |
 
 ---
@@ -193,12 +196,14 @@ NetReporter/
 │   ├── NetReporter.Templates/   📝 YAML loader/rewriter, JSON Path, template strings
 │   ├── NetReporter.Pdf/         📄 PdfRenderer (delega a Svg)
 │   ├── NetReporter.Svg/         🖼️ SvgRenderer (SkiaSharp.SKSvgCanvas)
-│   └── NetReporter.Html/        🌐 HtmlRenderer (HTML/CSS paginado)
+│   ├── NetReporter.Html/        🌐 HtmlRenderer (HTML/CSS paginado)
+│   └── NetReporter.Barcodes/    ▦ Barcode/QR generator vía ZXing (opt-in)
 │
 ├── 🧪 tests/
-│   ├── NetReporter.Core.Tests/        ColorTests, PageSetupTests, StyleSheetTests, BorderSetTests
+│   ├── NetReporter.Core.Tests/        ColorTests, PageSetupTests, StyleSheetTests, BorderSetTests, EstimateTextMeasurer, AutoHeight, KeepTogether, GroupedTable
 │   ├── NetReporter.Templates.Tests/   JsonPathTests, TemplateStringTests, YamlReportRewriterTests, FileNameTests
-│   └── NetReporter.Html.Tests/        HtmlRendererTests
+│   ├── NetReporter.Html.Tests/        HtmlRendererTests
+│   └── NetReporter.Barcodes.Tests/    ZXingBarcodeGeneratorTests
 │
 ├── 🛠️ tools/
 │   └── NetReporter.Designer/    🎨 ASP.NET Core MVC + Alpine + HTMX + Tailwind
@@ -362,9 +367,20 @@ Abre `http://localhost:5296`.
 | Undo | `Ctrl+Z` / `Cmd+Z` |
 | Redo | `Ctrl+Shift+Z` / `Ctrl+Y` |
 
+### Samples builtin (dropdown 📦 Samples)
+
+| Sample | Demuestra |
+|---|---|
+| `clientes` | Reporte tabular básico con header, tabla, page footer |
+| `invoice-laser` | Factura completa Letter con bloque de totales |
+| `invoice-paperoll` | Recibo continuo 80mm (impresora térmica POS) |
+| `wrap-demo` | Word wrap real + auto-height de bandas |
+| `grouped-invoice` | `groupBy` con headers por grupo y subtotales `Sum`/`Count`/`Avg` |
+| `invoice-with-qr` | Logo PNG embebido + QR vectorial del CAI |
+
 ### Flujo típico
 
-1. **Abrir un sample** → `📦 Samples / invoice-paperoll`.
+1. **Abrir un sample** → `📦 Samples / invoice-with-qr`.
 2. **Editar** datos de prueba en el tab `data.json`.
 3. **Drag** un texto, **resize** una tabla, **agregar columnas** desde el drawer.
 4. **Save as…** con un nombre propio → se guarda en `~/.netreporter/templates/`.
@@ -422,6 +438,8 @@ bands:
 | `line` | `orientation` (horizontal/vertical), `color`, `thickness` |
 | `rectangle` | `fill`, `borderLine: { thickness, color }` |
 | `table` | `rows` (JSON Path), `columns[]`, `headerStyle`, `rowStyle`, `alternateRowStyle`, `headerHeight`, `rowHeight`, `headerMode`, `groupBy`, `groupHeader`, `groupFooter` |
+| `image` | `source` (path local o `data:image/png;base64,...`), `fit` (contain/fill) |
+| `barcode` | `value` (template), `format` (qr/code128/code39/ean13), `barcodeForeground`, `barcodeBackground` |
 
 ### Propiedades de banda
 
@@ -450,6 +468,33 @@ bands:
     - { header: "Precio",      binding: "$.precio",      width: 75,  format: "N2", align: right }
     - { header: "Total",       binding: "$.total",       width: 75,  format: "N2", align: right }
 ```
+
+### Imágenes y barcodes
+
+```yaml
+# Imagen embebida — path local o data URI inline
+- type: image
+  bounds: { x: 0, y: 0, width: 120, height: 60 }
+  source: "logo.png"                            # o: data:image/png;base64,...
+  fit: contain                                  # contain | fill
+
+# QR vectorial (también: code128, code39, ean13)
+- type: barcode
+  bounds: { x: 0, y: 0, width: 90, height: 90 }
+  value: "{{ $.cai }}"                          # template string evaluado
+  format: qr
+  barcodeForeground: "#0F172A"
+  barcodeBackground: "#FFFFFF"
+```
+
+Los barcodes se emiten como N `DrawRectangleCommand`s (uno por módulo oscuro) — totalmente **vectoriales**, escalan perfecto en PDF/SVG/HTML a cualquier zoom. Requiere referencia a `NetReporter.Barcodes` y pasar `ZXingBarcodeGenerator.Instance` al constructor del `LayoutEngine`:
+
+```csharp
+var layout = new LayoutEngine(SkiaTextMeasurer.Instance, ZXingBarcodeGenerator.Instance)
+                 .Layout(report);
+```
+
+El Designer ya lo cablea — barcodes funcionan out-of-the-box en preview/export.
 
 ### Tablas agrupadas (subtotales)
 
@@ -577,8 +622,9 @@ dotnet test
 │ NetReporter.Core.Tests              │   60  │
 │ NetReporter.Templates.Tests         │   92  │
 │ NetReporter.Html.Tests              │   13  │
+│ NetReporter.Barcodes.Tests          │    7  │
 ├─────────────────────────────────────┼───────┤
-│ Total                               │  165  │
+│ Total                               │  172  │
 └─────────────────────────────────────┴───────┘
 ```
 
@@ -587,16 +633,16 @@ dotnet test
 - 🧠 **Core**: Color hex parsing, PageSetup transformations, StyleSheet (herencia + ciclos + cache), BorderSet factories, **algoritmo word-wrap**, **band auto-height**, **KeepTogether page-break**, **tablas agrupadas con sum/count/avg**.
 - 📝 **Templates**: JSON Path (Select/SelectMany/edge cases), TemplateString (placeholders + literals + escape), YamlReportRewriter (los 11 métodos × casos felices y errores), FileName resolución.
 - 🌐 **Html**: HTML válido, escape de chars especiales, fonts, alignments, líneas, rectangles, multi-page, print CSS.
+- ▦ **Barcodes**: QR finder patterns, densidad de barras Code 128, validación estricta EAN-13, edge cases (empty/null/throwing fallback).
 
 ---
 
 ## ⚠️ Limitaciones conocidas
 
-### No implementado (Fase 4+)
+### No implementado (Fase 5+)
 
 | Feature | Estado | Workaround actual |
 |---|---|---|
-| **Imágenes / barcodes / QR** | ❌ | — |
 | **Charts** | ❌ | — |
 | **XLSX renderer** | ❌ | Pendiente (mismo IR sirve) |
 | **Subreportes** | ❌ | — |
@@ -630,18 +676,20 @@ dotnet test
 - [x] **Fase 3.2** — Auto-height en bandas y text elements
 - [x] **Fase 3.3** — `KeepTogether` para bloques atómicos
 - [x] **Fase 3.4** — Tablas agrupadas con subtotales (`groupBy` + headers/footers + sum/count/avg)
-- [x] **Tests** — 165 tests verdes en 3 proyectos
+- [x] **Fase 4.1** — Imágenes embebidas (PNG/JPEG/GIF/WebP, path local o data URI)
+- [x] **Fase 4.2** — Barcodes y QR vectoriales (ZXing.Net opt-in)
+- [x] **Fase 4.3** — Designer integra 6 samples builtin (clientes, invoice-laser/paperoll, wrap-demo, grouped-invoice, invoice-with-qr)
+- [x] **Tests** — 172 tests verdes en 4 proyectos
 
 ### 🚧 En consideración
 
-- [ ] Imágenes (data URI o binary embed)
-- [ ] Barcode / QR code (zxing.net o nativo)
 - [ ] Grupos multinivel (nested groups)
 - [ ] XLSX renderer (mismo IR)
 - [ ] Multi-selección + copy/paste en Designer
 - [ ] Charts simples (bar / line / pie)
 - [ ] DSL parsed expressions (en lugar de closures C#)
 - [ ] KeepTogether en DetailBand (requiere refactor del engine)
+- [ ] UI del Designer para picker de imágenes/barcodes (hoy solo via YAML o Save-as a un sample)
 
 ---
 
@@ -653,6 +701,7 @@ dotnet test
 | **QuestPDF** | MIT para uso no comercial y empresas <1M USD/año revenue. Comercial: Professional ($699 one-time). [Pricing](https://www.questpdf.com/pricing.html) |
 | **SkiaSharp** | MIT |
 | **YamlDotNet** | MIT |
+| **ZXing.Net** | Apache 2.0 (solo si se referencia `NetReporter.Barcodes`) |
 | **HTMX** | BSD-2-Clause |
 | **Alpine.js** | MIT |
 | **Tailwind CSS** | MIT |
@@ -669,6 +718,6 @@ dotnet test
 
 <div align="center">
 
-**Hecho con .NET 10 · QuestPDF · SkiaSharp · YamlDotNet · HTMX · Alpine.js · Tailwind**
+**Hecho con .NET 10 · QuestPDF · SkiaSharp · YamlDotNet · ZXing.Net · HTMX · Alpine.js · Tailwind**
 
 </div>
