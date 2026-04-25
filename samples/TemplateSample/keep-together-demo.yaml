@@ -1,0 +1,139 @@
+# Demo de KeepTogether: bloque atómico que no debe partirse entre páginas.
+# El sample tiene varios bloques cortos al inicio que llenan la primera página,
+# y al final un bloque importante (firmas / términos) marcado keepTogether: true.
+# Cuando el cursor llega cerca del final sin espacio para el bloque entero,
+# el engine fuerza un page break ANTES de emitirlo, dejándolo intacto en página 2.
+#
+# Para ver el efecto: agrega más párrafos al middleParagraphs en el JSON;
+# verás cómo el bloque "Términos y condiciones" salta a una nueva página.
+
+name: KeepTogetherDemo
+title: "Demo · KeepTogether"
+fileName: "keep-together-demo"
+
+page:
+  size: Letter
+  margins: { all: 1.5cm }
+
+styles:
+  Default:    { fontFamily: Helvetica, fontSize: 10, foreground: "#0F172A" }
+  Title:      { basedOn: Default, fontSize: 22, bold: true }
+  Caption:    { basedOn: Default, fontSize: 8, foreground: "#64748B" }
+  CaptionCenter: { basedOn: Caption, align: center }
+  Section:    { basedOn: Default, fontSize: 14, bold: true, foreground: "#0284C7" }
+  Important:  { basedOn: Default, bold: true, foreground: "#FFFFFF", background: "#0284C7", padding: { all: 6 } }
+  Body:       { basedOn: Default, fontSize: 10, foreground: "#334155" }
+
+bands:
+  - kind: ReportHeader
+    height: 70
+    elements:
+      - type: text
+        bounds: { x: 0, y: 0, width: 527, height: 28 }
+        content: "Demo · KeepTogether"
+        style: Title
+      - type: text
+        bounds: { x: 0, y: 32, width: 527, height: 14 }
+        content: "Bloques largos llenan la página 1; el bloque atómico al final salta entero a página 2."
+        style: Caption
+      - type: line
+        bounds: { x: 0, y: 56, width: 527, height: 0 }
+        color: "#CBD5E1"
+        thickness: 0.5
+
+  - kind: Detail
+    height: 200
+    autoHeight: true
+    elements:
+      - type: text
+        bounds: { x: 0, y: 0, width: 527, height: 18 }
+        content: "Sección 1 — Introducción"
+        style: Section
+      - type: text
+        bounds: { x: 0, y: 22, width: 527, height: 60 }
+        content: "{{ $.intro }}"
+        style: Body
+
+      - type: text
+        bounds: { x: 0, y: 100, width: 527, height: 18 }
+        content: "Sección 2 — Detalles operativos"
+        style: Section
+      - type: text
+        bounds: { x: 0, y: 122, width: 527, height: 60 }
+        content: "{{ $.details }}"
+        style: Body
+
+  # Banda larga con párrafos para llenar y forzar page break
+  - kind: Detail
+    height: 0
+    autoHeight: true
+    elements:
+      - type: text
+        bounds: { x: 0, y: 0, width: 527, height: 18 }
+        content: "Sección 3 — Cuerpo extenso"
+        style: Section
+      - type: text
+        bounds: { x: 0, y: 24, width: 527, height: 360 }
+        content: "{{ $.body }}"
+        style: Body
+
+  # === BLOQUE ATÓMICO con KeepTogether ===
+  - kind: ReportFooter
+    height: 220
+    keepTogether: true
+    elements:
+      # Header del bloque
+      - type: rectangle
+        bounds: { x: 0, y: 0, width: 527, height: 30 }
+        fill: "#0284C7"
+      - type: text
+        bounds: { x: 12, y: 8, width: 503, height: 16 }
+        content: "TÉRMINOS Y CONDICIONES — bloque KeepTogether"
+        style: Important
+
+      # Cuerpo del bloque
+      - type: text
+        bounds: { x: 0, y: 38, width: 527, height: 60 }
+        content: "{{ $.terms_intro }}"
+        style: Body
+
+      # Líneas de firma
+      - type: line
+        bounds: { x: 0, y: 130, width: 240, height: 0 }
+        color: "#0F172A"
+        thickness: 0.5
+      - type: text
+        bounds: { x: 0, y: 134, width: 240, height: 12 }
+        content: "Firma del cliente"
+        style: Caption
+
+      - type: line
+        bounds: { x: 287, y: 130, width: 240, height: 0 }
+        color: "#0F172A"
+        thickness: 0.5
+      - type: text
+        bounds: { x: 287, y: 134, width: 240, height: 12 }
+        content: "Firma del responsable"
+        style: Caption
+
+      - type: text
+        bounds: { x: 0, y: 160, width: 527, height: 30 }
+        content: "{{ $.terms_warning }}"
+        style: Caption
+
+      - type: text
+        bounds: { x: 0, y: 196, width: 527, height: 14 }
+        content: "✓ Este bloque no debe partirse entre páginas — keepTogether: true"
+        style: CaptionCenter
+
+  - kind: PageFooter
+    height: 24
+    elements:
+      - type: line
+        bounds: { x: 0, y: 0, width: 527, height: 0 }
+        color: "#CBD5E1"
+        thickness: 0.5
+      - type: text
+        bounds: { x: 0, y: 8, width: 527, height: 10 }
+        content: "Pagina {{ pageNumber }} de {{ totalPages }}"
+        style: CaptionCenter

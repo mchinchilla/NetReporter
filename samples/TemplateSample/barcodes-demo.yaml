@@ -1,0 +1,166 @@
+# Demo de los 4 formatos de barcode soportados:
+# QR Code · Code 128 · Code 39 · EAN-13.
+# Todos vectoriales — escalan perfectos en PDF/SVG/HTML.
+
+name: BarcodesDemo
+title: "Demo de barcodes y QR"
+fileName: "barcodes-demo"
+
+page:
+  size: Letter
+  margins: { all: 1.5cm }
+
+styles:
+  Default:    { fontFamily: Helvetica, fontSize: 10, foreground: "#0F172A" }
+  Title:      { basedOn: Default, fontSize: 22, bold: true }
+  Section:    { basedOn: Default, fontSize: 13, bold: true, foreground: "#0284C7" }
+  Caption:    { basedOn: Default, fontSize: 8, foreground: "#64748B" }
+  Code:       { basedOn: Default, fontFamily: Courier, fontSize: 9 }
+  Box:        { basedOn: Default, padding: { all: 4 } }
+
+bands:
+  - kind: ReportHeader
+    height: 80
+    elements:
+      - type: text
+        bounds: { x: 0, y: 0, width: 527, height: 28 }
+        content: "Barcodes & QR Codes"
+        style: Title
+      - type: text
+        bounds: { x: 0, y: 32, width: 527, height: 14 }
+        content: "Cuatro formatos vectoriales generados por ZXing.Net + LayoutEngine"
+        style: Caption
+      - type: line
+        bounds: { x: 0, y: 60, width: 527, height: 0 }
+        color: "#CBD5E1"
+        thickness: 0.5
+
+  # === QR CODE ===
+  - kind: Detail
+    height: 0
+    autoHeight: true
+    keepTogether: true
+    elements:
+      - type: text
+        bounds: { x: 0, y: 0, width: 527, height: 18 }
+        content: "1. QR Code"
+        style: Section
+      - type: text
+        bounds: { x: 130, y: 24, width: 397, height: 14 }
+        content: "Para URLs, datos legales (CAI), información estructurada."
+        style: Default
+      - type: text
+        bounds: { x: 130, y: 42, width: 397, height: 14 }
+        content: "Valor codificado:"
+        style: Caption
+      - type: text
+        bounds: { x: 130, y: 56, width: 397, height: 14 }
+        content: "{{ $.qr_value }}"
+        style: Code
+
+      # QR
+      - type: rectangle
+        bounds: { x: 0, y: 18, width: 110, height: 110 }
+        fill: "#F8FAFC"
+        borderLine: { thickness: 0.5, color: "#CBD5E1" }
+      - type: barcode
+        bounds: { x: 5, y: 23, width: 100, height: 100 }
+        value: "{{ $.qr_value }}"
+        format: qr
+        barcodeForeground: "#0F172A"
+
+  # === CODE 128 ===
+  - kind: Detail
+    height: 0
+    autoHeight: true
+    keepTogether: true
+    elements:
+      - type: text
+        bounds: { x: 0, y: 14, width: 527, height: 18 }
+        content: "2. Code 128"
+        style: Section
+      - type: text
+        bounds: { x: 0, y: 38, width: 527, height: 14 }
+        content: "1D · alfanumérico · ideal para SKU, IDs internos, tracking."
+        style: Default
+      - type: text
+        bounds: { x: 0, y: 56, width: 527, height: 14 }
+        content: "Valor: {{ $.code128_value }}"
+        style: Code
+
+      - type: rectangle
+        bounds: { x: 0, y: 76, width: 360, height: 50 }
+        fill: "#F8FAFC"
+        borderLine: { thickness: 0.5, color: "#CBD5E1" }
+      - type: barcode
+        bounds: { x: 8, y: 84, width: 344, height: 34 }
+        value: "{{ $.code128_value }}"
+        format: code128
+
+  # === CODE 39 ===
+  - kind: Detail
+    height: 0
+    autoHeight: true
+    keepTogether: true
+    elements:
+      - type: text
+        bounds: { x: 0, y: 14, width: 527, height: 18 }
+        content: "3. Code 39"
+        style: Section
+      - type: text
+        bounds: { x: 0, y: 38, width: 527, height: 14 }
+        content: "1D · subset de ASCII (A-Z, 0-9, símbolos) · usado en logística e industria."
+        style: Default
+      - type: text
+        bounds: { x: 0, y: 56, width: 527, height: 14 }
+        content: "Valor: {{ $.code39_value }}"
+        style: Code
+
+      - type: rectangle
+        bounds: { x: 0, y: 76, width: 360, height: 50 }
+        fill: "#F8FAFC"
+        borderLine: { thickness: 0.5, color: "#CBD5E1" }
+      - type: barcode
+        bounds: { x: 8, y: 84, width: 344, height: 34 }
+        value: "{{ $.code39_value }}"
+        format: code39
+
+  # === EAN-13 ===
+  - kind: Detail
+    height: 0
+    autoHeight: true
+    keepTogether: true
+    elements:
+      - type: text
+        bounds: { x: 0, y: 14, width: 527, height: 18 }
+        content: "4. EAN-13"
+        style: Section
+      - type: text
+        bounds: { x: 0, y: 38, width: 527, height: 14 }
+        content: "1D · 13 dígitos exactos · estándar mundial de retail (productos en supermercados)."
+        style: Default
+      - type: text
+        bounds: { x: 0, y: 56, width: 527, height: 14 }
+        content: "Valor: {{ $.ean13_value }}"
+        style: Code
+
+      - type: rectangle
+        bounds: { x: 0, y: 76, width: 280, height: 50 }
+        fill: "#F8FAFC"
+        borderLine: { thickness: 0.5, color: "#CBD5E1" }
+      - type: barcode
+        bounds: { x: 8, y: 84, width: 264, height: 34 }
+        value: "{{ $.ean13_value }}"
+        format: ean13
+
+  - kind: PageFooter
+    height: 24
+    elements:
+      - type: line
+        bounds: { x: 0, y: 0, width: 527, height: 0 }
+        color: "#CBD5E1"
+        thickness: 0.5
+      - type: text
+        bounds: { x: 0, y: 8, width: 527, height: 10 }
+        content: "Pagina {{ pageNumber }} de {{ totalPages }} · NetReporter Barcodes Demo"
+        style: Caption

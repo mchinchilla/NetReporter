@@ -52,6 +52,24 @@ RenderToPdf(
     Path.Combine(baseDir, "invoice-data.json"),    // reusa data de la factura simple
     "invoice-with-qr.pdf");
 
+// === Demo de los 4 formatos de barcode ===
+RenderToPdf(
+    Path.Combine(baseDir, "barcodes-demo.yaml"),
+    Path.Combine(baseDir, "barcodes-demo-data.json"),
+    "barcodes-demo.pdf");
+
+// === Demo de KeepTogether ===
+RenderToPdf(
+    Path.Combine(baseDir, "keep-together-demo.yaml"),
+    Path.Combine(baseDir, "keep-together-data.json"),
+    "keep-together-demo.pdf");
+
+// === Flagship: factura completa con TODAS las features de Fase 1-4 ===
+RenderToPdf(
+    Path.Combine(baseDir, "invoice-complete.yaml"),
+    Path.Combine(baseDir, "invoice-complete-data.json"),
+    "invoice-complete.pdf");
+
 
 void RenderToPdf(string templatePath, string dataPath, string outputName)
 {

@@ -18,7 +18,10 @@ public sealed class SampleStore
             ["invoice-paperoll"] = ("Samples.invoice-paperoll.yaml", "Samples.invoice.json"),
             ["wrap-demo"]        = ("Samples.wrap-demo.yaml",        "Samples.wrap-demo.json"),
             ["grouped-invoice"]  = ("Samples.grouped-invoice.yaml",  "Samples.grouped-invoice.json"),
-            ["invoice-with-qr"]  = ("Samples.invoice-with-qr.yaml",  "Samples.invoice.json")
+            ["invoice-with-qr"]  = ("Samples.invoice-with-qr.yaml",  "Samples.invoice.json"),
+            ["barcodes-demo"]    = ("Samples.barcodes-demo.yaml",    "Samples.barcodes-demo.json"),
+            ["keep-together"]    = ("Samples.keep-together.yaml",    "Samples.keep-together.json"),
+            ["invoice-complete"] = ("Samples.invoice-complete.yaml", "Samples.invoice-complete.json")
         };
 
     public IReadOnlyList<string> List() => Catalog.Keys.ToArray();

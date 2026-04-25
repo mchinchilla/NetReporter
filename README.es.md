@@ -210,11 +210,16 @@ NetReporter/
 │
 └── 🎯 samples/
     ├── InvoiceSample/           Factura con API C# (sin YAML)
-    └── TemplateSample/          Demo con YAML
-        ├── report.yaml          Reporte de clientes
-        ├── invoice-laser.yaml   📄 Factura Letter (laser)
-        ├── invoice-paperoll.yaml 🧾 Factura 80mm (POS térmico)
-        └── invoice-data.json
+    └── TemplateSample/          Demo con YAML (9 templates)
+        ├── report.yaml              Reporte de clientes
+        ├── invoice-laser.yaml       📄 Factura Letter (laser)
+        ├── invoice-paperoll.yaml    🧾 Factura 80mm (POS térmico)
+        ├── wrap-demo.yaml           Word-wrap + auto-height
+        ├── grouped-invoice.yaml     groupBy + subtotales sum/count/avg
+        ├── invoice-with-qr.yaml     Logo + QR del CAI
+        ├── barcodes-demo.yaml       Los 4 formatos de barcode
+        ├── keep-together-demo.yaml  Demo de KeepTogether con page-break
+        └── invoice-complete.yaml    🚀 Flagship — todas las features Fase 1-4
 ```
 
 ---
@@ -377,6 +382,9 @@ Abre `http://localhost:5296`.
 | `wrap-demo` | Word wrap real + auto-height de bandas |
 | `grouped-invoice` | `groupBy` con headers por grupo y subtotales `Sum`/`Count`/`Avg` |
 | `invoice-with-qr` | Logo PNG embebido + QR vectorial del CAI |
+| `barcodes-demo` | Los 4 formatos de barcode soportados (QR / Code128 / Code39 / EAN-13) en una sola página |
+| `keep-together` | `keepTogether` forzando page break limpio en un bloque "Términos & firmas" |
+| `invoice-complete` | 🚀 **Flagship** — todas las features Fase 1-4 combinadas: logo, word-wrap, autoHeight, tabla agrupada, QR, barcode, KeepTogether, cultura es-HN, fileName con template |
 
 ### Flujo típico
 
@@ -678,7 +686,7 @@ dotnet test
 - [x] **Fase 3.4** — Tablas agrupadas con subtotales (`groupBy` + headers/footers + sum/count/avg)
 - [x] **Fase 4.1** — Imágenes embebidas (PNG/JPEG/GIF/WebP, path local o data URI)
 - [x] **Fase 4.2** — Barcodes y QR vectoriales (ZXing.Net opt-in)
-- [x] **Fase 4.3** — Designer integra 6 samples builtin (clientes, invoice-laser/paperoll, wrap-demo, grouped-invoice, invoice-with-qr)
+- [x] **Fase 4.3** — Designer integra 9 samples builtin (clientes, invoice-laser/paperoll, wrap-demo, grouped-invoice, invoice-with-qr, barcodes-demo, keep-together, **invoice-complete** flagship)
 - [x] **Tests** — 172 tests verdes en 4 proyectos
 
 ### 🚧 En consideración

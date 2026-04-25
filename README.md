@@ -210,11 +210,16 @@ NetReporter/
 │
 └── 🎯 samples/
     ├── InvoiceSample/           Invoice using the C# API (no YAML)
-    └── TemplateSample/          YAML demo
-        ├── report.yaml          Customer report
-        ├── invoice-laser.yaml   📄 Letter invoice (laser)
-        ├── invoice-paperoll.yaml 🧾 80mm invoice (thermal POS)
-        └── invoice-data.json
+    └── TemplateSample/          YAML demo (9 templates)
+        ├── report.yaml              Customer report
+        ├── invoice-laser.yaml       📄 Letter invoice (laser)
+        ├── invoice-paperoll.yaml    🧾 80mm invoice (thermal POS)
+        ├── wrap-demo.yaml           Word-wrap + auto-height
+        ├── grouped-invoice.yaml     groupBy + sum/count/avg subtotals
+        ├── invoice-with-qr.yaml     Logo + QR of CAI
+        ├── barcodes-demo.yaml       All 4 barcode formats
+        ├── keep-together-demo.yaml  KeepTogether page-break demo
+        └── invoice-complete.yaml    🚀 Flagship — every Phase 1-4 feature
 ```
 
 ---
@@ -377,6 +382,9 @@ Open `http://localhost:5296`.
 | `wrap-demo` | Real word wrap + band auto-height |
 | `grouped-invoice` | `groupBy` with per-group headers and `Sum`/`Count`/`Avg` subtotals |
 | `invoice-with-qr` | Embedded PNG logo + vector QR code of the CAI |
+| `barcodes-demo` | All 4 supported barcode formats (QR / Code128 / Code39 / EAN-13) on a single page |
+| `keep-together` | `keepTogether` forcing a clean page break on a "Terms & signatures" block |
+| `invoice-complete` | 🚀 **Flagship** — all Phase 1-4 features combined: logo, word-wrap, autoHeight, grouped table, QR, barcode, KeepTogether, culture es-HN, templated fileName |
 
 ### Typical flow
 
@@ -678,7 +686,7 @@ dotnet test
 - [x] **Phase 3.4** — Grouped tables with subtotals (`groupBy` + headers/footers + sum/count/avg)
 - [x] **Phase 4.1** — Embedded images (PNG/JPEG/GIF/WebP, file path or data URI)
 - [x] **Phase 4.2** — Vector barcodes & QR codes (ZXing.Net opt-in)
-- [x] **Phase 4.3** — Designer integrates 6 built-in samples (clientes, invoice-laser/paperoll, wrap-demo, grouped-invoice, invoice-with-qr)
+- [x] **Phase 4.3** — Designer integrates 9 built-in samples (clientes, invoice-laser/paperoll, wrap-demo, grouped-invoice, invoice-with-qr, barcodes-demo, keep-together, **invoice-complete** flagship)
 - [x] **Tests** — 172 passing tests across 4 projects
 
 ### 🚧 Under consideration

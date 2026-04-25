@@ -1,0 +1,31 @@
+{
+  "numero": "000-001-01-00001234",
+  "fecha": "2026-04-25",
+  "cai": "A1B2C3-D4E5F6-G7H8I9-J0K1L2-M3N4O5-P6",
+  "vence": "2026-12-31",
+  "emisor": {
+    "nombre": "Mi Empresa S. de R.L.",
+    "rtn": "08011999123456",
+    "direccion": "Col. Palmira, Tegucigalpa",
+    "telefono": "+504 2234-5678"
+  },
+  "cliente": {
+    "nombre": "Distribuidora Ejemplo y Asociados S. de R.L. de C.V.",
+    "rtn": "05019988776655",
+    "direccion": "Bo. Guamilito, 5ta avenida noroeste, entre 12 y 13 calle, Edificio Comercial Plaza, segundo nivel local 24-B, San Pedro Sula, Cortés, Honduras"
+  },
+  "lineas": [
+    { "categoria": "Computadoras", "codigo": "A001", "descripcion": "Laptop Dell Latitude 5540 con Windows 11 Pro preinstalado",      "cantidad": 2, "precio": 28500.00, "total":  57000.00 },
+    { "categoria": "Computadoras", "codigo": "A002", "descripcion": "MacBook Air M3 13 pulgadas, 16GB RAM, 512GB SSD",                "cantidad": 1, "precio": 35000.00, "total":  35000.00 },
+    { "categoria": "Periféricos",  "codigo": "B100", "descripcion": "Teclado mecánico Keychron K2 wireless",                          "cantidad": 5, "precio":  2150.00, "total":  10750.00 },
+    { "categoria": "Periféricos",  "codigo": "B101", "descripcion": "Mouse inalámbrico Logitech MX Master 3S",                        "cantidad": 5, "precio":  2850.00, "total":  14250.00 },
+    { "categoria": "Periféricos",  "codigo": "B200", "descripcion": "Monitor LG UltraGear 27 pulgadas QHD 165Hz",                     "cantidad": 3, "precio":  8750.00, "total":  26250.00 },
+    { "categoria": "Cables",       "codigo": "C220", "descripcion": "Cable HDMI 2.1 de 2 metros",                                     "cantidad": 10, "precio":  395.00, "total":   3950.00 },
+    { "categoria": "Cables",       "codigo": "C221", "descripcion": "Adaptador USB-C a HDMI 4K",                                      "cantidad": 8, "precio":   675.00, "total":   5400.00 }
+  ],
+  "subtotal": "152,600.00",
+  "descuento": "5,000.00",
+  "isv": "22,140.00",
+  "total": "169,740.00",
+  "mensaje_legal": "Esta factura es generada electrónicamente y es válida sin firma. Conserve este documento por 5 años según el régimen tributario hondureño. El QR contiene el CAI verificable en sar.gob.hn — Code 128 contiene el número de factura para tracking interno."
+}

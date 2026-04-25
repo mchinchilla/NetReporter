@@ -1,0 +1,302 @@
+# Factura completa — combina TODAS las features de Fase 1-4 en un solo template:
+#  · Logo embebido (PNG → data URI inline)
+#  · Word wrap real en descripciones largas
+#  · Auto-height en bandas Detail
+#  · Tabla agrupada por categoría con subtotales (Sum/Count/Avg)
+#  · KeepTogether en el ReportHeader y ReportFooter (no se parten)
+#  · QR Code del CAI (decodificable por inspectores SAR)
+#  · Code 128 del número de factura (escaneable en logística)
+#  · Cultura es-HN para formato de números
+#  · fileName con template string
+#  · Multi-band: ReportHeader / Detail / ReportFooter / PageFooter
+
+name: InvoiceComplete
+title: "Factura completa {{ $.numero }}"
+fileName: "factura-completa-{{ $.numero }}"
+
+page:
+  size: Letter
+  margins:
+    horizontal: 1.5cm
+    vertical: 1.8cm
+
+culture: es-HN
+
+styles:
+  Default:    { fontFamily: Helvetica, fontSize: 10, foreground: "#0F172A" }
+  Title:      { basedOn: Default, fontSize: 22, bold: true }
+  Subtitle:   { basedOn: Default, fontSize: 12, bold: true, foreground: "#334155" }
+  Caption:    { basedOn: Default, fontSize: 8, foreground: "#64748B" }
+  CaptionCenter: { basedOn: Caption, align: center }
+  Label:      { basedOn: Default, fontSize: 9, foreground: "#64748B" }
+  LabelRight: { basedOn: Label, align: right }
+  Value:      { basedOn: Default, fontSize: 10, bold: true }
+  ValueRight: { basedOn: Default, align: right }
+  BoldRight:  { basedOn: Value, align: right }
+
+  TableHeader:
+    basedOn: Default
+    bold: true
+    background: "#0F172A"
+    foreground: "#FFFFFF"
+    padding: { horizontal: 4, vertical: 4 }
+  TableRow:
+    basedOn: Default
+    padding: { horizontal: 4, vertical: 3 }
+  TableRowAlt:
+    basedOn: TableRow
+    background: "#F8FAFC"
+
+  GroupHeader:
+    basedOn: Default
+    bold: true
+    background: "#0284C7"
+    foreground: "#FFFFFF"
+    padding: { horizontal: 6, vertical: 4 }
+  GroupFooter:
+    basedOn: Default
+    bold: true
+    background: "#E0F2FE"
+    foreground: "#0F172A"
+    padding: { horizontal: 4, vertical: 3 }
+
+  TotalsBox:
+    basedOn: Default
+    fontSize: 11
+    bold: true
+    align: right
+
+bands:
+  # ====== HEADER (KeepTogether — no se parte) ======
+  - kind: ReportHeader
+    height: 130
+    keepTogether: true
+    elements:
+      # Logo (data URI embebido — self-contained)
+      - type: image
+        bounds: { x: 0, y: 0, width: 120, height: 60 }
+        source: "data:image/png;base64,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"
+        fit: contain
+
+      # Datos del emisor a la derecha del logo
+      - type: text
+        bounds: { x: 350, y: 0, width: 177, height: 12 }
+        content: "{{ $.emisor.nombre }}"
+        style: Value
+      - type: text
+        bounds: { x: 350, y: 14, width: 177, height: 10 }
+        content: "RTN: {{ $.emisor.rtn }}"
+        style: Caption
+      - type: text
+        bounds: { x: 350, y: 26, width: 177, height: 10 }
+        content: "{{ $.emisor.direccion }}"
+        style: Caption
+      - type: text
+        bounds: { x: 350, y: 38, width: 177, height: 10 }
+        content: "Tel: {{ $.emisor.telefono }}"
+        style: Caption
+
+      # Título y número
+      - type: text
+        bounds: { x: 0, y: 70, width: 350, height: 26 }
+        content: "FACTURA {{ $.numero }}"
+        style: Title
+      - type: text
+        bounds: { x: 0, y: 100, width: 527, height: 14 }
+        content: "Fecha: {{ $.fecha }} · Vence CAI: {{ $.vence }}"
+        style: Caption
+
+      # Línea separadora
+      - type: line
+        bounds: { x: 0, y: 122, width: 527, height: 0 }
+        color: "#0284C7"
+        thickness: 1
+
+  # ====== DATOS DEL CLIENTE (autoHeight + word wrap) ======
+  - kind: Detail
+    height: 0
+    autoHeight: true
+    elements:
+      - type: text
+        bounds: { x: 0, y: 0, width: 80, height: 12 }
+        content: "Cliente:"
+        style: Label
+      - type: text
+        bounds: { x: 80, y: 0, width: 447, height: 12 }
+        content: "{{ $.cliente.nombre }}"
+        style: Value
+
+      - type: text
+        bounds: { x: 0, y: 14, width: 80, height: 12 }
+        content: "RTN:"
+        style: Label
+      - type: text
+        bounds: { x: 80, y: 14, width: 447, height: 12 }
+        content: "{{ $.cliente.rtn }}"
+        style: Default
+
+      - type: text
+        bounds: { x: 0, y: 28, width: 80, height: 12 }
+        content: "Direccion:"
+        style: Label
+      # Word wrap: dirección puede ser larga, autoHeight expande la celda
+      - type: text
+        bounds: { x: 80, y: 28, width: 447, height: 12 }
+        content: "{{ $.cliente.direccion }}"
+        style: Default
+        wordWrap: true
+        autoHeight: true
+
+      - type: line
+        bounds: { x: 0, y: 56, width: 527, height: 0 }
+        color: "#CBD5E1"
+        thickness: 0.5
+
+  # ====== TABLA AGRUPADA con subtotales (Fase 3.4) ======
+  - kind: Detail
+    height: 0
+    autoHeight: true
+    elements:
+      - type: table
+        bounds: { x: 0, y: 0, width: 527, height: 0 }
+        rows: "$.lineas"
+        groupBy: "$.categoria"
+        headerStyle: TableHeader
+        rowStyle: TableRow
+        alternateRowStyle: TableRowAlt
+        headerMode: RepeatOnPageBreak
+        headerHeight: 22
+        rowHeight: 18
+
+        groupHeader:
+          height: 20
+          style: GroupHeader
+          content: "▸ {{ #group }}  ({{ #count }} productos)"
+
+        groupFooter:
+          height: 18
+          style: GroupFooter
+          cells:
+            - { content: "Subtotal {{ #group }}:" }
+            - null
+            - { aggregate: count, format: "N0", align: right }
+            - { content: "Promedio:", align: right }
+            - { aggregate: sum, format: "N2", align: right }
+
+        columns:
+          - { header: "Codigo",      binding: "$.codigo",      width: 70,  align: left }
+          - { header: "Descripcion", binding: "$.descripcion", width: 247, align: left }
+          - { header: "Cant.",       binding: "$.cantidad",    width: 50,  align: right }
+          - { header: "Precio",      binding: "$.precio",      width: 80,  format: "N2", align: right }
+          - { header: "Total",       binding: "$.total",       width: 80,  format: "N2", align: right }
+
+  # ====== TOTALES + BARCODES (KeepTogether) ======
+  - kind: ReportFooter
+    height: 160
+    keepTogether: true
+    elements:
+      # Línea separadora superior
+      - type: line
+        bounds: { x: 0, y: 0, width: 527, height: 0 }
+        color: "#0F172A"
+        thickness: 1
+
+      # === Columna izquierda: barcodes ===
+
+      # QR del CAI
+      - type: text
+        bounds: { x: 0, y: 10, width: 220, height: 12 }
+        content: "QR del CAI (verificable):"
+        style: Caption
+      - type: rectangle
+        bounds: { x: 0, y: 24, width: 90, height: 90 }
+        fill: "#FFFFFF"
+        borderLine: { thickness: 0.5, color: "#CBD5E1" }
+      - type: barcode
+        bounds: { x: 5, y: 29, width: 80, height: 80 }
+        value: "{{ $.cai }}"
+        format: qr
+        barcodeForeground: "#0F172A"
+
+      # Code 128 del número de factura
+      - type: text
+        bounds: { x: 100, y: 24, width: 220, height: 12 }
+        content: "Code 128 (numero):"
+        style: Caption
+      - type: rectangle
+        bounds: { x: 100, y: 38, width: 220, height: 50 }
+        fill: "#FFFFFF"
+        borderLine: { thickness: 0.5, color: "#CBD5E1" }
+      - type: barcode
+        bounds: { x: 108, y: 46, width: 204, height: 34 }
+        value: "{{ $.numero }}"
+        format: code128
+        barcodeForeground: "#0F172A"
+      - type: text
+        bounds: { x: 100, y: 90, width: 220, height: 10 }
+        content: "{{ $.numero }}"
+        style: Caption
+
+      # === Columna derecha: totales ===
+
+      - type: text
+        bounds: { x: 350, y: 14, width: 100, height: 14 }
+        content: "Subtotal:"
+        style: LabelRight
+      - type: text
+        bounds: { x: 450, y: 14, width: 77, height: 14 }
+        content: "{{ $.subtotal }}"
+        style: ValueRight
+
+      - type: text
+        bounds: { x: 350, y: 32, width: 100, height: 14 }
+        content: "Descuento:"
+        style: LabelRight
+      - type: text
+        bounds: { x: 450, y: 32, width: 77, height: 14 }
+        content: "{{ $.descuento }}"
+        style: ValueRight
+
+      - type: text
+        bounds: { x: 350, y: 50, width: 100, height: 14 }
+        content: "ISV 15%:"
+        style: LabelRight
+      - type: text
+        bounds: { x: 450, y: 50, width: 77, height: 14 }
+        content: "{{ $.isv }}"
+        style: ValueRight
+
+      - type: line
+        bounds: { x: 350, y: 70, width: 177, height: 0 }
+        color: "#0F172A"
+        thickness: 1
+
+      - type: text
+        bounds: { x: 350, y: 76, width: 100, height: 18 }
+        content: "TOTAL:"
+        style: TotalsBox
+      - type: text
+        bounds: { x: 450, y: 76, width: 77, height: 18 }
+        content: "{{ $.total }}"
+        style: TotalsBox
+
+      # Mensaje legal
+      - type: text
+        bounds: { x: 0, y: 130, width: 527, height: 24 }
+        content: "{{ $.mensaje_legal }}"
+        style: Caption
+        wordWrap: true
+        autoHeight: true
+
+  # ====== PAGE FOOTER ======
+  - kind: PageFooter
+    height: 24
+    elements:
+      - type: line
+        bounds: { x: 0, y: 0, width: 527, height: 0 }
+        color: "#CBD5E1"
+        thickness: 0.5
+      - type: text
+        bounds: { x: 0, y: 8, width: 527, height: 10 }
+        content: "Pagina {{ pageNumber }} de {{ totalPages }} · NetReporter"
+        style: CaptionCenter

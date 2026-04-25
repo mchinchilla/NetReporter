@@ -24,6 +24,12 @@
     <EmbeddedResource Include="..\..\samples\TemplateSample\grouped-invoice.yaml" LogicalName="Samples.grouped-invoice.yaml" />
     <EmbeddedResource Include="..\..\samples\TemplateSample\grouped-invoice-data.json" LogicalName="Samples.grouped-invoice.json" />
     <EmbeddedResource Include="..\..\samples\TemplateSample\invoice-with-qr-embedded.yaml" LogicalName="Samples.invoice-with-qr.yaml" />
+    <EmbeddedResource Include="..\..\samples\TemplateSample\barcodes-demo.yaml" LogicalName="Samples.barcodes-demo.yaml" />
+    <EmbeddedResource Include="..\..\samples\TemplateSample\barcodes-demo-data.json" LogicalName="Samples.barcodes-demo.json" />
+    <EmbeddedResource Include="..\..\samples\TemplateSample\keep-together-demo.yaml" LogicalName="Samples.keep-together.yaml" />
+    <EmbeddedResource Include="..\..\samples\TemplateSample\keep-together-data.json" LogicalName="Samples.keep-together.json" />
+    <EmbeddedResource Include="..\..\samples\TemplateSample\invoice-complete.yaml" LogicalName="Samples.invoice-complete.yaml" />
+    <EmbeddedResource Include="..\..\samples\TemplateSample\invoice-complete-data.json" LogicalName="Samples.invoice-complete.json" />
   </ItemGroup>
 
   <PropertyGroup>

@@ -33,6 +33,12 @@
     <None Update="grouped-invoice-data.json" CopyToOutputDirectory="PreserveNewest" />
     <None Update="invoice-with-qr.yaml" CopyToOutputDirectory="PreserveNewest" />
     <None Update="logo.png" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="barcodes-demo.yaml" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="barcodes-demo-data.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="keep-together-demo.yaml" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="keep-together-data.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="invoice-complete.yaml" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="invoice-complete-data.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>
