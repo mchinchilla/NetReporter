@@ -19,6 +19,13 @@ public abstract record Band(BandKind Kind)
     public bool PrintOnLastPage  { get; init; } = true;
     public IExpression<bool>? Visible { get; init; }
     public required IReadOnlyList<ReportElement> Elements { get; init; }
+
+    /// <summary>
+    /// Si <c>true</c>, la banda crece dinámicamente para acomodar todos sus elementos.
+    /// El cursor Y avanza por <c>max(Height, naturalHeight)</c>, donde naturalHeight es el
+    /// max bottom de los elementos (tras aplicar word-wrap y auto-height de TextElement).
+    /// </summary>
+    public bool AutoHeight { get; init; } = false;
 }
 
 public sealed record ReportHeaderBand() : Band(BandKind.ReportHeader);

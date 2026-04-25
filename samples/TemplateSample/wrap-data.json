@@ -1,0 +1,5 @@
+{
+  "descripcion_larga": "Esta es una descripcion bastante larga que necesita romperse en varias lineas porque excede el ancho de la caja contenedora. El word-wrap del LayoutEngine debe dividirla por palabra de forma elegante.",
+  "palabra_larga": "supercalifragilisticoespialidoso",
+  "observacion": "Esta es una observacion lo suficientemente extensa para verificar que la banda con autoHeight=true crece para acomodar todas las lineas del wrap, en lugar de cortar el contenido al height declarado. Esto es util cuando el contenido es dinamico y no se conoce la altura de antemano. La banda final con la linea horizontal debe aparecer despues de este texto, no encima."
+}

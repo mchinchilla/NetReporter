@@ -69,6 +69,7 @@ public sealed class BandYaml
 {
     public string? Kind { get; set; }
     public double Height { get; set; }
+    public bool? AutoHeight { get; set; }
     public List<ElementYaml>? Elements { get; set; }
 }
 

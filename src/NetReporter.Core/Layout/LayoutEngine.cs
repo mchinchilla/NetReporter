@@ -11,6 +11,18 @@ namespace NetReporter.Core.Layout;
 
 public sealed class LayoutEngine
 {
+    private readonly ITextMeasurer _textMeasurer;
+
+    public LayoutEngine() : this(EstimateTextMeasurer.Instance) { }
+
+    /// <summary>
+    /// Crea un layout engine con un measurer custom (ej. SkiaTextMeasurer para medición precisa).
+    /// </summary>
+    public LayoutEngine(ITextMeasurer textMeasurer)
+    {
+        _textMeasurer = textMeasurer ?? throw new ArgumentNullException(nameof(textMeasurer));
+    }
+
     public RlRenderList Layout(ReportDefinition report)
     {
         var ctx = new LayoutContext { Culture = report.Culture };
@@ -97,9 +109,12 @@ public sealed class LayoutEngine
     {
         // Para el prototipo, un DetailBand tiene elementos, y uno de esos puede ser una
         // TableElement<T>. Otros elementos se dibujan en sus Bounds relativos a la banda.
+        var bandTop = cursorY;
+        double naturalBottom = bandTop;
+
         foreach (var element in band.Elements)
         {
-            if (element is TableElement<object> genericTable)
+            if (element is TableElement<object>)
             {
                 // Nunca llega aquí por varianza, pero cubrimos el caso.
                 continue;
@@ -109,9 +124,10 @@ public sealed class LayoutEngine
             var elemType = element.GetType();
             if (elemType.IsGenericType && elemType.GetGenericTypeDefinition() == typeof(TableElement<>))
             {
-                // Tablas se manejan con un helper genérico
+                // Tablas se manejan con un helper genérico — modifica cursorY directamente.
                 RenderTableElement(element, band, report, workingPage, origin,
                     ref cursorY, usableHeight, pageHeaderH, contentWidth, pages, ctx, ref maxY);
+                if (cursorY > naturalBottom) naturalBottom = cursorY;
             }
             else
             {
@@ -127,11 +143,24 @@ public sealed class LayoutEngine
                     workingPage.Commands.AddRange(newPage.Commands);
                 }
 
-                EmitElement(element, workingPage, origin.X, cursorY, report, ctx);
+                var elemBottom = EmitElement(element, workingPage, origin.X, cursorY, report, ctx);
+                if (elemBottom > naturalBottom) naturalBottom = elemBottom;
             }
         }
 
-        cursorY += band.Height;
+        // AutoHeight: la banda crece para contener todo lo emitido (tabla incluida).
+        // Sin AutoHeight: cursor avanza por la altura declarada (típicamente 0 en Detail con tabla,
+        // ya que la tabla mueve cursorY directamente).
+        if (band.AutoHeight)
+        {
+            cursorY = bandTop + Math.Max(band.Height, naturalBottom - bandTop);
+        }
+        else
+        {
+            // El cursor pudo haber avanzado por la tabla; respeta lo que esté más abajo.
+            var declaredEnd = bandTop + band.Height;
+            if (declaredEnd > cursorY) cursorY = declaredEnd;
+        }
     }
 
     // Workaround para la limitación de ref locales + tipos genéricos:
@@ -303,13 +332,23 @@ public sealed class LayoutEngine
         ReportDefinition report,
         LayoutContext ctx)
     {
+        var bandTop = cursorY;
+        double naturalBottom = bandTop;     // bottom Y máximo alcanzado por algún elemento
         foreach (var element in band.Elements)
-            EmitElement(element, page, originX, cursorY, report, ctx);
+        {
+            var elemBottom = EmitElement(element, page, originX, bandTop, report, ctx);
+            if (elemBottom > naturalBottom) naturalBottom = elemBottom;
+        }
 
-        cursorY += band.Height;
+        // Sin AutoHeight: el cursor avanza por la altura declarada (truncando si los elementos exceden).
+        // Con AutoHeight: el cursor avanza por la altura efectiva (max declarado vs natural).
+        var advance = band.AutoHeight
+            ? Math.Max(band.Height, naturalBottom - bandTop)
+            : band.Height;
+        cursorY += advance;
     }
 
-    private void EmitElement(
+    private double EmitElement(
         ReportElement element,
         PageBuilder page,
         double originX,
@@ -328,9 +367,7 @@ public sealed class LayoutEngine
         switch (element)
         {
             case TextElement text:
-                page.Commands.Add(new DrawTextCommand(
-                    absBounds, text.Content.Evaluate(ctx), style) { SourcePath = path });
-                break;
+                return EmitText(text, absBounds, style, path, ctx, page);
 
             case LineElement line:
                 var (from, to) = line.Orientation == LineOrientation.Horizontal
@@ -340,17 +377,65 @@ public sealed class LayoutEngine
                        new Point(absBounds.X, absBounds.Bottom));
                 page.Commands.Add(new DrawLineCommand(from, to, line.Thickness, line.Color)
                     { SourcePath = path });
-                break;
+                return absBounds.Bottom;
 
             case RectangleElement rect:
                 page.Commands.Add(new DrawRectangleCommand(
                     absBounds, rect.Fill, rect.BorderLine) { SourcePath = path });
-                break;
+                return absBounds.Bottom;
 
             default:
                 // Tablas se manejan en RenderTableElement.
-                break;
+                return absBounds.Bottom;
         }
+    }
+
+    /// <summary>
+    /// Emite uno o varios <see cref="DrawTextCommand"/> según wrap. Devuelve el bottom Y absoluto
+    /// efectivo (último renglón + lineHeight), que el caller usa para AutoHeight de la banda.
+    /// </summary>
+    private double EmitText(
+        TextElement text,
+        Rect absBounds,
+        ResolvedStyle style,
+        string? sourcePath,
+        LayoutContext ctx,
+        PageBuilder page)
+    {
+        var content = text.Content.Evaluate(ctx) ?? string.Empty;
+
+        // Si el wrap está deshabilitado o no hay ancho útil, emitir un solo command (clipping en renderer).
+        if (!text.WordWrap || absBounds.Width <= 0)
+        {
+            page.Commands.Add(new DrawTextCommand(absBounds, content, style) { SourcePath = sourcePath });
+            return absBounds.Bottom;
+        }
+
+        // Aplicar word wrap. Calcular altura de línea desde el measurer.
+        var lineHeight = _textMeasurer.LineHeight(style);
+        var lines = _textMeasurer.WrapLines(content, style, absBounds.Width);
+        if (lines.Count == 0) return absBounds.Y;
+
+        // Auto-height: la altura efectiva del bloque es lineCount * lineHeight (override del Bounds.Height).
+        // Sin auto-height: respeta el Bounds.Height — líneas que excedan se recortan en el renderer.
+        var maxLines = text.AutoHeight
+            ? lines.Count
+            : Math.Max(1, (int)Math.Floor(absBounds.Height / lineHeight));
+
+        var renderable = lines.Count <= maxLines ? lines : lines.Take(maxLines).ToArray();
+
+        for (int i = 0; i < renderable.Count; i++)
+        {
+            var lineRect = new Rect(absBounds.X, absBounds.Y + i * lineHeight,
+                                     absBounds.Width, lineHeight);
+            page.Commands.Add(new DrawTextCommand(lineRect, renderable[i], style)
+            {
+                SourcePath = sourcePath
+            });
+        }
+
+        // Bottom Y real: arranca del top + N líneas × lineHeight.
+        return absBounds.Y + renderable.Count * lineHeight;
     }
 
     private void FinishPage(

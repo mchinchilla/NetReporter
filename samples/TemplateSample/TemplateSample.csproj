@@ -4,6 +4,7 @@
     <ProjectReference Include="..\..\src\NetReporter.Core\NetReporter.Core.csproj" />
     <ProjectReference Include="..\..\src\NetReporter.Pdf\NetReporter.Pdf.csproj" />
     <ProjectReference Include="..\..\src\NetReporter.Templates\NetReporter.Templates.csproj" />
+    <ProjectReference Include="..\..\src\NetReporter.Svg\NetReporter.Svg.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -25,6 +26,8 @@
     <None Update="invoice-laser.yaml" CopyToOutputDirectory="PreserveNewest" />
     <None Update="invoice-paperoll.yaml" CopyToOutputDirectory="PreserveNewest" />
     <None Update="invoice-data.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="wrap-demo.yaml" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="wrap-data.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

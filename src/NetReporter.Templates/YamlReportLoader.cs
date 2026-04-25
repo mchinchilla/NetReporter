@@ -289,13 +289,14 @@ public sealed class TemplateReport
             .ToArray();
 
         var kind = (b.Kind ?? "Detail").ToLowerInvariant();
+        var autoHeight = b.AutoHeight ?? false;
         return kind switch
         {
-            "reportheader" => new ReportHeaderBand { Height = b.Height, Elements = elements },
-            "pageheader"   => new PageHeaderBand   { Height = b.Height, Elements = elements },
-            "detail"       => new DetailBand       { Height = b.Height, Elements = elements },
-            "pagefooter"   => new PageFooterBand   { Height = b.Height, Elements = elements },
-            "reportfooter" => new ReportFooterBand { Height = b.Height, Elements = elements },
+            "reportheader" => new ReportHeaderBand { Height = b.Height, Elements = elements, AutoHeight = autoHeight },
+            "pageheader"   => new PageHeaderBand   { Height = b.Height, Elements = elements, AutoHeight = autoHeight },
+            "detail"       => new DetailBand       { Height = b.Height, Elements = elements, AutoHeight = autoHeight },
+            "pagefooter"   => new PageFooterBand   { Height = b.Height, Elements = elements, AutoHeight = autoHeight },
+            "reportfooter" => new ReportFooterBand { Height = b.Height, Elements = elements, AutoHeight = autoHeight },
             _ => throw new FormatException(
                 $"Band.kind desconocido: '{b.Kind}'. " +
                 "Usa ReportHeader, PageHeader, Detail, PageFooter o ReportFooter.")
