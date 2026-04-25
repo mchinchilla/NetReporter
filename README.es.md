@@ -4,14 +4,14 @@
 
 # 🧾 NetReporter
 
-**Motor de reportes para .NET 10 con IR — un mismo template produce PDF, HTML y SVG.**
+**Motor de reportes para .NET 10 con IR — un mismo template produce PDF, HTML, SVG y XLSX.**
 
 [![.NET 10](https://img.shields.io/badge/.NET-10.0-512BD4?style=flat-square&logo=dotnet)](https://dotnet.microsoft.com/)
-[![Tests](https://img.shields.io/badge/tests-172%20passing-22c55e?style=flat-square&logo=xunit)](#-tests)
+[![Tests](https://img.shields.io/badge/tests-184%20passing-22c55e?style=flat-square&logo=xunit)](#-tests)
 [![License](https://img.shields.io/badge/license-TBD-lightgrey?style=flat-square)](#-licencias)
 [![Status](https://img.shields.io/badge/status-prototipo%20funcional-f59e0b?style=flat-square)](#estado)
 
-🎨 Designer visual · 📄 PDF · 🌐 HTML · 🖼️ SVG · 📦 Templates YAML
+🎨 Designer visual · 📄 PDF · 🌐 HTML · 🖼️ SVG · 📊 XLSX · 📦 Templates YAML
 
 </div>
 
@@ -64,8 +64,11 @@ NetReporter separa el reporte en cuatro capas con interfaces claras. **El templa
    ▼           ▼           ▼           ▼
  ┌─────┐   ┌──────┐   ┌──────┐   ┌─────────┐
  │ 📄  │   │  🌐  │   │  🖼️  │   │  📊     │
- │ PDF │   │ HTML │   │ SVG  │   │ XLSX    │  ← futuro
+ │ PDF │   │ HTML │   │ SVG  │   │ XLSX *  │
  └─────┘   └──────┘   └──────┘   └─────────┘
+
+ * XLSX es semántico: consume ReportDefinition directo (texto → celdas,
+   tablas → rangos Excel reales con filtros/sort), saltándose el RenderList.
 ```
 
 **Principios no negociables:**
@@ -109,12 +112,13 @@ NetReporter separa el reporte en cuatro capas con interfaces claras. **El templa
 - 💾 **Save/Load** templates a `~/.netreporter/templates/`
 - 📦 **Samples builtin** + **importar archivo** desde disco
 - ↶ **Undo/Redo** (50 niveles, Ctrl+Z / Ctrl+Shift+Z)
-- 📥 **Export a PDF y HTML** con un click
+- 📥 **Export a PDF, HTML y XLSX** con un click
 
 ### Renderers
 - 📄 **PDF** vía QuestPDF + SkiaSharp (Letter, A4, Legal, custom)
 - 🌐 **HTML** paginado con `@page` CSS — imprimible nativo
 - 🖼️ **SVG** vectorial — uno por página
+- 📊 **XLSX** semántico vía ClosedXML — texto → celdas, tablas → Excel Tables nativas (filtros, sort, banded rows)
 
 ---
 
@@ -132,9 +136,11 @@ flowchart LR
     F --> G1[PdfRenderer]
     F --> G2[HtmlRenderer]
     F --> G3[SvgRenderer]
+    D --> G4[XlsxRenderer<br/>semántico, sin Layout]
     G1 --> H1[📄 factura.pdf]
     G2 --> H2[🌐 factura.html]
     G3 --> H3[🖼️ pages.svg]
+    G4 --> H4[📊 factura.xlsx]
 ```
 
 ### Flujo de edición en el designer
@@ -182,7 +188,8 @@ flowchart TB
 | Network reactividad | **HTMX** 2.0 (CDN) | Live preview con debounce |
 | CSS | **Tailwind CSS** (CDN play) | Utility-first |
 | Barcodes (opt-in) | **ZXing.Net** 0.16 | Apache 2.0 · QR / Code128 / Code39 / EAN-13 |
-| Tests | **xUnit** 2.9 | 172 tests en 4 proyectos |
+| XLSX backend | **ClosedXML** 0.105 | MIT · OpenXML, Excel Tables nativas |
+| Tests | **xUnit** 2.9 | 184 tests en 5 proyectos |
 | JSON | `System.Text.Json` (BCL) | Sin Newtonsoft |
 
 ---
@@ -197,12 +204,14 @@ NetReporter/
 │   ├── NetReporter.Pdf/         📄 PdfRenderer (delega a Svg)
 │   ├── NetReporter.Svg/         🖼️ SvgRenderer (SkiaSharp.SKSvgCanvas)
 │   ├── NetReporter.Html/        🌐 HtmlRenderer (HTML/CSS paginado)
+│   ├── NetReporter.Xlsx/        📊 XlsxRenderer semántico (ClosedXML, Excel Tables nativas)
 │   └── NetReporter.Barcodes/    ▦ Barcode/QR generator vía ZXing (opt-in)
 │
 ├── 🧪 tests/
 │   ├── NetReporter.Core.Tests/        ColorTests, PageSetupTests, StyleSheetTests, BorderSetTests, EstimateTextMeasurer, AutoHeight, KeepTogether, GroupedTable
 │   ├── NetReporter.Templates.Tests/   JsonPathTests, TemplateStringTests, YamlReportRewriterTests, FileNameTests
 │   ├── NetReporter.Html.Tests/        HtmlRendererTests
+│   ├── NetReporter.Xlsx.Tests/        XlsxRendererTests
 │   └── NetReporter.Barcodes.Tests/    ZXingBarcodeGeneratorTests
 │
 ├── 🛠️ tools/
@@ -304,6 +313,9 @@ var report = template.Bind(json);
 var layout = new LayoutEngine().Layout(report);
 File.WriteAllBytes("factura.pdf", new PdfRenderer().Render(layout));
 File.WriteAllText("factura.html", new NetReporter.Html.HtmlRenderer().Render(layout));
+
+// XLSX es semántico: consume el ReportDefinition directo (no el layout)
+File.WriteAllBytes("factura.xlsx", new NetReporter.Xlsx.XlsxRenderer().Render(report));
 ```
 
 ### Correr los samples
@@ -313,9 +325,9 @@ File.WriteAllText("factura.html", new NetReporter.Html.HtmlRenderer().Render(lay
 dotnet run --project samples/InvoiceSample
 # → samples/InvoiceSample/bin/Debug/net10.0/factura.pdf
 
-# Sample con YAML — genera 3 PDFs (clientes, factura laser, factura paperoll)
+# Sample con YAML — emite PDF + XLSX por cada template (9 reportes × 2 outputs)
 dotnet run --project samples/TemplateSample
-# → samples/TemplateSample/bin/Debug/net10.0/{clientes,invoice-laser,invoice-paperoll}.pdf
+# → samples/TemplateSample/bin/Debug/net10.0/*.pdf y *.xlsx
 ```
 
 ---
@@ -335,7 +347,7 @@ Abre `http://localhost:5296`.
 ```
 ┌───────────────────────────────────────────────────────────────────────────────┐
 │ 🅽 Designer  [Template ▼ ●] [↥ Importar] [Save][Save as…][Delete]            │
-│              [↶ Undo (n)] [↷ Redo]   [⭳ PDF] [⭳ HTML]                        │
+│              [↶ Undo (n)] [↷ Redo]   [⭳ PDF] [⭳ HTML] [⭳ XLSX]               │
 ├──────────────────────────┬──────────┬────────────────────────────────────────┤
 │ report.yaml | data.json  │ Toolbox  │ Preview                                │
 │                          │          │                                        │
@@ -392,7 +404,7 @@ Abre `http://localhost:5296`.
 2. **Editar** datos de prueba en el tab `data.json`.
 3. **Drag** un texto, **resize** una tabla, **agregar columnas** desde el drawer.
 4. **Save as…** con un nombre propio → se guarda en `~/.netreporter/templates/`.
-5. **⭳ PDF** o **⭳ HTML** → descarga con el `fileName` del template (e.g. `factura-000-001.pdf`).
+5. **⭳ PDF**, **⭳ HTML** o **⭳ XLSX** → descarga con el `fileName` del template (e.g. `factura-000-001.pdf`).
 
 ### Importar archivos del disco
 
@@ -586,6 +598,25 @@ Una cadena SVG por página, usado internamente por el PDF y por el live preview 
 IReadOnlyList<string> svgs = new SvgRenderer().Render(renderList);
 ```
 
+### 📊 XLSX — `NetReporter.Xlsx`
+
+Renderer **semántico**: consume el `ReportDefinition` directo (sin `LayoutEngine`, sin `RenderList`). Los `TextElement`s se vuelven celdas, los `TableElement<TRow>` se vuelven rangos Excel reales (filtrables, sortables, banded). Los elementos decorativos (Line / Rectangle / Barcode) se omiten intencionalmente — no tienen equivalente en una hoja de cálculo.
+
+```csharp
+byte[] xlsx = new XlsxRenderer().Render(report, new XlsxRenderOptions
+{
+    WorksheetName = "Factura",     // default: ReportDefinition.Name (truncado a 31 chars)
+    EmitNativeTables = true,       // tablas → Excel Tables (filtros + sort + banded rows)
+    FreezeTableHeaders = false     // freeze pane debajo del header de cada tabla
+});
+```
+
+- 📊 Tablas emitidas como **Excel Tables nativas** con filtros, sort y banded rows
+- 🎨 Estilos por celda (font, color, alineación) preservados desde el `StyleSheet`
+- 📐 Page setup (paper size, orientación, márgenes) mapeado al page setup de Excel
+- 🖼️ Imágenes embebidas se preservan (size en puntos → pixels @ 96dpi)
+- 🌍 Cultura por reporte respetada para formato de números/fechas
+
 ---
 
 ## 📐 Tamaños de papel
@@ -630,9 +661,10 @@ dotnet test
 │ NetReporter.Core.Tests              │   60  │
 │ NetReporter.Templates.Tests         │   92  │
 │ NetReporter.Html.Tests              │   13  │
+│ NetReporter.Xlsx.Tests              │   12  │
 │ NetReporter.Barcodes.Tests          │    7  │
 ├─────────────────────────────────────┼───────┤
-│ Total                               │  172  │
+│ Total                               │  184  │
 └─────────────────────────────────────┴───────┘
 ```
 
@@ -641,6 +673,7 @@ dotnet test
 - 🧠 **Core**: Color hex parsing, PageSetup transformations, StyleSheet (herencia + ciclos + cache), BorderSet factories, **algoritmo word-wrap**, **band auto-height**, **KeepTogether page-break**, **tablas agrupadas con sum/count/avg**.
 - 📝 **Templates**: JSON Path (Select/SelectMany/edge cases), TemplateString (placeholders + literals + escape), YamlReportRewriter (los 11 métodos × casos felices y errores), FileName resolución.
 - 🌐 **Html**: HTML válido, escape de chars especiales, fonts, alignments, líneas, rectangles, multi-page, print CSS.
+- 📊 **Xlsx**: texto → celdas, tablas → rangos, Excel Tables nativas, mapeo de page setup, sanitización del nombre de worksheet, embedding de imágenes, formato por cultura.
 - ▦ **Barcodes**: QR finder patterns, densidad de barras Code 128, validación estricta EAN-13, edge cases (empty/null/throwing fallback).
 
 ---
@@ -652,10 +685,10 @@ dotnet test
 | Feature | Estado | Workaround actual |
 |---|---|---|
 | **Charts** | ❌ | — |
-| **XLSX renderer** | ❌ | Pendiente (mismo IR sirve) |
 | **Subreportes** | ❌ | — |
 | **Grupos multinivel** | ❌ | Solo un nivel de anidamiento soportado |
 | **KeepTogether en DetailBand** | ⚠️ | Usa ReportHeader/Footer (limitación de ref-locals del engine) |
+| **XLSX: líneas / rectángulos / barcodes** | ⚠️ | Elementos decorativos omitidos a propósito — XLSX es semántico, no pixel-perfect |
 
 ### Deuda técnica documentada
 
@@ -687,12 +720,12 @@ dotnet test
 - [x] **Fase 4.1** — Imágenes embebidas (PNG/JPEG/GIF/WebP, path local o data URI)
 - [x] **Fase 4.2** — Barcodes y QR vectoriales (ZXing.Net opt-in)
 - [x] **Fase 4.3** — Designer integra 9 samples builtin (clientes, invoice-laser/paperoll, wrap-demo, grouped-invoice, invoice-with-qr, barcodes-demo, keep-together, **invoice-complete** flagship)
-- [x] **Tests** — 172 tests verdes en 4 proyectos
+- [x] **Fase 4.4** — XLSX renderer semántico (ClosedXML, Excel Tables nativas) + export ⭳ XLSX en el Designer
+- [x] **Tests** — 184 tests verdes en 5 proyectos
 
 ### 🚧 En consideración
 
 - [ ] Grupos multinivel (nested groups)
-- [ ] XLSX renderer (mismo IR)
 - [ ] Multi-selección + copy/paste en Designer
 - [ ] Charts simples (bar / line / pie)
 - [ ] DSL parsed expressions (en lugar de closures C#)
@@ -710,6 +743,7 @@ dotnet test
 | **SkiaSharp** | MIT |
 | **YamlDotNet** | MIT |
 | **ZXing.Net** | Apache 2.0 (solo si se referencia `NetReporter.Barcodes`) |
+| **ClosedXML** | MIT (solo si se referencia `NetReporter.Xlsx`) |
 | **HTMX** | BSD-2-Clause |
 | **Alpine.js** | MIT |
 | **Tailwind CSS** | MIT |
@@ -726,6 +760,6 @@ dotnet test
 
 <div align="center">
 
-**Hecho con .NET 10 · QuestPDF · SkiaSharp · YamlDotNet · ZXing.Net · HTMX · Alpine.js · Tailwind**
+**Hecho con .NET 10 · QuestPDF · SkiaSharp · YamlDotNet · ZXing.Net · ClosedXML · HTMX · Alpine.js · Tailwind**
 
 </div>
