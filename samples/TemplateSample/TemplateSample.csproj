@@ -22,6 +22,9 @@
   <ItemGroup>
     <None Update="report.yaml" CopyToOutputDirectory="PreserveNewest" />
     <None Update="data.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="invoice-laser.yaml" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="invoice-paperoll.yaml" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="invoice-data.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

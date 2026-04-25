@@ -1,0 +1,224 @@
+# Factura formato paperoll / POS — ancho 80mm (226.77pt).
+# Altura fija 600pt (~21cm) suficiente para la factura sample.
+# Ajusta 'height' del PageSetup según la longitud típica del ticket.
+# ContentWidth = 226.77 - 2*8 = 210.77pt. Columnas de la tabla suman a 210 exactos.
+# Font monoespaciada (Courier) para alinear columnas de montos.
+
+name: FacturaPaperoll
+title: "Ticket {{ $.numero }}"
+fileName: "ticket-{{ $.numero }}"
+
+page:
+  size: custom
+  width: 226.77        # 80mm
+  height: 600          # ~21cm — ajustar según longitud típica
+  margins:
+    horizontal: 8pt
+    vertical: 10pt
+
+culture: es-HN
+
+styles:
+  Default:
+    fontFamily: Courier
+    fontSize: 9
+    foreground: "#000000"
+  Center:
+    basedOn: Default
+    align: center
+  Right:
+    basedOn: Default
+    align: right
+  Bold:
+    basedOn: Default
+    bold: true
+  BoldCenter:
+    basedOn: Bold
+    align: center
+  BoldRight:
+    basedOn: Bold
+    align: right
+  Title:
+    basedOn: Default
+    fontSize: 12
+    bold: true
+    align: center
+  Total:
+    basedOn: Default
+    fontSize: 11
+    bold: true
+  TotalRight:
+    basedOn: Total
+    align: right
+  TableHeader:
+    basedOn: Default
+    bold: true
+    padding: { horizontal: 1, vertical: 1 }
+    border:
+      bottom: { thickness: 0.5, color: "#000000" }
+  TableRow:
+    basedOn: Default
+    padding: { horizontal: 1, vertical: 1 }
+
+bands:
+  # ====== ENCABEZADO: emisor centrado ======
+  - kind: ReportHeader
+    height: 110
+    elements:
+      - type: text
+        bounds: { x: 0, y: 0, width: 210, height: 14 }
+        content: "{{ $.emisor.nombre }}"
+        style: BoldCenter
+      - type: text
+        bounds: { x: 0, y: 14, width: 210, height: 11 }
+        content: "RTN: {{ $.emisor.rtn }}"
+        style: Center
+      - type: text
+        bounds: { x: 0, y: 25, width: 210, height: 11 }
+        content: "{{ $.emisor.direccion }}"
+        style: Center
+      - type: text
+        bounds: { x: 0, y: 36, width: 210, height: 11 }
+        content: "Tel: {{ $.emisor.telefono }}"
+        style: Center
+
+      # Separador
+      - type: line
+        bounds: { x: 0, y: 50, width: 210, height: 0 }
+        color: "#000000"
+        thickness: 0.5
+
+      # Título FACTURA
+      - type: text
+        bounds: { x: 0, y: 56, width: 210, height: 14 }
+        content: "FACTURA"
+        style: Title
+      - type: text
+        bounds: { x: 0, y: 72, width: 210, height: 11 }
+        content: "No. {{ $.numero }}"
+        style: Center
+      - type: text
+        bounds: { x: 0, y: 84, width: 210, height: 11 }
+        content: "Fecha: {{ $.fecha }}"
+        style: Center
+
+      # Separador
+      - type: line
+        bounds: { x: 0, y: 98, width: 210, height: 0 }
+        color: "#000000"
+        thickness: 0.5
+
+  # ====== CLIENTE (bloque compacto) ======
+  - kind: ReportHeader
+    height: 44
+    elements:
+      - type: text
+        bounds: { x: 0, y: 0, width: 210, height: 11 }
+        content: "Cliente: {{ $.cliente.nombre }}"
+        style: Default
+      - type: text
+        bounds: { x: 0, y: 12, width: 210, height: 11 }
+        content: "RTN: {{ $.cliente.rtn }}"
+        style: Default
+      - type: text
+        bounds: { x: 0, y: 24, width: 210, height: 11 }
+        content: "{{ $.cliente.direccion }}"
+        style: Default
+      - type: line
+        bounds: { x: 0, y: 40, width: 210, height: 0 }
+        color: "#000000"
+        thickness: 0.5
+
+  # ====== LÍNEAS ======
+  - kind: Detail
+    height: 0
+    elements:
+      - type: table
+        bounds: { x: 0, y: 0, width: 210, height: 0 }
+        rows: "$.lineas"
+        headerStyle: TableHeader
+        rowStyle: TableRow
+        headerMode: RepeatOnPageBreak
+        headerHeight: 14
+        rowHeight: 12
+        columns:
+          - { header: "Cod",    binding: "$.codigo",      width: 40,  align: left  }
+          - { header: "Cant",   binding: "$.cantidad",    width: 30,  align: right }
+          - { header: "Desc",   binding: "$.descripcion", width: 80,  align: left  }
+          - { header: "Total",  binding: "$.total",       width: 60,  format: "N2", align: right }
+
+  # ====== TOTALES ======
+  - kind: ReportFooter
+    height: 90
+    elements:
+      - type: line
+        bounds: { x: 0, y: 2, width: 210, height: 0 }
+        color: "#000000"
+        thickness: 0.5
+      # Subtotal
+      - type: text
+        bounds: { x: 0, y: 6, width: 110, height: 12 }
+        content: "Subtotal:"
+        style: Default
+      - type: text
+        bounds: { x: 110, y: 6, width: 100, height: 12 }
+        content: "{{ $.subtotal }}"
+        style: Right
+      # ISV
+      - type: text
+        bounds: { x: 0, y: 20, width: 110, height: 12 }
+        content: "ISV 15%:"
+        style: Default
+      - type: text
+        bounds: { x: 110, y: 20, width: 100, height: 12 }
+        content: "{{ $.isv }}"
+        style: Right
+
+      # Separador
+      - type: line
+        bounds: { x: 0, y: 36, width: 210, height: 0 }
+        color: "#000000"
+        thickness: 1
+
+      # Total
+      - type: text
+        bounds: { x: 0, y: 40, width: 110, height: 14 }
+        content: "TOTAL:"
+        style: Total
+      - type: text
+        bounds: { x: 110, y: 40, width: 100, height: 14 }
+        content: "{{ $.total }}"
+        style: TotalRight
+
+      # Separador
+      - type: line
+        bounds: { x: 0, y: 60, width: 210, height: 0 }
+        color: "#000000"
+        thickness: 0.5
+
+      # CAI
+      - type: text
+        bounds: { x: 0, y: 64, width: 210, height: 10 }
+        content: "CAI: {{ $.cai }}"
+        style: Default
+      - type: text
+        bounds: { x: 0, y: 74, width: 210, height: 10 }
+        content: "Vence: {{ $.vence }}"
+        style: Default
+
+  # ====== MENSAJE FINAL ======
+  - kind: ReportFooter
+    height: 30
+    elements:
+      - type: line
+        bounds: { x: 0, y: 2, width: 210, height: 0 }
+        color: "#000000"
+        thickness: 0.5
+      - type: text
+        bounds: { x: 0, y: 8, width: 210, height: 12 }
+        content: "Gracias por su compra"
+        style: BoldCenter
+      - type: text
+        bounds: { x: 0, y: 20, width: 210, height: 10 }
+        content: "Pag. {{ pageNumber }}/{{ totalPages }}"
+        style: Center

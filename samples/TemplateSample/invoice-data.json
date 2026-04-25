@@ -1,0 +1,27 @@
+{
+  "numero": "000-001-01-00001234",
+  "fecha": "2026-04-22",
+  "cai": "A1B2C3-D4E5F6-G7H8I9-J0K1L2-M3N4O5-P6",
+  "vence": "2026-12-31",
+  "emisor": {
+    "nombre": "Mi Empresa S. de R.L.",
+    "rtn": "08011999123456",
+    "direccion": "Col. Palmira, Tegucigalpa",
+    "telefono": "+504 2234-5678"
+  },
+  "cliente": {
+    "nombre": "Distribuidora Ejemplo",
+    "rtn": "05019988776655",
+    "direccion": "Bo. Guamilito, San Pedro Sula"
+  },
+  "lineas": [
+    { "codigo": "A001", "descripcion": "Laptop Dell Latitude 5540",     "cantidad": 2,  "precio": 28500.00, "total":  57000.00 },
+    { "codigo": "A015", "descripcion": "Monitor LG 27\" UltraGear",       "cantidad": 3,  "precio":  8750.00, "total":  26250.00 },
+    { "codigo": "B100", "descripcion": "Teclado mecanico Keychron K2",    "cantidad": 5,  "precio":  2150.00, "total":  10750.00 },
+    { "codigo": "B101", "descripcion": "Mouse Logitech MX Master 3S",     "cantidad": 5,  "precio":  2850.00, "total":  14250.00 },
+    { "codigo": "C220", "descripcion": "Cable HDMI 2.1 de 2 metros",      "cantidad": 10, "precio":   395.00, "total":   3950.00 }
+  ],
+  "subtotal": 112200.00,
+  "isv": 16830.00,
+  "total": 129030.00
+}

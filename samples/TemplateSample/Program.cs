@@ -4,25 +4,37 @@ using NetReporter.Templates;
 
 QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
 
-// Rutas relativas al directorio de salida (CopyToOutputDirectory en csproj).
 var baseDir = AppContext.BaseDirectory;
-var templatePath = Path.Combine(baseDir, "report.yaml");
-var dataPath = Path.Combine(baseDir, "data.json");
 
-// 1) Cargar template YAML.
-var template = YamlReportLoader.Load(templatePath);
+// === Demo original: reporte de clientes ===
+RenderToPdf(
+    Path.Combine(baseDir, "report.yaml"),
+    Path.Combine(baseDir, "data.json"),
+    "clientes.pdf");
 
-// 2) Enlazar con datos JSON.
-var json = File.ReadAllText(dataPath);
-var report = template.Bind(json);
+// === Factura laser (Letter) ===
+RenderToPdf(
+    Path.Combine(baseDir, "invoice-laser.yaml"),
+    Path.Combine(baseDir, "invoice-data.json"),
+    "invoice-laser.pdf");
 
-// 3) Layout + render PDF.
-var layout = new LayoutEngine().Layout(report);
-var pdfBytes = new PdfRenderer().Render(layout);
+// === Factura paperoll (80mm) ===
+RenderToPdf(
+    Path.Combine(baseDir, "invoice-paperoll.yaml"),
+    Path.Combine(baseDir, "invoice-data.json"),
+    "invoice-paperoll.pdf");
 
-var outputPath = Path.Combine(baseDir, "clientes.pdf");
-await File.WriteAllBytesAsync(outputPath, pdfBytes);
 
-Console.WriteLine($"Reporte generado: {outputPath}");
-Console.WriteLine($"Páginas: {layout.Pages.Count}");
-Console.WriteLine($"Comandos totales: {layout.Pages.Sum(p => p.Commands.Count)}");
+void RenderToPdf(string templatePath, string dataPath, string outputName)
+{
+    var template = YamlReportLoader.Load(templatePath);
+    var json = File.ReadAllText(dataPath);
+    var report = template.Bind(json);
+    var layout = new LayoutEngine().Layout(report);
+    var pdfBytes = new PdfRenderer().Render(layout);
+
+    var outputPath = Path.Combine(baseDir, outputName);
+    File.WriteAllBytes(outputPath, pdfBytes);
+
+    Console.WriteLine($"{outputName,-28}  {layout.Pages.Count} páginas  ({layout.Pages.Sum(p => p.Commands.Count)} comandos)");
+}

@@ -1,0 +1,235 @@
+# Factura formato láser — Letter (8.5" × 11") con márgenes razonables.
+# ContentWidth = 612 - 2*42.52 = 527pt (márgenes 1.5cm lateral / 1.8cm vertical).
+# Columnas de la tabla suman a 527 exactos.
+
+name: FacturaLaser
+title: "Factura {{ $.numero }}"
+fileName: "factura-{{ $.numero }}"
+
+page:
+  size: Letter
+  orientation: Portrait
+  margins:
+    horizontal: 1.5cm
+    vertical: 1.8cm
+
+culture: es-HN
+
+styles:
+  Default:
+    fontFamily: Helvetica
+    fontSize: 10
+    foreground: "#0F172A"
+  Title:
+    basedOn: Default
+    fontSize: 22
+    bold: true
+    foreground: "#0F172A"
+  Subtitle:
+    basedOn: Default
+    fontSize: 12
+    bold: true
+    foreground: "#334155"
+  Caption:
+    basedOn: Default
+    fontSize: 8
+    foreground: "#64748B"
+  CaptionCenter:
+    basedOn: Caption
+    align: center
+  Label:
+    basedOn: Default
+    fontSize: 9
+    foreground: "#64748B"
+  LabelRight:
+    basedOn: Label
+    align: right
+  Value:
+    basedOn: Default
+    fontSize: 10
+    bold: true
+  ValueRight:
+    basedOn: Default
+    align: right
+  BoldRight:
+    basedOn: Value
+    align: right
+  TableHeader:
+    basedOn: Default
+    bold: true
+    background: "#F1F5F9"
+    padding: { horizontal: 4, vertical: 3 }
+    border:
+      bottom: { thickness: 0.5, color: "#CBD5E1" }
+  TableRow:
+    basedOn: Default
+    padding: { horizontal: 4, vertical: 3 }
+  TableRowAlt:
+    basedOn: TableRow
+    background: "#F8FAFC"
+
+bands:
+  # ====== ENCABEZADO DEL REPORTE ======
+  - kind: ReportHeader
+    height: 120
+    elements:
+      # Título "FACTURA"
+      - type: text
+        bounds: { x: 0, y: 0, width: 527, height: 26 }
+        content: "FACTURA"
+        style: Title
+      - type: text
+        bounds: { x: 0, y: 30, width: 300, height: 14 }
+        content: "No. {{ $.numero }}"
+        style: Subtitle
+
+      # Emisor (derecha)
+      - type: text
+        bounds: { x: 335, y: 0, width: 192, height: 12 }
+        content: "{{ $.emisor.nombre }}"
+        style: Value
+      - type: text
+        bounds: { x: 335, y: 14, width: 192, height: 10 }
+        content: "RTN: {{ $.emisor.rtn }}"
+        style: Caption
+      - type: text
+        bounds: { x: 335, y: 26, width: 192, height: 10 }
+        content: "{{ $.emisor.direccion }}"
+        style: Caption
+      - type: text
+        bounds: { x: 335, y: 38, width: 192, height: 10 }
+        content: "Tel: {{ $.emisor.telefono }}"
+        style: Caption
+
+      # Separador
+      - type: line
+        bounds: { x: 0, y: 56, width: 527, height: 0 }
+        color: "#CBD5E1"
+        thickness: 0.5
+
+      # Cliente
+      - type: text
+        bounds: { x: 0, y: 64, width: 80, height: 12 }
+        content: "Cliente:"
+        style: Label
+      - type: text
+        bounds: { x: 80, y: 64, width: 255, height: 12 }
+        content: "{{ $.cliente.nombre }}"
+        style: Value
+      - type: text
+        bounds: { x: 0, y: 78, width: 80, height: 12 }
+        content: "RTN:"
+        style: Label
+      - type: text
+        bounds: { x: 80, y: 78, width: 255, height: 12 }
+        content: "{{ $.cliente.rtn }}"
+        style: Default
+      - type: text
+        bounds: { x: 0, y: 92, width: 80, height: 12 }
+        content: "Direccion:"
+        style: Label
+      - type: text
+        bounds: { x: 80, y: 92, width: 255, height: 12 }
+        content: "{{ $.cliente.direccion }}"
+        style: Default
+
+      # Fecha / CAI (derecha)
+      - type: text
+        bounds: { x: 335, y: 64, width: 70, height: 12 }
+        content: "Fecha:"
+        style: Label
+      - type: text
+        bounds: { x: 405, y: 64, width: 122, height: 12 }
+        content: "{{ $.fecha }}"
+        style: Default
+      - type: text
+        bounds: { x: 335, y: 78, width: 70, height: 12 }
+        content: "CAI:"
+        style: Label
+      - type: text
+        bounds: { x: 405, y: 78, width: 122, height: 10 }
+        content: "{{ $.cai }}"
+        style: Caption
+      - type: text
+        bounds: { x: 335, y: 92, width: 70, height: 12 }
+        content: "Vence:"
+        style: Label
+      - type: text
+        bounds: { x: 405, y: 92, width: 122, height: 10 }
+        content: "{{ $.vence }}"
+        style: Caption
+
+  # ====== DETALLE (TABLA DE LÍNEAS) ======
+  - kind: Detail
+    height: 0
+    elements:
+      - type: table
+        bounds: { x: 0, y: 0, width: 527, height: 0 }
+        rows: "$.lineas"
+        headerStyle: TableHeader
+        rowStyle: TableRow
+        alternateRowStyle: TableRowAlt
+        headerMode: RepeatOnPageBreak
+        headerHeight: 22
+        rowHeight: 18
+        columns:
+          - { header: "Codigo",      binding: "$.codigo",      width: 70,  align: left  }
+          - { header: "Descripcion", binding: "$.descripcion", width: 257, align: left  }
+          - { header: "Cant.",       binding: "$.cantidad",    width: 50,  align: right }
+          - { header: "P. Unit.",    binding: "$.precio",      width: 75,  format: "N2", align: right }
+          - { header: "Subtotal",    binding: "$.total",       width: 75,  format: "N2", align: right }
+
+  # ====== TOTALES ======
+  - kind: ReportFooter
+    height: 80
+    elements:
+      # Bloque de totales alineado a la derecha (192pt)
+      - type: line
+        bounds: { x: 335, y: 8, width: 192, height: 0 }
+        color: "#CBD5E1"
+        thickness: 0.5
+      # Subtotal
+      - type: text
+        bounds: { x: 335, y: 14, width: 100, height: 14 }
+        content: "Subtotal:"
+        style: LabelRight
+      - type: text
+        bounds: { x: 435, y: 14, width: 92, height: 14 }
+        content: "{{ $.subtotal }}"
+        style: ValueRight
+      # ISV
+      - type: text
+        bounds: { x: 335, y: 30, width: 100, height: 14 }
+        content: "ISV 15%:"
+        style: LabelRight
+      - type: text
+        bounds: { x: 435, y: 30, width: 92, height: 14 }
+        content: "{{ $.isv }}"
+        style: ValueRight
+      # Separador antes del total
+      - type: line
+        bounds: { x: 335, y: 46, width: 192, height: 0 }
+        color: "#0F172A"
+        thickness: 1
+      # Total
+      - type: text
+        bounds: { x: 335, y: 50, width: 100, height: 14 }
+        content: "Total:"
+        style: BoldRight
+      - type: text
+        bounds: { x: 435, y: 50, width: 92, height: 14 }
+        content: "{{ $.total }}"
+        style: BoldRight
+
+  # ====== PAGE FOOTER ======
+  - kind: PageFooter
+    height: 24
+    elements:
+      - type: line
+        bounds: { x: 0, y: 0, width: 527, height: 0 }
+        color: "#CBD5E1"
+        thickness: 0.5
+      - type: text
+        bounds: { x: 0, y: 8, width: 527, height: 10 }
+        content: "Pagina {{ pageNumber }} de {{ totalPages }}"
+        style: CaptionCenter
