@@ -28,7 +28,11 @@ public sealed class HtmlRenderer
         foreach (var page in renderList.Pages)
             WritePage(sb, page, renderList.Page);
 
-        if (opts.FullDocument) WriteDocumentEnd(sb);
+        if (opts.FullDocument)
+        {
+            if (opts.ShowZoomControls) WriteZoomBar(sb, opts);
+            WriteDocumentEnd(sb);
+        }
 
         return sb.ToString();
     }
@@ -61,9 +65,55 @@ public sealed class HtmlRenderer
         sb.AppendLine("  .nr-page { margin: 0; box-shadow: none; page-break-after: always; }");
         sb.AppendLine("  .nr-page:last-child { page-break-after: auto; }");
         sb.AppendLine("}");
+        if (opts.ShowZoomControls) WriteZoomCss(sb);
         sb.AppendLine("</style>");
         sb.AppendLine("</head>");
         sb.AppendLine("<body>");
+    }
+
+    // === Zoom controls ===
+
+    private static void WriteZoomCss(StringBuilder sb)
+    {
+        sb.AppendLine(".nr-zoom-bar { position: fixed; bottom: 16px; right: 16px; display: flex; align-items: center; gap: 2px; background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.12), 0 2px 4px rgba(0,0,0,0.06); padding: 4px; font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Arial, sans-serif; font-size: 13px; z-index: 1000; user-select: none; }");
+        sb.AppendLine(".nr-zoom-btn { width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; background: transparent; border: 0; border-radius: 4px; color: #4b5563; cursor: pointer; font-size: 16px; line-height: 1; padding: 0; }");
+        sb.AppendLine(".nr-zoom-btn:hover { background: #f3f4f6; color: #111827; }");
+        sb.AppendLine(".nr-zoom-btn:active { background: #e5e7eb; }");
+        sb.AppendLine(".nr-zoom-btn:disabled { color: #d1d5db; cursor: not-allowed; }");
+        sb.AppendLine(".nr-zoom-btn:disabled:hover { background: transparent; }");
+        sb.AppendLine(".nr-zoom-label { min-width: 48px; text-align: center; color: #1f2937; font-variant-numeric: tabular-nums; }");
+        sb.AppendLine(".nr-zoom-sep { width: 1px; height: 18px; background: #e5e7eb; margin: 0 2px; }");
+        sb.AppendLine("@media print { .nr-zoom-bar { display: none !important; } }");
+    }
+
+    private static void WriteZoomBar(StringBuilder sb, HtmlRenderOptions opts)
+    {
+        var initialZoom = opts.InitialZoom <= 0 ? 1.0 : opts.InitialZoom;
+        sb.AppendLine("<div class=\"nr-zoom-bar\" role=\"toolbar\" aria-label=\"Zoom\">");
+        sb.AppendLine("  <button type=\"button\" class=\"nr-zoom-btn\" data-nr-zoom=\"out\" title=\"Reducir (Ctrl+-)\" aria-label=\"Reducir\">&minus;</button>");
+        sb.AppendLine("  <span class=\"nr-zoom-label\" data-nr-zoom-label>100%</span>");
+        sb.AppendLine("  <button type=\"button\" class=\"nr-zoom-btn\" data-nr-zoom=\"in\" title=\"Ampliar (Ctrl++)\" aria-label=\"Ampliar\">+</button>");
+        sb.AppendLine("  <span class=\"nr-zoom-sep\"></span>");
+        sb.AppendLine("  <button type=\"button\" class=\"nr-zoom-btn\" data-nr-zoom=\"fit\" title=\"Ajustar al ancho\" aria-label=\"Ajustar al ancho\">&#x2194;</button>");
+        sb.AppendLine("  <button type=\"button\" class=\"nr-zoom-btn\" data-nr-zoom=\"reset\" title=\"Restablecer (Ctrl+0)\" aria-label=\"Restablecer\">&#x00B7;</button>");
+        sb.AppendLine("</div>");
+        sb.Append("<script>(function(){var INITIAL=").Append(initialZoom.ToString("0.###", Inv)).AppendLine(");");
+        sb.AppendLine("var STEPS=[0.5,0.6,0.7,0.8,0.9,1,1.1,1.25,1.5,1.75,2,2.5,3];");
+        sb.AppendLine("var KEY='nr-zoom:'+location.pathname+':'+document.title;");
+        sb.AppendLine("var pages=document.querySelectorAll('.nr-page');");
+        sb.AppendLine("var label=document.querySelector('[data-nr-zoom-label]');");
+        sb.AppendLine("var bar=document.querySelector('.nr-zoom-bar');");
+        sb.AppendLine("if(!pages.length||!bar)return;");
+        sb.AppendLine("var natural=pages[0].offsetWidth;");
+        sb.AppendLine("var stored=parseFloat(localStorage.getItem(KEY));");
+        sb.AppendLine("var z=isFinite(stored)&&stored>0?stored:INITIAL;");
+        sb.AppendLine("function clamp(v){return Math.max(0.25,Math.min(4,v));}");
+        sb.AppendLine("function apply(){z=clamp(z);for(var i=0;i<pages.length;i++){pages[i].style.zoom=z;}if(label)label.textContent=Math.round(z*100)+'%';try{localStorage.setItem(KEY,z);}catch(e){}}");
+        sb.AppendLine("function step(d){var idx=0,best=Infinity;for(var i=0;i<STEPS.length;i++){var x=Math.abs(STEPS[i]-z);if(x<best){best=x;idx=i;}}idx=Math.max(0,Math.min(STEPS.length-1,idx+d));z=STEPS[idx];apply();}");
+        sb.AppendLine("function fit(){if(!natural)return;var avail=window.innerWidth-48;z=clamp(avail/natural);apply();}");
+        sb.AppendLine("bar.addEventListener('click',function(e){var btn=e.target.closest('[data-nr-zoom]');if(!btn)return;var a=btn.getAttribute('data-nr-zoom');if(a==='in')step(1);else if(a==='out')step(-1);else if(a==='reset'){z=1;apply();}else if(a==='fit')fit();});");
+        sb.AppendLine("document.addEventListener('keydown',function(e){if(!(e.ctrlKey||e.metaKey))return;if(e.key==='='||e.key==='+'){e.preventDefault();step(1);}else if(e.key==='-'){e.preventDefault();step(-1);}else if(e.key==='0'){e.preventDefault();z=1;apply();}});");
+        sb.AppendLine("apply();})();</script>");
     }
 
     private static void WriteDocumentEnd(StringBuilder sb)
