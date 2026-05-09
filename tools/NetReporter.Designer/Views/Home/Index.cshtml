@@ -264,7 +264,9 @@
         </aside>
 
         <!-- Derecha: preview + drawer de propiedades -->
-        <section class="flex-1 flex flex-col bg-slate-200 relative">
+        <!-- min-w-0 es CRÍTICO: sin él, el contenido escalado del preview empuja el flex
+             item haciendo que invada el editor YAML/toolbox cuando hacemos zoom-in. -->
+        <section class="flex-1 min-w-0 flex flex-col bg-slate-200 relative">
             <div class="flex items-center justify-between px-4 py-2 border-b border-slate-300 bg-slate-100 text-sm">
                 <div class="flex items-center gap-3">
                     <span class="font-medium text-slate-700">Preview</span>
@@ -299,7 +301,7 @@
             </div>
 
             <div id="preview"
-                 class="flex-1 overflow-auto p-6"
+                 class="flex-1 min-w-0 overflow-auto p-6"
                  @@pointerdown="onOverlayPointerDown($event)">
                 <p class="text-sm text-slate-500 text-center mt-8">Cargando preview…</p>
             </div>
