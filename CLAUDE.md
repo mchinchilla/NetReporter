@@ -79,7 +79,9 @@ When the user asks for a feature that "should also work in XLSX", remember XLSX 
 - `NetReporter.Templates` parses YAML into `ReportDefinition` and supports JSON Path bindings (`$.client.name`), template strings (`{{ pageNumber }}`, `{{ $.title }}`, `{{ #group }}`), and templated `fileName` resolved at export.
 - `YamlReportRewriter` does parse → modify POCO → re-serialize. **This drops comments**. If you change rewriter behavior, the existing tests in `NetReporter.Templates.Tests` cover all 11 mutation methods — extend them.
 - The Designer renders the **SVG** preview live via HTMX, with Alpine.js for state. Drag/resize/create operations POST back to mutation endpoints (`/Home/Move`, `/Home/Update`, `/Home/Add`, etc.) which call into `YamlReportRewriter`.
-- The preview supports zoom (25%–400%) via CSS `zoom` on the preview-root wrapper. Mouse coords are compensated by `this.zoom` in drag/resize/create handlers — anything new that converts viewport-px to page-pt must do the same.
+- The preview supports zoom (25%–400%) via `transform: scale(var(--zoom))` on `[data-preview-root]`, with an outer `[data-zoom-spacer]` reserving the post-scaled width/height so the parent's `overflow-auto` shows scroll correctly. CSS `zoom` was tried first but breaks layout: it makes the scaled content report a larger size to flexbox, which pushes the preview panel into the YAML editor / toolbox.
+- Mouse coords are compensated by `this.zoom` in drag/resize/create handlers — anything new that converts viewport-px to page-pt must do the same.
+- The flex chain housing the preview (`<section class="flex-1 ...">` and `<div id="preview" class="flex-1 ...">`) needs **`min-w-0`** on each flex item. Without it, flexbox's default `min-width: auto` lets the scaled content grow the panel and invade the editor — `overflow-auto` is not enough by itself. If you add a new flex container in this chain, keep `min-w-0`.
 
 ## Scope discipline
 

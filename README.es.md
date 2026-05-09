@@ -418,6 +418,8 @@ Abre `http://localhost:5296`.
 
 La barra del preview tiene botones `−` / `+` / `1:1` / `↔`. Los pasos son `25 · 50 · 75 · 100 · 125 · 150 · 200 · 300 · 400 %`. El botón `↔` ajusta el ancho de página al área disponible del preview. El nivel elegido se persiste en `localStorage`, así que recargar el designer lo mantiene. Las coordenadas de drag/resize se compensan por el zoom actual — mover un elemento al 200% sigue moviéndolo pt-a-pt en el YAML.
 
+> Nota de implementación: el preview se escala con `transform: scale(var(--zoom))`, no con la propiedad CSS `zoom`. `zoom` mete el contenido escalado en el cálculo de layout de flexbox, haciendo que el panel del preview invada el editor YAML / toolbox. Los flex items del chain del preview llevan `min-w-0` para que el `overflow-auto` del contenedor sí recorte el contenido escalado en vez de dejarlo crecer al panel.
+
 ---
 
 ## 📝 Sintaxis del template YAML
