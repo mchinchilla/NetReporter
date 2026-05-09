@@ -16,10 +16,11 @@ else
     <datalist id="style-names">
         @foreach (var s in Model.StyleNames) { <option value="@s"></option> }
     </datalist>
-    <div class="space-y-6"
+    <div class="space-y-6 zoom-host"
          data-preview-root
          data-margin-left="@Model.MarginLeftPt"
-         data-margin-top="@Model.MarginTopPt">
+         data-margin-top="@Model.MarginTopPt"
+         style="--zoom: 1;">
         @foreach (var pg in Model.Pages)
         {
             <div class="relative mx-auto svg-page"
@@ -90,6 +91,10 @@ else
 }
 
 <style>
+    /* Zoom: la propiedad CSS `zoom` afecta layout (a diferencia de `transform: scale`),
+       así que el scroll del contenedor padre se ajusta automáticamente. */
+    .zoom-host { zoom: var(--zoom, 1); }
+
     .element-overlay {
         border: 1px dashed transparent;
         transition: border-color 120ms, background-color 120ms;

@@ -108,6 +108,7 @@ NetReporter splits the report into four layers with clear interfaces. **The temp
 - 🖱️ **Drag-and-drop** on the SVG preview (move and create elements)
 - 🎯 **Resize handles** (8 directions) with 5pt snap when holding Shift
 - ⌨️ **Keyboard nudge** — arrows move 1pt, Shift+arrows move 10pt
+- 🔍 **Zoom in/out** — 25%–400% with steps, fit-to-width, persisted across reloads
 - 📋 **Full CRUD** on elements, bands and table columns
 - 💾 **Save/Load** templates to `~/.netreporter/templates/`
 - 📦 **Built-in samples** + **import file** from disk
@@ -383,6 +384,9 @@ Open `http://localhost:5296`.
 | Duplicate | `Ctrl+D` / `Cmd+D` |
 | Undo | `Ctrl+Z` / `Cmd+Z` |
 | Redo | `Ctrl+Shift+Z` / `Ctrl+Y` |
+| Zoom in | `Ctrl/Cmd + +` (or `=`) |
+| Zoom out | `Ctrl/Cmd + -` |
+| Reset zoom (100%) | `Ctrl/Cmd + 0` |
 
 ### Built-in samples (📦 Samples dropdown)
 
@@ -409,6 +413,10 @@ Open `http://localhost:5296`.
 ### Import files from disk
 
 `↥ Import` opens a file picker accepting `.yaml`, `.yml`, `.json`. Multi-select (yaml + json at once). Auto-detects which is which by extension.
+
+### Zoom controls
+
+The preview header has `−` / `+` / `1:1` / `↔` buttons. Steps are `25 · 50 · 75 · 100 · 125 · 150 · 200 · 300 · 400 %`. The `↔` button fits the page width to the available preview area. The chosen level persists in `localStorage` so reloading the designer keeps it. Drag and resize coordinates are compensated for the current zoom — moving an element at 200% still moves it pt-by-pt in the YAML.
 
 ---
 
@@ -721,6 +729,7 @@ dotnet test
 - [x] **Phase 4.2** — Vector barcodes & QR codes (ZXing.Net opt-in)
 - [x] **Phase 4.3** — Designer integrates 9 built-in samples (clientes, invoice-laser/paperoll, wrap-demo, grouped-invoice, invoice-with-qr, barcodes-demo, keep-together, **invoice-complete** flagship)
 - [x] **Phase 4.4** — Semantic XLSX renderer (ClosedXML, native Excel Tables) + Designer ⭳ XLSX export
+- [x] **Phase 4.5** — Designer preview zoom (25%–400%, fit-to-width, keyboard shortcuts, persisted)
 - [x] **Tests** — 184 passing tests across 5 projects
 
 ### 🚧 Under consideration

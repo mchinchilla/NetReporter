@@ -108,6 +108,7 @@ NetReporter separa el reporte en cuatro capas con interfaces claras. **El templa
 - 🖱️ **Drag-and-drop** sobre el preview SVG (mover y crear elementos)
 - 🎯 **Resize handles** (8 direcciones) con snap a 5pt con Shift
 - ⌨️ **Keyboard nudge** — flechas mueven 1pt, Shift+flechas 10pt
+- 🔍 **Zoom in/out** — 25%–400% por pasos, ajustar al ancho, persistido entre recargas
 - 📋 **CRUD completo** sobre elementos, bandas y columnas de tabla
 - 💾 **Save/Load** templates a `~/.netreporter/templates/`
 - 📦 **Samples builtin** + **importar archivo** desde disco
@@ -383,6 +384,9 @@ Abre `http://localhost:5296`.
 | Duplicar | `Ctrl+D` / `Cmd+D` |
 | Undo | `Ctrl+Z` / `Cmd+Z` |
 | Redo | `Ctrl+Shift+Z` / `Ctrl+Y` |
+| Zoom in | `Ctrl/Cmd + +` (o `=`) |
+| Zoom out | `Ctrl/Cmd + -` |
+| Zoom 100% | `Ctrl/Cmd + 0` |
 
 ### Samples builtin (dropdown 📦 Samples)
 
@@ -409,6 +413,10 @@ Abre `http://localhost:5296`.
 ### Importar archivos del disco
 
 `↥ Importar` abre file picker. Acepta `.yaml`, `.yml`, `.json`. Selección múltiple (yaml + json a la vez). Detecta automáticamente cuál es cuál por extensión.
+
+### Controles de zoom
+
+La barra del preview tiene botones `−` / `+` / `1:1` / `↔`. Los pasos son `25 · 50 · 75 · 100 · 125 · 150 · 200 · 300 · 400 %`. El botón `↔` ajusta el ancho de página al área disponible del preview. El nivel elegido se persiste en `localStorage`, así que recargar el designer lo mantiene. Las coordenadas de drag/resize se compensan por el zoom actual — mover un elemento al 200% sigue moviéndolo pt-a-pt en el YAML.
 
 ---
 
@@ -721,6 +729,7 @@ dotnet test
 - [x] **Fase 4.2** — Barcodes y QR vectoriales (ZXing.Net opt-in)
 - [x] **Fase 4.3** — Designer integra 9 samples builtin (clientes, invoice-laser/paperoll, wrap-demo, grouped-invoice, invoice-with-qr, barcodes-demo, keep-together, **invoice-complete** flagship)
 - [x] **Fase 4.4** — XLSX renderer semántico (ClosedXML, Excel Tables nativas) + export ⭳ XLSX en el Designer
+- [x] **Fase 4.5** — Zoom en el preview del Designer (25%–400%, ajustar al ancho, atajos, persistido)
 - [x] **Tests** — 184 tests verdes en 5 proyectos
 
 ### 🚧 En consideración

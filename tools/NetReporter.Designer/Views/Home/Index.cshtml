@@ -266,7 +266,29 @@
         <!-- Derecha: preview + drawer de propiedades -->
         <section class="flex-1 flex flex-col bg-slate-200 relative">
             <div class="flex items-center justify-between px-4 py-2 border-b border-slate-300 bg-slate-100 text-sm">
-                <span class="font-medium text-slate-700">Preview</span>
+                <div class="flex items-center gap-3">
+                    <span class="font-medium text-slate-700">Preview</span>
+                    <div class="flex items-center gap-1 text-xs">
+                        <button type="button"
+                                @@click="zoomOut()"
+                                title="Zoom out (Ctrl/Cmd + -)"
+                                class="w-6 h-6 flex items-center justify-center border border-slate-300 rounded bg-white text-slate-700 hover:bg-sky-50 hover:border-sky-500 leading-none">−</button>
+                        <span class="w-12 text-center font-mono text-slate-700"
+                              x-text="Math.round(zoom * 100) + '%'"></span>
+                        <button type="button"
+                                @@click="zoomIn()"
+                                title="Zoom in (Ctrl/Cmd + +)"
+                                class="w-6 h-6 flex items-center justify-center border border-slate-300 rounded bg-white text-slate-700 hover:bg-sky-50 hover:border-sky-500 leading-none">+</button>
+                        <button type="button"
+                                @@click="zoomReset()"
+                                title="100% (Ctrl/Cmd + 0)"
+                                class="px-1.5 h-6 flex items-center border border-slate-300 rounded bg-white text-slate-700 hover:bg-sky-50 hover:border-sky-500 leading-none">1:1</button>
+                        <button type="button"
+                                @@click="zoomFitWidth()"
+                                title="Ajustar al ancho"
+                                class="w-6 h-6 flex items-center justify-center border border-slate-300 rounded bg-white text-slate-700 hover:bg-sky-50 hover:border-sky-500 leading-none">↔</button>
+                    </div>
+                </div>
                 <span id="preview-loader" class="htmx-indicator text-xs text-sky-700 flex items-center gap-1">
                     <svg class="animate-spin w-3 h-3" viewBox="0 0 24 24" fill="none">
                         <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" stroke-opacity="0.25"/>
@@ -572,6 +594,11 @@
             MIN_SIZE: 4,
             MAX_HISTORY: 50,
             SNAP: 5,
+            zoom: 1,
+            ZOOM_LEVELS: [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4],
+            ZOOM_MIN: 0.25,
+            ZOOM_MAX: 4,
+            ZOOM_STORAGE_KEY: 'netreporter.designer.zoom',
             undoStack: [],
             redoStack: [],
             pendingNudge: null,
@@ -596,15 +623,63 @@
             ],
 
             async init() {
+                // Cargar zoom persistido antes de Promise.all para que el primer render salga ya escalado.
+                const stored = parseFloat(localStorage.getItem(this.ZOOM_STORAGE_KEY));
+                if (Number.isFinite(stored)) this.zoom = this.clampZoom(stored);
+
                 await Promise.all([this.refreshTemplates(), this.refreshSamples()]);
                 // Marcar dirty cuando el usuario edita los textareas manualmente.
                 const mark = () => { this.isDirty = true; };
                 document.getElementById('yaml-editor')?.addEventListener('input', mark);
                 document.getElementById('json-editor')?.addEventListener('input', mark);
 
-                // Refrescar lista de bandas cada vez que HTMX actualiza el preview (incluye el load inicial).
-                document.getElementById('preview')?.addEventListener('htmx:afterSwap',
-                    () => this.refreshBandsFromPreview());
+                // Refrescar lista de bandas + reaplicar zoom cada vez que HTMX actualiza el preview.
+                document.getElementById('preview')?.addEventListener('htmx:afterSwap', () => {
+                    this.refreshBandsFromPreview();
+                    this.applyZoomToDom();
+                });
+            },
+
+            // === Zoom ===
+
+            clampZoom(z) { return Math.min(this.ZOOM_MAX, Math.max(this.ZOOM_MIN, z)); },
+
+            nextZoomLevel(dir) {
+                // Buscar el step del array más cercano en la dirección pedida.
+                const cur = this.zoom;
+                if (dir > 0) {
+                    return this.ZOOM_LEVELS.find(z => z > cur + 1e-6) ?? this.ZOOM_MAX;
+                } else {
+                    const lower = this.ZOOM_LEVELS.filter(z => z < cur - 1e-6);
+                    return lower.length ? lower[lower.length - 1] : this.ZOOM_MIN;
+                }
+            },
+
+            setZoom(z) {
+                this.zoom = this.clampZoom(z);
+                try { localStorage.setItem(this.ZOOM_STORAGE_KEY, String(this.zoom)); } catch {}
+                this.applyZoomToDom();
+            },
+
+            zoomIn()    { this.setZoom(this.nextZoomLevel(+1)); },
+            zoomOut()   { this.setZoom(this.nextZoomLevel(-1)); },
+            zoomReset() { this.setZoom(1); },
+
+            zoomFitWidth() {
+                const host = document.getElementById('preview');
+                const page = host?.querySelector('.svg-page');
+                if (!host || !page) return;
+                const pageWidth = parseFloat(page.style.width);
+                if (!Number.isFinite(pageWidth) || pageWidth <= 0) return;
+                // p-6 = 1.5rem * 2 = 48px de padding horizontal del contenedor scrollable.
+                const padding = 48;
+                const target = (host.clientWidth - padding) / pageWidth;
+                this.setZoom(target);
+            },
+
+            applyZoomToDom() {
+                const root = document.querySelector('[data-preview-root]');
+                if (root) root.style.setProperty('--zoom', this.zoom);
             },
 
             async refreshSamples() {
@@ -716,6 +791,22 @@
                     if (key === 'd' && this.selected) {
                         evt.preventDefault();
                         this.duplicateSelected();
+                        return;
+                    }
+                    // Zoom: Ctrl/Cmd + (= o +) → in, + (- o _) → out, + 0 → reset.
+                    if (key === '=' || key === '+') {
+                        evt.preventDefault();
+                        this.zoomIn();
+                        return;
+                    }
+                    if (key === '-' || key === '_') {
+                        evt.preventDefault();
+                        this.zoomOut();
+                        return;
+                    }
+                    if (key === '0') {
+                        evt.preventDefault();
+                        this.zoomReset();
                         return;
                     }
                     return;
@@ -999,8 +1090,10 @@
 
                 const bandIndex = parseInt(dz.dataset.bandIndex, 10);
                 const rect = dz.getBoundingClientRect();
-                const xInPage = evt.clientX - rect.left;
-                const yInBand = evt.clientY - rect.top;
+                // rect y clientX/Y están en viewport-px; el zoom CSS escaló todo igual.
+                // Dividir el offset por zoom convierte de vuelta a page-pt.
+                const xInPage = (evt.clientX - rect.left) / this.zoom;
+                const yInBand = (evt.clientY - rect.top)  / this.zoom;
 
                 const root = document.querySelector('[data-preview-root]');
                 const marginLeft = parseFloat(root?.dataset.marginLeft) || 0;
@@ -1156,8 +1249,9 @@
 
                 if (this.resizing) {
                     const r = this.resizing;
-                    let dx = evt.clientX - r.startX;
-                    let dy = evt.clientY - r.startY;
+                    // Convertir delta de viewport-px a page-pt dividiendo por el zoom actual.
+                    let dx = (evt.clientX - r.startX) / this.zoom;
+                    let dy = (evt.clientY - r.startY) / this.zoom;
                     if (evt.shiftKey) {
                         dx = Math.round(dx / this.SNAP) * this.SNAP;
                         dy = Math.round(dy / this.SNAP) * this.SNAP;
@@ -1172,8 +1266,9 @@
                 }
 
                 if (!this.dragging) return;
-                let dx = evt.clientX - this.dragging.startX;
-                let dy = evt.clientY - this.dragging.startY;
+                // Convertir delta de viewport-px a page-pt dividiendo por el zoom actual.
+                let dx = (evt.clientX - this.dragging.startX) / this.zoom;
+                let dy = (evt.clientY - this.dragging.startY) / this.zoom;
                 if (evt.shiftKey) {
                     dx = Math.round(dx / this.SNAP) * this.SNAP;
                     dy = Math.round(dy / this.SNAP) * this.SNAP;
