@@ -678,8 +678,21 @@
             },
 
             applyZoomToDom() {
+                // Tanto el host (que aplica transform:scale) como el spacer
+                // (que reserva el espacio post-escalado para el scroll) leen --zoom.
                 const root = document.querySelector('[data-preview-root]');
+                const spacer = document.querySelector('[data-zoom-spacer]');
                 if (root) root.style.setProperty('--zoom', this.zoom);
+                if (spacer) {
+                    spacer.style.setProperty('--zoom', this.zoom);
+                    // Para reservar el alto post-escalado tomamos la altura natural del host
+                    // (suma de páginas + gaps) ANTES de que el transform la afecte. Como
+                    // transform no toca el bounding box del child, offsetHeight del host
+                    // sigue siendo el alto sin escalar — multiplicamos por zoom.
+                    if (root) {
+                        spacer.style.height = (root.offsetHeight * this.zoom) + 'px';
+                    }
+                }
             },
 
             async refreshSamples() {

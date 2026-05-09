@@ -16,11 +16,14 @@ else
     <datalist id="style-names">
         @foreach (var s in Model.StyleNames) { <option value="@s"></option> }
     </datalist>
+    <div class="zoom-spacer"
+         data-zoom-spacer
+         style="--zoom: 1; --page-w: @(Model.PageWidthPt)px;">
     <div class="space-y-6 zoom-host"
          data-preview-root
          data-margin-left="@Model.MarginLeftPt"
          data-margin-top="@Model.MarginTopPt"
-         style="--zoom: 1;">
+         style="--zoom: 1; --page-w: @(Model.PageWidthPt)px;">
         @foreach (var pg in Model.Pages)
         {
             <div class="relative mx-auto svg-page"
@@ -88,12 +91,22 @@ else
             <p class="text-xs text-slate-500 text-center">Página @pg.Number de @Model.Pages.Count</p>
         }
     </div>
+    </div>
 }
 
 <style>
-    /* Zoom: la propiedad CSS `zoom` afecta layout (a diferencia de `transform: scale`),
-       así que el scroll del contenedor padre se ajusta automáticamente. */
-    .zoom-host { zoom: var(--zoom, 1); }
+    /* Zoom: usamos `transform: scale` para que el escalado NO afecte el layout flow
+       del documento (la propiedad `zoom` sí lo afecta y aplastaba la sidebar/toolbox).
+       El `.zoom-spacer` reserva el tamaño post-escalado para que el scroll funcione. */
+    .zoom-host {
+        transform: scale(var(--zoom, 1));
+        transform-origin: top left;
+        width: var(--page-w, 100%);
+    }
+    .zoom-spacer {
+        width: calc(var(--page-w, 100%) * var(--zoom, 1));
+        margin: 0 auto;
+    }
 
     .element-overlay {
         border: 1px dashed transparent;
