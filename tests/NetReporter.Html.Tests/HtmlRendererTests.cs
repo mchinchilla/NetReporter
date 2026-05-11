@@ -176,6 +176,60 @@ public sealed class HtmlRendererTests
         Assert.Contains("width: 595", html);
     }
 
+    [Fact]
+    public void Render_ZoomControls_OptInEmitsBarAndScript()
+    {
+        var list = BuildList(new DrawTextCommand(new Rect(0, 0, 10, 10), "X", DefaultStyle));
+        var html = new HtmlRenderer().Render(list,
+            new HtmlRenderOptions { ShowZoomControls = true });
+
+        Assert.Contains("class=\"nr-zoom-bar\"", html);
+        Assert.Contains("data-nr-zoom=\"in\"", html);
+        Assert.Contains("data-nr-zoom=\"out\"", html);
+        Assert.Contains("data-nr-zoom=\"fit\"", html);
+        Assert.Contains("data-nr-zoom=\"reset\"", html);
+        Assert.Contains("data-nr-zoom-label", html);
+    }
+
+    [Fact]
+    public void Render_ZoomControls_ScriptHasBalancedIifeWrapper()
+    {
+        // Regression: an earlier version emitted "var INITIAL=1);" inside the IIFE
+        // header, which closed the outer paren while the function body was still
+        // open. The browser silently failed to parse the script and the zoom
+        // buttons appeared but did nothing.
+        var list = BuildList(new DrawTextCommand(new Rect(0, 0, 10, 10), "X", DefaultStyle));
+        var html = new HtmlRenderer().Render(list,
+            new HtmlRenderOptions { ShowZoomControls = true });
+
+        // The IIFE opens with "(function(){" and closes with "})();".
+        // The malformed version produced "(function(){var INITIAL=N);" — one
+        // closing paren too many *before* the function body ends.
+        Assert.DoesNotContain("var INITIAL=1);", html);
+        Assert.DoesNotContain("var INITIAL=1.0);", html);
+        Assert.Contains("(function(){var INITIAL=", html);
+        Assert.Contains("})();</script>", html);
+
+        // Across the entire <script>...</script> block, paren balance must match.
+        var openTag = "<script>";
+        var closeTag = "</script>";
+        var start = html.IndexOf(openTag, StringComparison.Ordinal) + openTag.Length;
+        var end = html.IndexOf(closeTag, start, StringComparison.Ordinal);
+        Assert.True(start >= openTag.Length && end > start, "Zoom script bookends missing.");
+        var script = html.Substring(start, end - start);
+        var opens = script.Count(c => c == '(');
+        var closes = script.Count(c => c == ')');
+        Assert.Equal(opens, closes);
+    }
+
+    [Fact]
+    public void Render_ZoomControls_DefaultOff()
+    {
+        var list = BuildList(new DrawTextCommand(new Rect(0, 0, 10, 10), "X", DefaultStyle));
+        var html = new HtmlRenderer().Render(list);
+        Assert.DoesNotContain("nr-zoom-bar", html);
+    }
+
     private static int CountOccurrences(string haystack, string needle)
     {
         int count = 0, idx = 0;

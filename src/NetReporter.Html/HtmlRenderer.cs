@@ -97,7 +97,7 @@ public sealed class HtmlRenderer
         sb.AppendLine("  <button type=\"button\" class=\"nr-zoom-btn\" data-nr-zoom=\"fit\" title=\"Ajustar al ancho\" aria-label=\"Ajustar al ancho\">&#x2194;</button>");
         sb.AppendLine("  <button type=\"button\" class=\"nr-zoom-btn\" data-nr-zoom=\"reset\" title=\"Restablecer (Ctrl+0)\" aria-label=\"Restablecer\">&#x00B7;</button>");
         sb.AppendLine("</div>");
-        sb.Append("<script>(function(){var INITIAL=").Append(initialZoom.ToString("0.###", Inv)).AppendLine(");");
+        sb.Append("<script>(function(){var INITIAL=").Append(initialZoom.ToString("0.###", Inv)).AppendLine(";");
         sb.AppendLine("var STEPS=[0.5,0.6,0.7,0.8,0.9,1,1.1,1.25,1.5,1.75,2,2.5,3];");
         sb.AppendLine("var KEY='nr-zoom:'+location.pathname+':'+document.title;");
         sb.AppendLine("var pages=document.querySelectorAll('.nr-page');");
