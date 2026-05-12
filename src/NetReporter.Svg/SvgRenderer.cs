@@ -136,7 +136,16 @@ public sealed class SvgRenderer
             _                      => (float)cmd.Bounds.X
         };
 
-        float y = (float)cmd.Bounds.Y + (-metrics.Ascent);
+        // Vertical placement of the (single) line within the cell box: baseline = top + topOffset + ascent.
+        // Center / Bottom push it down by the leftover height; Top (default) keeps the old behaviour.
+        var lineHeight = metrics.Descent - metrics.Ascent;
+        float topOffset = cmd.Style.VerticalAlign switch
+        {
+            NetReporter.Core.Styles.VerticalAlignment.Center => (float)Math.Max(0, (cmd.Bounds.Height - lineHeight) / 2),
+            NetReporter.Core.Styles.VerticalAlignment.Bottom => (float)Math.Max(0, cmd.Bounds.Height - lineHeight),
+            _                                                => 0f
+        };
+        float y = (float)cmd.Bounds.Y + topOffset + (-metrics.Ascent);
 
         var clipRect = new SKRect(
             (float)cmd.Bounds.X,
