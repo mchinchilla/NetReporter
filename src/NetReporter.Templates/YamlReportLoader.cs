@@ -286,6 +286,8 @@ public sealed class TemplateReport
     {
         var elements = (b.Elements ?? new List<ElementYaml>())
             .Select((e, j) => BuildElement(e, data, $"bands.{bandIndex}.elements.{j}"))
+            .Where(el => el is not null)
+            .Select(el => el!)
             .ToArray();
 
         var kind = (b.Kind ?? "Detail").ToLowerInvariant();
@@ -306,26 +308,31 @@ public sealed class TemplateReport
 
     // === Elements ===
 
-    private static ReportElement BuildElement(ElementYaml e, JsonElement data, string sourcePath)
+    /// <summary>
+    /// Builds one element. Returns <c>null</c> when the element should be skipped — currently only
+    /// an <c>image</c> whose <c>source</c> resolves to empty or to a path that doesn't exist
+    /// (a missing logo must not abort the whole report). <see cref="BuildBand"/> filters nulls out.
+    /// </summary>
+    private static ReportElement? BuildElement(ElementYaml e, JsonElement data, string sourcePath)
     {
         var type = (e.Type ?? "text").ToLowerInvariant();
         var bounds = ResolveBounds(e.Bounds);
         var style = e.Style is not null ? new StyleRef(e.Style) : StyleRef.Default;
 
-        ReportElement built = type switch
+        ReportElement? built = type switch
         {
             "text"      => BuildText(e, bounds, style, data),
             "table"     => BuildTable(e, bounds, style, data),
             "line"      => BuildLine(e, bounds, style),
             "rectangle" => BuildRectangle(e, bounds, style),
-            "image"     => BuildImage(e, bounds, style),
+            "image"     => BuildImage(e, bounds, style, data),
             "barcode"   => BuildBarcode(e, bounds, style, data),
             _ => throw new FormatException(
                 $"Element.type desconocido: '{e.Type}'. Usa text/table/line/rectangle/image/barcode.")
         };
 
         // Etiqueta el elemento con su origen en el template para que el Designer pueda editarlo.
-        return built with { SourcePath = sourcePath };
+        return built is null ? null : built with { SourcePath = sourcePath };
     }
 
     private static Rect ResolveBounds(BoundsYaml? b) =>
@@ -467,12 +474,23 @@ public sealed class TemplateReport
         };
     }
 
-    private static ImageElement BuildImage(ElementYaml e, Rect bounds, StyleRef style)
+    /// <summary>
+    /// Builds an image element. The <c>source</c> may be a literal data URI / file path, or a
+    /// template string (<c>{{ $.path }}</c>) — resolved here against the data root, just like
+    /// barcode <c>value</c>. Returns <c>null</c> (element skipped) when the resolved source is
+    /// empty/whitespace or points to a file that doesn't exist — e.g. a white-label logo that
+    /// isn't configured shouldn't make the whole report fail to render.
+    /// </summary>
+    private static ImageElement? BuildImage(ElementYaml e, Rect bounds, StyleRef style, JsonElement data)
     {
         if (string.IsNullOrWhiteSpace(e.Source))
             throw new FormatException("Element.type=image requiere 'source' (path local o data URI).");
 
-        var (data, mime) = LoadImageSource(e.Source);
+        // Resolve {{ $.path }} placeholders the same way barcode values are resolved.
+        var resolvedSource = TemplateString.Resolve(e.Source, data);
+        if (string.IsNullOrWhiteSpace(resolvedSource))
+            return null; // optional image (e.g. unconfigured logo) — skip silently
+
         var fit = (e.Fit ?? "contain").ToLowerInvariant() switch
         {
             "fill"    => ImageFit.Fill,
@@ -480,11 +498,14 @@ public sealed class TemplateReport
             _ => throw new FormatException($"Image.fit inválido: '{e.Fit}'. Usa contain/fill.")
         };
 
+        if (!TryLoadImageSource(resolvedSource, out var imgData, out var mime))
+            return null; // missing file (or malformed data URI) — skip rather than abort the report
+
         return new ImageElement
         {
             Bounds = bounds,
             Style = style,
-            Data = data,
+            Data = imgData,
             MimeType = mime,
             Fit = fit
         };
@@ -552,5 +573,25 @@ public sealed class TemplateReport
             _ => "image/png"      // default seguro
         };
         return (File.ReadAllBytes(source), mimeFromExt);
+    }
+
+    /// <summary>
+    /// Non-throwing variant of <see cref="LoadImageSource"/>. Returns <c>false</c> for a missing
+    /// file or a malformed data URI instead of raising — lets <see cref="BuildImage"/> treat an
+    /// optional image (e.g. an unconfigured logo) as "just don't draw it".
+    /// </summary>
+    private static bool TryLoadImageSource(string source, out byte[] data, out string mime)
+    {
+        try
+        {
+            (data, mime) = LoadImageSource(source);
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or FormatException or ArgumentException or UnauthorizedAccessException)
+        {
+            data = [];
+            mime = "image/png";
+            return false;
+        }
     }
 }
