@@ -318,7 +318,7 @@ public sealed class TemplateReport
             "table"     => BuildTable(e, bounds, style, data),
             "line"      => BuildLine(e, bounds, style),
             "rectangle" => BuildRectangle(e, bounds, style),
-            "image"     => BuildImage(e, bounds, style),
+            "image"     => BuildImage(e, bounds, style, data),
             "barcode"   => BuildBarcode(e, bounds, style, data),
             _ => throw new FormatException(
                 $"Element.type desconocido: '{e.Type}'. Usa text/table/line/rectangle/image/barcode.")
@@ -467,12 +467,12 @@ public sealed class TemplateReport
         };
     }
 
-    private static ImageElement BuildImage(ElementYaml e, Rect bounds, StyleRef style)
+    private static ImageElement BuildImage(ElementYaml e, Rect bounds, StyleRef style, JsonElement data)
     {
         if (string.IsNullOrWhiteSpace(e.Source))
             throw new FormatException("Element.type=image requiere 'source' (path local o data URI).");
 
-        var (data, mime) = LoadImageSource(e.Source);
+        var resolvedSource = TemplateString.Resolve(e.Source, data);
         var fit = (e.Fit ?? "contain").ToLowerInvariant() switch
         {
             "fill"    => ImageFit.Fill,
@@ -480,11 +480,27 @@ public sealed class TemplateReport
             _ => throw new FormatException($"Image.fit inválido: '{e.Fit}'. Usa contain/fill.")
         };
 
+        // Token resolved to empty (e.g. white-label logo not configured) → emit a placeholder
+        // ImageElement with no payload. Renderers short-circuit on empty Data, so the image
+        // disappears silently instead of crashing the bind.
+        if (string.IsNullOrWhiteSpace(resolvedSource))
+        {
+            return new ImageElement
+            {
+                Bounds = bounds,
+                Style = style,
+                Data = Array.Empty<byte>(),
+                MimeType = string.Empty,
+                Fit = fit
+            };
+        }
+
+        var (bytes, mime) = LoadImageSource(resolvedSource);
         return new ImageElement
         {
             Bounds = bounds,
             Style = style,
-            Data = data,
+            Data = bytes,
             MimeType = mime,
             Fit = fit
         };
