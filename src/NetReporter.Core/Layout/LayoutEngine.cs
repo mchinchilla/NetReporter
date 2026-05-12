@@ -547,7 +547,14 @@ public sealed class LayoutEngine
         switch (element)
         {
             case TextElement text:
-                return EmitText(text, absBounds, style, path, ctx, page);
+                // Honor the style's padding the same way table cells do, so a text element styled with
+                // the same named style as a table column lines up with that column's cells.
+                var textBounds = new Rect(
+                    absBounds.X + style.Padding.Left,
+                    absBounds.Y + style.Padding.Top,
+                    absBounds.Width - style.Padding.Horizontal,
+                    absBounds.Height - style.Padding.Vertical);
+                return EmitText(text, textBounds, style, path, ctx, page) + style.Padding.Bottom;
 
             case LineElement line:
                 var (from, to) = line.Orientation == LineOrientation.Horizontal

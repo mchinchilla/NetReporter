@@ -115,10 +115,10 @@ public static class TemplateString
             "rowIndex"   => RowIndexPart.Instance,
             "#group"     => GroupKeyPart.Instance,
             "#count"     => GroupCountPart.Instance,
-            _ when expr.StartsWith('$') => new JsonPathPart(expr),
+            _ when expr.StartsWith('$') => JsonPathPart.Create(expr),
             _ => throw new FormatException(
                 $"Expresión de template no reconocida: '{{{{ {expr} }}}}'. " +
-                "Soportado: pageNumber, totalPages, rowIndex, #group, #count, $.path")
+                "Soportado: pageNumber, totalPages, rowIndex, #group, #count, $.path, $.path:format")
         };
     }
 
@@ -179,8 +179,28 @@ public static class TemplateString
     private sealed class JsonPathPart : TemplatePart
     {
         private readonly string _path;
-        public JsonPathPart(string path) => _path = path;
-        public override string Evaluate(IEvaluationContext ctx, JsonElement contextRoot) =>
-            JsonPath.ToDisplayString(JsonPath.Select(contextRoot, _path));
+        private readonly string? _format;
+
+        private JsonPathPart(string path, string? format) { _path = path; _format = format; }
+
+        /// <summary>
+        /// Parses a path token with an optional <c>:format</c> suffix (e.g. <c>$.totals.debit:N2</c>).
+        /// A colon never occurs inside a JSON path, so the split is unambiguous.
+        /// </summary>
+        public static JsonPathPart Create(string expr)
+        {
+            var colon = expr.IndexOf(':');
+            if (colon < 0) return new JsonPathPart(expr.Trim(), null);
+            var fmt = expr[(colon + 1)..].Trim();
+            return new JsonPathPart(expr[..colon].Trim(), fmt.Length == 0 ? null : fmt);
+        }
+
+        public override string Evaluate(IEvaluationContext ctx, JsonElement contextRoot)
+        {
+            var el = JsonPath.Select(contextRoot, _path);
+            if (_format is not null && JsonPath.ToBoxedValue(el) is IFormattable f)
+                return f.ToString(_format, System.Globalization.CultureInfo.CurrentCulture);
+            return JsonPath.ToDisplayString(el);
+        }
     }
 }
