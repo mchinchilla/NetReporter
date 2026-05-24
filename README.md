@@ -7,13 +7,21 @@
 **Reporting engine for .NET 10 with an IR — one template produces PDF, HTML, SVG and XLSX.**
 
 [![.NET 10](https://img.shields.io/badge/.NET-10.0-512BD4?style=flat-square&logo=dotnet)](https://dotnet.microsoft.com/)
-[![Tests](https://img.shields.io/badge/tests-184%20passing-22c55e?style=flat-square&logo=xunit)](#-tests)
+[![Tests](https://img.shields.io/badge/tests-187%20passing-22c55e?style=flat-square&logo=xunit)](#-tests)
 [![License](https://img.shields.io/badge/license-TBD-lightgrey?style=flat-square)](#-licenses)
-[![Status](https://img.shields.io/badge/status-functional%20prototype-f59e0b?style=flat-square)](#status)
+[![Status](https://img.shields.io/badge/status-production-22c55e?style=flat-square)](#status)
 
 🎨 Visual designer · 📄 PDF · 🌐 HTML · 🖼️ SVG · 📊 XLSX · 📦 YAML templates
 
 </div>
+
+---
+
+## 🎬 NetReporter Designer
+
+![NetReporter Designer — YAML editor with live SVG preview, drag/drop, zoom, and PDF/HTML/XLSX export](docs/images/designer.png)
+
+> The visual editor: split YAML/data panes on the left, a draggable element toolbox, and a live SVG preview that mirrors what the PDF/HTML/XLSX renderers will produce. Zoom from 25% to 400%, snap, nudge, undo/redo, and one-click export — all without rebuilding.
 
 ---
 
@@ -181,16 +189,16 @@ flowchart TB
 |---|---|---|
 | Runtime | **.NET 10** | `LangVersion: latest`, `Nullable: enable`, `TreatWarningsAsErrors: true` |
 | Layout & IR | Pure C# | No external dependencies |
-| YAML parser | **YamlDotNet** ≥ 17.0 | CamelCase naming, ignore unmatched, default values handling |
-| PDF backend | **QuestPDF** ≥ 2026.2 | Used only as a container; drawing goes through SkiaSharp |
-| 2D drawing | **SkiaSharp** ≥ 3.119 | `SKSvgCanvas` to emit SVG |
+| YAML parser | **YamlDotNet** 18.0 | CamelCase naming, ignore unmatched, default values handling |
+| PDF backend | **QuestPDF** 2026.5 | Used only as a container; drawing goes through SkiaSharp |
+| 2D drawing | **SkiaSharp** 3.119 | `SKSvgCanvas` to emit SVG |
 | Web UI | **ASP.NET Core MVC** (.NET 10) | Interactive designer |
 | Frontend reactivity | **Alpine.js** 3.14 (CDN) | State + reactivity, no build pipeline |
 | Network reactivity | **HTMX** 2.0 (CDN) | Live preview with debounce |
 | CSS | **Tailwind CSS** (CDN play) | Utility-first |
-| Barcodes (opt-in) | **ZXing.Net** 0.16 | Apache 2.0 · QR / Code128 / Code39 / EAN-13 |
+| Barcodes (opt-in) | **ZXing.Net** 0.16.11 | Apache 2.0 · QR / Code128 / Code39 / EAN-13 |
 | XLSX backend | **ClosedXML** 0.105 | MIT · OpenXML, native Excel tables |
-| Tests | **xUnit** 2.9 | 184 tests across 5 projects |
+| Tests | **xUnit** 2.9 | 187 tests across 5 projects |
 | JSON | `System.Text.Json` (BCL) | No Newtonsoft |
 
 ---
@@ -329,11 +337,17 @@ dotnet run --project samples/InvoiceSample
 # YAML sample — emits PDF + XLSX for every template (9 reports × 2 outputs)
 dotnet run --project samples/TemplateSample
 # → samples/TemplateSample/bin/Debug/net10.0/*.pdf and *.xlsx
+
+# Visual designer (browser)
+dotnet run --project tools/NetReporter.Designer
+# → http://localhost:5296
 ```
 
 ---
 
 ## 🎨 Visual designer
+
+![Designer with the invoice-complete sample loaded](docs/images/designer.png)
 
 ### Launch
 
@@ -345,31 +359,13 @@ Open `http://localhost:5296`.
 
 ### Layout
 
-```
-┌───────────────────────────────────────────────────────────────────────────────┐
-│ 🅽 Designer  [Template ▼ ●] [↥ Import] [Save][Save as…][Delete]              │
-│              [↶ Undo (n)] [↷ Redo]   [⭳ PDF] [⭳ HTML] [⭳ XLSX]               │
-├──────────────────────────┬──────────┬────────────────────────────────────────┤
-│ report.yaml | data.json  │ Toolbox  │ Preview                                │
-│                          │          │                                        │
-│ name: ClientsReport      │ [T]      │  ┌──────────────────┐                  │
-│ title: Customer report   │ Text     │  │ Customer report  │  ┌─────────────┐ │
-│ page:                    │          │  │                  │  │Properties   │ │
-│   size: Letter           │ [━]      │  │ Code   Name      │  │bands.0.el.0 │ │
-│   margins: { all: 2cm }  │ Line     │  │ ────────────     │  │TEXT         │ │
-│ ...                      │          │  │ C001   ...       │  │X     Y      │ │
-│ bands:                   │ [▭]      │  │ C002   ...       │  │ 50    20    │ │
-│   - kind: ReportHeader   │ Rect     │  │ C003   ...       │  │             │ │
-│     ...                  │          │  └──────────────────┘  │ Width Height│ │
-│                          │ [⊞]      │                        │  120   14   │ │
-│                          │ Table    │                        │             │ │
-│                          │          │                        │ Style: Title│ │
-│                          │ BANDS    │                        │ Content: ...│ │
-│                          │ R... ▲▼✕ │                        └─────────────┘ │
-│                          │ D... ▲▼✕ │                                        │
-│                          │ P... ▲▼✕ │                                        │
-└──────────────────────────┴──────────┴────────────────────────────────────────┘
-```
+The designer is a three-pane web app (visible in the screenshot above):
+
+- **Left** — tabbed editor for `report.yaml` and `data.json`. Edits debounce and re-render the preview.
+- **Middle** — the **Toolbox** (drag `Text` / `Line` / `Rect` / `Table` onto a band) and the **Bands** list with reorder/delete controls.
+- **Right** — live **SVG preview** of the rendered page, with zoom controls (`−` / `+` / `1:1` / `↔`) and pagination. Click any element to select it; a properties drawer slides in on the right edge.
+
+The header strip exposes the global actions: template picker, **Import**, **Save** / **Save as** / **Delete**, **Undo** / **Redo**, and one-click export to **PDF** / **HTML** / **XLSX**.
 
 ### Keyboard shortcuts
 
@@ -400,7 +396,7 @@ Open `http://localhost:5296`.
 | `invoice-with-qr` | Embedded PNG logo + vector QR code of the CAI |
 | `barcodes-demo` | All 4 supported barcode formats (QR / Code128 / Code39 / EAN-13) on a single page |
 | `keep-together` | `keepTogether` forcing a clean page break on a "Terms & signatures" block |
-| `invoice-complete` | 🚀 **Flagship** — all Phase 1-4 features combined: logo, word-wrap, autoHeight, grouped table, QR, barcode, KeepTogether, culture es-HN, templated fileName |
+| `invoice-complete` | 🚀 **Flagship** — all Phase 1-4 features combined: logo, word-wrap, autoHeight, grouped table, QR, barcode, KeepTogether, culture es-HN, templated fileName (shown in the screenshot above) |
 
 ### Typical flow
 
@@ -454,7 +450,7 @@ bands:
   - kind: ReportHeader               # ReportHeader | PageHeader | Detail | PageFooter | ReportFooter
     height: 60
     elements:
-      - type: text                   # text | line | rectangle | table
+      - type: text                   # text | line | rectangle | table | image | barcode
         bounds: { x: 0, y: 0, width: 500, height: 24 }
         content: "{{ $.title }}"
         style: Title
@@ -670,11 +666,11 @@ dotnet test
 ├─────────────────────────────────────┼───────┤
 │ NetReporter.Core.Tests              │   60  │
 │ NetReporter.Templates.Tests         │   92  │
-│ NetReporter.Html.Tests              │   13  │
+│ NetReporter.Html.Tests              │   16  │
 │ NetReporter.Xlsx.Tests              │   12  │
 │ NetReporter.Barcodes.Tests          │    7  │
 ├─────────────────────────────────────┼───────┤
-│ Total                               │  184  │
+│ Total                               │  187  │
 └─────────────────────────────────────┴───────┘
 ```
 
@@ -732,7 +728,7 @@ dotnet test
 - [x] **Phase 4.3** — Designer integrates 9 built-in samples (clientes, invoice-laser/paperoll, wrap-demo, grouped-invoice, invoice-with-qr, barcodes-demo, keep-together, **invoice-complete** flagship)
 - [x] **Phase 4.4** — Semantic XLSX renderer (ClosedXML, native Excel Tables) + Designer ⭳ XLSX export
 - [x] **Phase 4.5** — Designer preview zoom (25%–400%, fit-to-width, keyboard shortcuts, persisted)
-- [x] **Tests** — 184 passing tests across 5 projects
+- [x] **Tests** — 187 passing tests across 5 projects
 
 ### 🚧 Under consideration
 
@@ -763,8 +759,8 @@ dotnet test
 
 ## 📎 Internal references
 
-- [`NetReporter-Prototype-Invoice.md`](NetReporter-Prototype-Invoice.md) — original prototype spec (~2000 lines, in Spanish).
-- [`CLAUDE.md`](CLAUDE.md) — guide for Claude Code assistants in this repo.
+- [`NetReporter-Prototype-Invoice.md`](NetReporter-Prototype-Invoice.md) — original prototype spec (~2000 lines, in Spanish). Historical only; the shipped engine has grown well past it.
+- [`CLAUDE.md`](CLAUDE.md) — guide for Claude Code assistants working in this repo.
 - [`PLAN.md`](PLAN.md) — step-by-step plan in case work is resumed after interruption.
 
 ---
