@@ -198,6 +198,8 @@ public sealed class HtmlRenderer
             sb.Append("background:").Append(Hex(fill)).Append(';');
         if (cmd.Border is { } border)
             sb.Append("border:").Append(Px(border.Thickness)).Append("px solid ").Append(Hex(border.Color)).Append(';');
+        if (cmd.CornerRadius > 0)
+            sb.Append("border-radius:").Append(Px(cmd.CornerRadius)).Append("px;");
         sb.AppendLine("\"></div>");
     }
 

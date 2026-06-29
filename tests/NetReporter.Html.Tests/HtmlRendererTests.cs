@@ -127,6 +127,26 @@ public sealed class HtmlRendererTests
     }
 
     [Fact]
+    public void Render_Rectangle_WithCornerRadius_EmitsBorderRadius()
+    {
+        var fill = Color.FromHex("#E3F1F4");
+        var list = BuildList(new DrawRectangleCommand(
+            new Rect(0, 0, 100, 50), fill, null, 6));
+        var html = new HtmlRenderer().Render(list);
+        Assert.Contains("border-radius:6px", html);
+    }
+
+    [Fact]
+    public void Render_Rectangle_NoCornerRadius_OmitsBorderRadius()
+    {
+        var fill = Color.FromHex("#E3F1F4");
+        var list = BuildList(new DrawRectangleCommand(
+            new Rect(0, 0, 100, 50), fill, null));
+        var html = new HtmlRenderer().Render(list);
+        Assert.DoesNotContain("border-radius", html);
+    }
+
+    [Fact]
     public void Render_MultiplePages_EmitsOneSectionEach()
     {
         var list = new RlRenderList(PageSetup.Letter, new[]

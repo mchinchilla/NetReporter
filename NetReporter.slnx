@@ -16,6 +16,7 @@
     <Project Path="tests/NetReporter.Barcodes.Tests/NetReporter.Barcodes.Tests.csproj" />
     <Project Path="tests/NetReporter.Core.Tests/NetReporter.Core.Tests.csproj" />
     <Project Path="tests/NetReporter.Html.Tests/NetReporter.Html.Tests.csproj" />
+    <Project Path="tests/NetReporter.Svg.Tests/NetReporter.Svg.Tests.csproj" />
     <Project Path="tests/NetReporter.Templates.Tests/NetReporter.Templates.Tests.csproj" />
     <Project Path="tests/NetReporter.Xlsx.Tests/NetReporter.Xlsx.Tests.csproj" />
   </Folder>

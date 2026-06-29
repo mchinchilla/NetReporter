@@ -181,6 +181,7 @@ public sealed class SvgRenderer
             (float)cmd.Bounds.Y,
             (float)cmd.Bounds.Right,
             (float)cmd.Bounds.Bottom);
+        var r = (float)cmd.CornerRadius;
 
         if (cmd.Fill is { } fill && fill.A > 0)
         {
@@ -190,7 +191,8 @@ public sealed class SvgRenderer
                 Style = SKPaintStyle.Fill,
                 IsAntialias = true
             };
-            canvas.DrawRect(rect, fillPaint);
+            if (r > 0) canvas.DrawRoundRect(rect, r, r, fillPaint);
+            else canvas.DrawRect(rect, fillPaint);
         }
 
         if (cmd.Border is { } border)
@@ -202,7 +204,8 @@ public sealed class SvgRenderer
                 Style = SKPaintStyle.Stroke,
                 IsAntialias = true
             };
-            canvas.DrawRect(rect, borderPaint);
+            if (r > 0) canvas.DrawRoundRect(rect, r, r, borderPaint);
+            else canvas.DrawRect(rect, borderPaint);
         }
     }
 

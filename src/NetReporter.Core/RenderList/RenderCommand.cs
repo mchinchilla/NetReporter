@@ -30,7 +30,8 @@ public sealed record DrawLineCommand(
 public sealed record DrawRectangleCommand(
     Rect Bounds,
     Color? Fill,
-    BorderLine? Border) : RenderCommand(Bounds);
+    BorderLine? Border,
+    double CornerRadius = 0) : RenderCommand(Bounds);
 
 public sealed record DrawImageCommand(
     Rect Bounds,
