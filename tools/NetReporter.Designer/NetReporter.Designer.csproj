@@ -31,6 +31,7 @@
     <EmbeddedResource Include="..\..\samples\TemplateSample\keep-together-data.json" LogicalName="Samples.keep-together.json" />
     <EmbeddedResource Include="..\..\samples\TemplateSample\invoice-complete.yaml" LogicalName="Samples.invoice-complete.yaml" />
     <EmbeddedResource Include="..\..\samples\TemplateSample\invoice-complete-data.json" LogicalName="Samples.invoice-complete.json" />
+    <EmbeddedResource Include="..\..\samples\TemplateSample\invoice-complete-pastel.yaml" LogicalName="Samples.invoice-complete-pastel.yaml" />
   </ItemGroup>
 
   <PropertyGroup>

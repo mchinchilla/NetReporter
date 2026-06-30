@@ -21,7 +21,8 @@ public sealed class SampleStore
             ["invoice-with-qr"]  = ("Samples.invoice-with-qr.yaml",  "Samples.invoice.json"),
             ["barcodes-demo"]    = ("Samples.barcodes-demo.yaml",    "Samples.barcodes-demo.json"),
             ["keep-together"]    = ("Samples.keep-together.yaml",    "Samples.keep-together.json"),
-            ["invoice-complete"] = ("Samples.invoice-complete.yaml", "Samples.invoice-complete.json")
+            ["invoice-complete"] = ("Samples.invoice-complete.yaml", "Samples.invoice-complete.json"),
+            ["invoice-complete-pastel"] = ("Samples.invoice-complete-pastel.yaml", "Samples.invoice-complete.json")
         };
 
     public IReadOnlyList<string> List() => Catalog.Keys.ToArray();
