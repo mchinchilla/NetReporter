@@ -177,10 +177,10 @@ bands:
           height: 18
           style: GroupFooter
           cells:
-            - { content: "Subtotal {{ #group }}:" }
             - null
+            - { content: "Subtotal {{ #group }}" }
             - { aggregate: count, format: "N0", align: right }
-            - { content: "Promedio:", align: right }
+            - { content: "Total:", align: right }
             - { aggregate: sum, format: "N2", align: right }
 
         columns:
