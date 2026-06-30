@@ -333,6 +333,15 @@ public sealed class LayoutEngine
                     effectiveStyle.Background, null) { SourcePath = sourcePath });
             }
 
+            // Full-width top rule from the row style's Border.Top — the monochrome "total over a rule"
+            // look (a typed total row draws a line above itself spanning the whole table).
+            if (effectiveStyle.Border?.Top is { } topRule)
+            {
+                currentPage.Commands.Add(new DrawLineCommand(
+                    new Point(tableX, cursorY), new Point(tableX + tableWidth, cursorY),
+                    topRule.Thickness, topRule.Color) { SourcePath = sourcePath });
+            }
+
             foreach (var col in table.Columns)
             {
                 ctx.CurrentRow = row;
