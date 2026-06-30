@@ -376,6 +376,16 @@ public sealed class LayoutEngine
                 colX += col.Width;
             }
 
+            // Full-width bottom rule from the row style's Border.Bottom (continuous, not per-cell — so a
+            // section heading's underline spans the whole table without gaps between columns).
+            if (effectiveStyle.Border?.Bottom is { } bottomRule)
+            {
+                var ruleY = cursorY + table.RowHeight;
+                currentPage.Commands.Add(new DrawLineCommand(
+                    new Point(tableX, ruleY), new Point(tableX + tableWidth, ruleY),
+                    bottomRule.Thickness, bottomRule.Color) { SourcePath = sourcePath });
+            }
+
             // Optional full-width hairline at the bottom of the row (lined-ledger look).
             if (table.RowSeparator is { } sep)
             {
