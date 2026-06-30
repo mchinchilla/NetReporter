@@ -20,6 +20,12 @@ public sealed record TableElement<TRow> : ReportElement
     public StyleRef RowStyle { get; init; } = new("TableRow");
     public StyleRef? AlternateRowStyle { get; init; }
 
+    /// <summary>Optional border drawn around the whole table (per page segment). Null = none.</summary>
+    public BorderLine? OuterBorder { get; init; }
+
+    /// <summary>Corner radius (points) for <see cref="OuterBorder"/>. 0 = square.</summary>
+    public double CornerRadius { get; init; }
+
     /// <summary>
     /// Si está presente, las filas consecutivas con el mismo valor de <see cref="GroupBy"/>
     /// se agrupan. Entre grupos se emite <see cref="GroupHeader"/> y al final <see cref="GroupFooter"/>.

@@ -237,6 +237,16 @@ public sealed class LayoutEngine
         var tableX = origin.X + table.Bounds.X;
         var tableWidth = table.Bounds.Width;
 
+        double segmentTop = cursorY;
+
+        void DrawOuterBorder(double top, double bottom)
+        {
+            if (table.OuterBorder is { } ob && bottom > top)
+                currentPage.Commands.Add(new DrawRectangleCommand(
+                    new Rect(tableX, top, tableWidth, bottom - top),
+                    null, ob, table.CornerRadius) { SourcePath = sourcePath });
+        }
+
         // Dibuja el header
         void DrawHeader(double y)
         {
@@ -300,9 +310,11 @@ public sealed class LayoutEngine
         {
             if (cursorY + rowHeight > maxY)
             {
+                DrawOuterBorder(segmentTop, cursorY);
                 pages.Add(currentPage.Build());
                 currentPage = new PageBuilder(pages.Count + 1);
                 cursorY = origin.Y + pageHeaderH;
+                segmentTop = cursorY;
                 if (table.HeaderMode == TableHeaderMode.RepeatOnPageBreak)
                 {
                     DrawHeader(cursorY);
@@ -441,6 +453,8 @@ public sealed class LayoutEngine
             ctx.GroupKey = null;
             ctx.GroupRowCount = 0;
         }
+
+        DrawOuterBorder(segmentTop, cursorY);
 
         // Importante: transferir el estado final al workingPage original
         // Si abrimos nuevas páginas, el workingPage original ya fue cerrado
