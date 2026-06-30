@@ -145,9 +145,14 @@ public sealed class LayoutEngine
             if (elemType.IsGenericType && elemType.GetGenericTypeDefinition() == typeof(TableElement<>))
             {
                 // Tablas se manejan con un helper genérico — modifica cursorY directamente.
+                var cursorBeforeTable = cursorY;
                 RenderTableElement(element, band, report, workingPage, origin,
                     ref cursorY, usableHeight, pageHeaderH, contentWidth, pages, ctx, ref maxY, pageHeader);
                 if (cursorY > naturalBottom) naturalBottom = cursorY;
+                // Side-by-side tables: a suppressed table draws but does not advance the cursor, so the
+                // next table starts at the same Y. The band still grows via naturalBottom (set above).
+                if (element is ITableLayoutHints { SuppressAdvance: true })
+                    cursorY = cursorBeforeTable;
             }
             else
             {

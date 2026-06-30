@@ -120,6 +120,36 @@ public sealed class TableTypedRowStylingTests
     }
 
     [Fact]
+    public void SuppressAdvance_LetsTwoTablesSitSideBySide()
+    {
+        // Two tables in one band: the first suppresses cursor advance, so the second starts at the SAME
+        // top Y (side by side). Both draw; neither overlaps the other vertically.
+        TableElement<Row> Side(double x, bool suppress) => new()
+        {
+            Bounds = new Rect(x, 0, 140, 0),
+            Rows = new[] { new Row("account", "1", "A", "1.00"), new Row("total", "", "T", "1.00") },
+            HeaderHeight = 20, RowHeight = 18,
+            HeaderStyle = new StyleRef("TableHeader"), RowStyle = new StyleRef("AccountRow"),
+            SuppressAdvance = suppress,
+            Columns = new[] { new TableColumn<Row>("H", Bind.From<Row, object?>(r => r.Name), Width: 140) },
+        };
+        var report = new ReportDefinition
+        {
+            Name = "T", Page = PageSetup.Letter.WithMargins(new Thickness(0)), Styles = Styles,
+            Bands = new Band[] { new DetailBand { Height = 0, AutoHeight = true,
+                Elements = new[] { (ReportElement)Side(0, suppress: true), Side(160, suppress: false) } } },
+        };
+        var texts = new LayoutEngine().Layout(report).Pages.SelectMany(p => p.Commands).OfType<DrawTextCommand>().ToList();
+
+        // Both sides' header text sits at the same Y (they start together, not stacked).
+        var leftHeaderY = texts.First(t => t.Text == "H" && t.Bounds.X < 80).Bounds.Y;
+        var rightHeaderY = texts.First(t => t.Text == "H" && t.Bounds.X > 80).Bounds.Y;
+        Assert.Equal(leftHeaderY, rightHeaderY, 1);
+        // And the left table's body really is to the left of the right table's body.
+        Assert.True(texts.First(t => t.Text == "A").Bounds.X < texts.First(t => t.Text == "T" && t.Bounds.X > 80).Bounds.X);
+    }
+
+    [Fact]
     public void RowStyle_TopBorder_DrawsFullWidthRuleAboveTheRow()
     {
         // A typed total row whose style carries Border.Top draws ONE full-width line at the row's top

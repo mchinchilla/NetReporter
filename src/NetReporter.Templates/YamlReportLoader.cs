@@ -387,7 +387,10 @@ public sealed class TemplateReport
             RowStyleMap = e.RowStyleMap is not null
                 ? e.RowStyleMap.ToDictionary(kv => kv.Key, kv => new StyleRef(kv.Value))
                 : null,
-            FullRowBackground = e.FullRowBackground ?? false
+            FullRowBackground = e.FullRowBackground ?? false,
+            SuppressAdvance = e.SuppressAdvance ?? false,
+            OuterBorder = e.OuterBorder is not null ? ResolveBorderLine(e.OuterBorder) : null,
+            CornerRadius = e.CornerRadius ?? 0
         };
     }
 

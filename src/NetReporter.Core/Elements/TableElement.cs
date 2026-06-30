@@ -5,11 +5,18 @@ namespace NetReporter.Core.Elements;
 
 public enum TableHeaderMode { PrintOnce, RepeatOnPageBreak }
 
+/// <summary>Non-generic layout hints the band layout reads without knowing the row type.</summary>
+public interface ITableLayoutHints
+{
+    /// <summary>See <see cref="TableElement{TRow}.SuppressAdvance"/>.</summary>
+    bool SuppressAdvance { get; }
+}
+
 /// <summary>
 /// Tabla con columnas tipadas. Las filas provienen del DataSource del DetailBand que la contiene,
 /// O se pueden suministrar inline aquí (para el prototipo usamos inline).
 /// </summary>
-public sealed record TableElement<TRow> : ReportElement
+public sealed record TableElement<TRow> : ReportElement, ITableLayoutHints
 {
     public required IReadOnlyList<TRow> Rows { get; init; }
     public required IReadOnlyList<TableColumn<TRow>> Columns { get; init; }
@@ -52,6 +59,13 @@ public sealed record TableElement<TRow> : ReportElement
     /// Applies to every data row that has a non-transparent background. Default false (per-cell, current
     /// behavior).</summary>
     public bool FullRowBackground { get; init; }
+
+    /// <summary>When true, the table draws normally but does NOT advance the band's shared vertical cursor,
+    /// so a following table starts at the SAME vertical position — i.e. side by side (use distinct
+    /// <c>Bounds.X</c>/<c>Bounds.Width</c> per table). The band's auto-height still grows to contain it.
+    /// Use for two-column layouts like a T-account balance sheet. Default false. Note: a suppressed table
+    /// is expected to fit on one page (it does not drive pagination).</summary>
+    public bool SuppressAdvance { get; init; }
 
     /// <summary>
     /// Si está presente, las filas consecutivas con el mismo valor de <see cref="GroupBy"/>

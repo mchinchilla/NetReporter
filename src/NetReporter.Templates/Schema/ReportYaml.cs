@@ -108,6 +108,15 @@ public sealed class ElementYaml
     /// <summary>Paint each styled row's background as one edge-to-edge band (no per-cell seams).</summary>
     public bool? FullRowBackground { get; set; }
 
+    /// <summary>Draw the table but don't advance the vertical cursor (side-by-side tables).</summary>
+    public bool? SuppressAdvance { get; set; }
+
+    /// <summary>Border drawn around the whole table, with optional corner radius (a "card").</summary>
+    public BorderLineYaml? OuterBorder { get; set; }
+
+    /// <summary>Corner radius (points) for <see cref="OuterBorder"/>.</summary>
+    public double? CornerRadius { get; set; }
+
     // table groups
     public string? GroupBy { get; set; }
     public GroupHeaderYaml? GroupHeader { get; set; }
