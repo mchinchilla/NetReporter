@@ -93,6 +93,21 @@ public sealed class ElementYaml
     public string? HeaderMode { get; set; }
     public List<TableColumnYaml>? Columns { get; set; }
 
+    /// <summary>Single full-width rule under the header row (no per-cell box / vertical lines).</summary>
+    public BorderLineYaml? HeaderRule { get; set; }
+
+    /// <summary>Full-width hairline at the bottom of each data row (lined-ledger look).</summary>
+    public BorderLineYaml? RowSeparator { get; set; }
+
+    /// <summary>JSON path whose value selects a per-row style (typed rows). Looked up in <see cref="RowStyleMap"/>.</summary>
+    public string? RowStyleBinding { get; set; }
+
+    /// <summary>Maps a <see cref="RowStyleBinding"/> value to a named style (e.g. {"total": "TotalRow"}).</summary>
+    public Dictionary<string, string>? RowStyleMap { get; set; }
+
+    /// <summary>Paint each styled row's background as one edge-to-edge band (no per-cell seams).</summary>
+    public bool? FullRowBackground { get; set; }
+
     // table groups
     public string? GroupBy { get; set; }
     public GroupHeaderYaml? GroupHeader { get; set; }
@@ -155,4 +170,7 @@ public sealed class TableColumnYaml
     public double Width { get; set; }
     public string? Format { get; set; }
     public string? Align { get; set; }
+
+    /// <summary>Optional per-column style, merged over the row style (e.g. a mono font for code/amount).</summary>
+    public string? Style { get; set; }
 }

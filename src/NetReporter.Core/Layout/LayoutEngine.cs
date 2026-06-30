@@ -253,11 +253,12 @@ public sealed class LayoutEngine
             var colX = tableX;
             foreach (var col in table.Columns)
             {
-                var cellStyle = headerStyle;
                 currentPage.Commands.Add(new DrawRectangleCommand(
                     new Rect(colX, y, col.Width, table.HeaderHeight),
-                    cellStyle.Background == Color.Transparent ? null : cellStyle.Background,
-                    cellStyle.Border?.Bottom) { SourcePath = sourcePath });
+                    headerStyle.Background == Color.Transparent ? null : headerStyle.Background,
+                    headerStyle.Border?.Bottom) { SourcePath = sourcePath });
+                // Header text follows the column's alignment so numeric headers sit over their right-aligned values.
+                var cellStyle = headerStyle with { TextAlign = col.Align };
                 currentPage.Commands.Add(new DrawTextCommand(
                     new Rect(colX + cellStyle.Padding.Left, y + cellStyle.Padding.Top,
                              col.Width - cellStyle.Padding.Horizontal,
@@ -266,16 +267,71 @@ public sealed class LayoutEngine
                     cellStyle) { SourcePath = sourcePath });
                 colX += col.Width;
             }
+
+            // Optional single full-width rule under the header (no per-cell box / vertical lines).
+            if (table.HeaderRule is { } hr)
+            {
+                var ruleY = y + table.HeaderHeight;
+                currentPage.Commands.Add(new DrawLineCommand(
+                    new Point(tableX, ruleY), new Point(tableX + tableWidth, ruleY),
+                    hr.Thickness, hr.Color) { SourcePath = sourcePath });
+            }
         }
 
         DrawHeader(cursorY);
         cursorY += table.HeaderHeight;
 
+        // Cache de estilos de columna resueltos (una vez por tabla).
+        var columnStyleCache = new Dictionary<string, ResolvedStyle>(StringComparer.Ordinal);
+
+        // Aplica el estilo de columna (si lo hay) SOBRE el estilo de fila: la columna aporta tipografía
+        // (p.ej. mono para código/importe); el fondo y el peso de la banda siempre vienen de la fila, y el
+        // color de texto de la columna solo gana en filas SIN banda (fondo transparente) — en una banda de
+        // total el importe usa el color de la banda, no el color atenuado de la columna.
+        ResolvedStyle MergeColumnStyle(ResolvedStyle rowStyleResolved, TableColumn<TRow> col)
+        {
+            if (col.Style is not { } styleRef) return rowStyleResolved;
+            if (!columnStyleCache.TryGetValue(styleRef.Name, out var colStyle))
+            {
+                colStyle = report.Styles.Resolve(styleRef);
+                columnStyleCache[styleRef.Name] = colStyle;
+            }
+
+            var banded = rowStyleResolved.Background != Color.Transparent;
+            return rowStyleResolved with
+            {
+                FontFamily = colStyle.FontFamily,
+                Foreground = banded ? rowStyleResolved.Foreground : colStyle.Foreground,
+            };
+        }
+
+        // Resuelve el estilo de una fila tipada (financial statements): evalúa el selector, lo busca en el
+        // mapa, y usa ese estilo si existe; en cualquier otro caso cae al estilo normal/alternado.
+        ResolvedStyle ResolveRowStyle(TRow row, int rowIndex)
+        {
+            var fallback = (rowIndex % 2 == 1) ? altRowStyle : rowStyle;
+            if (table.RowStyleSelector is null || table.RowStyleMap is null) return fallback;
+
+            var key = table.RowStyleSelector.Evaluate(row)?.ToString();
+            if (key is not null && table.RowStyleMap.TryGetValue(key, out var styleRef)
+                && report.Styles.Contains(styleRef.Name))
+                return report.Styles.Resolve(styleRef);
+            return fallback;
+        }
+
         // Helper: emite una fila normal de datos.
         void EmitRow(TRow row, int rowIndex)
         {
-            var effectiveStyle = (rowIndex % 2 == 1) ? altRowStyle : rowStyle;
+            var effectiveStyle = ResolveRowStyle(row, rowIndex);
             var colX = tableX;
+
+            // Full-row background: una sola banda de ancho completo (sin costuras entre celdas).
+            if (table.FullRowBackground && effectiveStyle.Background != Color.Transparent)
+            {
+                currentPage.Commands.Add(new DrawRectangleCommand(
+                    new Rect(tableX, cursorY, tableWidth, table.RowHeight),
+                    effectiveStyle.Background, null) { SourcePath = sourcePath });
+            }
 
             foreach (var col in table.Columns)
             {
@@ -285,14 +341,14 @@ public sealed class LayoutEngine
                 var value = col.Binding.Evaluate(row);
                 var text = FormatValue(value, col.Format, report.Culture);
 
-                if (effectiveStyle.Background != Color.Transparent)
+                if (!table.FullRowBackground && effectiveStyle.Background != Color.Transparent)
                 {
                     currentPage.Commands.Add(new DrawRectangleCommand(
                         new Rect(colX, cursorY, col.Width, table.RowHeight),
                         effectiveStyle.Background, null) { SourcePath = sourcePath });
                 }
 
-                var cellStyle = effectiveStyle with { TextAlign = col.Align };
+                var cellStyle = MergeColumnStyle(effectiveStyle, col) with { TextAlign = col.Align };
                 currentPage.Commands.Add(new DrawTextCommand(
                     new Rect(colX + cellStyle.Padding.Left, cursorY + cellStyle.Padding.Top,
                              col.Width - cellStyle.Padding.Horizontal,
@@ -301,6 +357,15 @@ public sealed class LayoutEngine
                     cellStyle) { SourcePath = sourcePath });
 
                 colX += col.Width;
+            }
+
+            // Optional full-width hairline at the bottom of the row (lined-ledger look).
+            if (table.RowSeparator is { } sep)
+            {
+                var sepY = cursorY + table.RowHeight;
+                currentPage.Commands.Add(new DrawLineCommand(
+                    new Point(tableX, sepY), new Point(tableX + tableWidth, sepY),
+                    sep.Thickness, sep.Color) { SourcePath = sourcePath });
             }
             cursorY += table.RowHeight;
         }

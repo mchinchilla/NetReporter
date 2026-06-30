@@ -82,9 +82,11 @@ public sealed class SvgRenderer
             (float)cmd.Bounds.Right,
             (float)cmd.Bounds.Bottom);
 
+        var sampling = new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear);
+
         if (cmd.Fit == NetReporter.Core.Elements.ImageFit.Fill)
         {
-            canvas.DrawImage(image, dest);
+            canvas.DrawImage(image, dest, sampling);
         }
         else
         {
@@ -107,7 +109,7 @@ public sealed class SvgRenderer
                 target = new SKRect((float)left, (float)cmd.Bounds.Y,
                                     (float)(left + w), (float)cmd.Bounds.Bottom);
             }
-            canvas.DrawImage(image, target);
+            canvas.DrawImage(image, target, sampling);
         }
     }
 

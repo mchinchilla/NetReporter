@@ -33,6 +33,10 @@ public sealed class StyleSheet
         return _cache.GetOrAdd(name, ResolveCore);
     }
 
+    /// <summary>True if a style with this exact name is defined (not counting the built-in fallback).
+    /// Lets callers (e.g. per-row typed styling) decide whether to use a mapped style or fall back.</summary>
+    public bool Contains(string name) => _styles.ContainsKey(name);
+
     private ResolvedStyle ResolveCore(string name)
     {
         // Detección de ciclos explícita (HashSet.Add devuelve false si ya existe →

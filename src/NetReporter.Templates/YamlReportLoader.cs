@@ -380,7 +380,14 @@ public sealed class TemplateReport
             AlternateRowStyle = e.AlternateRowStyle is not null ? new StyleRef(e.AlternateRowStyle) : null,
             GroupBy = e.GroupBy is not null ? new JsonPathBinding(e.GroupBy) : null,
             GroupHeader = e.GroupHeader is not null ? BuildGroupHeader(e.GroupHeader, data) : null,
-            GroupFooter = e.GroupFooter is not null ? BuildGroupFooter(e.GroupFooter, data) : null
+            GroupFooter = e.GroupFooter is not null ? BuildGroupFooter(e.GroupFooter, data) : null,
+            HeaderRule = e.HeaderRule is not null ? ResolveBorderLine(e.HeaderRule) : null,
+            RowSeparator = e.RowSeparator is not null ? ResolveBorderLine(e.RowSeparator) : null,
+            RowStyleSelector = e.RowStyleBinding is not null ? new JsonPathBinding(e.RowStyleBinding) : null,
+            RowStyleMap = e.RowStyleMap is not null
+                ? e.RowStyleMap.ToDictionary(kv => kv.Key, kv => new StyleRef(kv.Value))
+                : null,
+            FullRowBackground = e.FullRowBackground ?? false
         };
     }
 
@@ -441,7 +448,8 @@ public sealed class TemplateReport
             new JsonPathBinding(c.Binding),
             c.Width,
             c.Format,
-            align);
+            align,
+            c.Style is not null ? new StyleRef(c.Style) : null);
     }
 
     private static LineElement BuildLine(ElementYaml e, Rect bounds, StyleRef style)

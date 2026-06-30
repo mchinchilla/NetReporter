@@ -26,6 +26,33 @@ public sealed record TableElement<TRow> : ReportElement
     /// <summary>Corner radius (points) for <see cref="OuterBorder"/>. 0 = square.</summary>
     public double CornerRadius { get; init; }
 
+    /// <summary>Optional single full-width rule drawn under the header row (and repeated when the header
+    /// repeats on a page break). Unlike a header-cell border, this draws ONE horizontal line across the
+    /// whole table — no per-cell box, no vertical separators. Null = none. Use for clean financial-report
+    /// headers (rule under the column titles).</summary>
+    public BorderLine? HeaderRule { get; init; }
+
+    /// <summary>Optional hairline drawn at the bottom edge of each data row, spanning the whole table
+    /// width — the classic "lined ledger" look. Applies to normal and grouped rows. Null = none.</summary>
+    public BorderLine? RowSeparator { get; init; }
+
+    /// <summary>Optional per-row style selector for "typed rows" (financial statements: section / account /
+    /// subtotal / total, each styled differently). When set, each row's value is evaluated, looked up in
+    /// <see cref="RowStyleMap"/>, and that style is used instead of <see cref="RowStyle"/>/<see cref="AlternateRowStyle"/>.
+    /// A row whose key is missing from the map (or whose mapped style isn't defined) falls back to the normal
+    /// row style. Null = uniform rows (current behavior).</summary>
+    public IDataBinding<TRow, object?>? RowStyleSelector { get; init; }
+
+    /// <summary>Maps a <see cref="RowStyleSelector"/> key (e.g. a row's "kind") to a style. Ignored when the
+    /// selector is null.</summary>
+    public IReadOnlyDictionary<string, StyleRef>? RowStyleMap { get; init; }
+
+    /// <summary>When true, a styled row's background is painted as ONE edge-to-edge rectangle spanning the
+    /// whole table width (clean total/section bands), instead of per-cell fills that can leave seams.
+    /// Applies to every data row that has a non-transparent background. Default false (per-cell, current
+    /// behavior).</summary>
+    public bool FullRowBackground { get; init; }
+
     /// <summary>
     /// Si está presente, las filas consecutivas con el mismo valor de <see cref="GroupBy"/>
     /// se agrupan. Entre grupos se emite <see cref="GroupHeader"/> y al final <see cref="GroupFooter"/>.
@@ -41,4 +68,7 @@ public sealed record TableColumn<TRow>(
     IDataBinding<TRow, object?> Binding,
     double Width,                // puntos
     string? Format = null,
-    TextAlignment Align = TextAlignment.Left);
+    TextAlignment Align = TextAlignment.Left,
+    // Optional per-column style: merged OVER the resolved row style for that cell (e.g. a mono font /
+    // muted color for a code or amount column, regardless of the row's typed style). Null = inherit row.
+    StyleRef? Style = null);
