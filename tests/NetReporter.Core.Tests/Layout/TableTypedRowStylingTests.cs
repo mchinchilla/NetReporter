@@ -118,4 +118,29 @@ public sealed class TableTypedRowStylingTests
         Assert.Equal(TextAlignment.Left,  texts.First(t => t.Text == "Código").Style.TextAlign);
         Assert.Equal(TextAlignment.Right, texts.First(t => t.Text == "Importe").Style.TextAlign);
     }
+
+    [Fact]
+    public void RowStyle_TopBorder_DrawsFullWidthRuleAboveTheRow()
+    {
+        // A typed total row whose style carries Border.Top draws ONE full-width line at the row's top
+        // edge (the monochrome "total over a rule" look).
+        var styles = new StyleSheetBuilder()
+            .Add("Default", s => s.FontFamily("Helvetica").FontSize(10))
+            .Add("TableHeader", s => s.BasedOn("Default").Bold())
+            .Add("AccountRow", s => s.BasedOn("Default"))
+            .Add("TotalRow", s => s.BasedOn("Default").Bold()
+                .Border(new BorderSet(Top: new BorderLine(1.5, Color.FromHex("#0F172A")))))
+            .Build();
+        var table = Table(fullRowBg: false) with { RowStyle = new StyleRef("AccountRow") };
+        var report = new ReportDefinition
+        {
+            Name = "T", Page = PageSetup.Letter.WithMargins(new Thickness(0)), Styles = styles,
+            Bands = new Band[] { new DetailBand { Height = 0, AutoHeight = true, Elements = new[] { (ReportElement)table } } }
+        };
+        var lines = new LayoutEngine().Layout(report).Pages.SelectMany(p => p.Commands).OfType<DrawLineCommand>().ToList();
+        // Header(20) + accountRow(18) → the total row's top edge is at y = 38; one full-width rule there.
+        var rule = Assert.Single(lines, l => l.From.Y == 38 && l.To.Y == 38);
+        Assert.Equal(300, rule.To.X - rule.From.X, 1);
+        Assert.Equal(1.5, rule.Thickness, 2);
+    }
 }
