@@ -20,10 +20,14 @@ internal sealed class LayoutContext : IEvaluationContext
 
 internal sealed class PageBuilder
 {
-    public int PageNumber { get; }
+    // Settable so a paginating table can hand its final page's number back to the caller's workingPage
+    // (the caller still owns that page for the ReportFooter + final close).
+    public int PageNumber { get; set; }
     public List<RenderCommand> Commands { get; } = new();
 
     public PageBuilder(int pageNumber) => PageNumber = pageNumber;
 
-    public RenderPage Build() => new(PageNumber, Commands);
+    // Snapshot the commands so a later mutation of this builder's Commands list (e.g. a paginating table
+    // that reuses the caller's workingPage) can't corrupt a page already emitted into the render list.
+    public RenderPage Build() => new(PageNumber, new List<RenderCommand>(Commands));
 }

@@ -78,7 +78,7 @@ public sealed class LayoutEngine
         foreach (var detail in details)
         {
             LayoutDetailBand(detail, report, workingPage, origin, ref cursorY, usableHeight,
-                pageHeaderH, contentWidth, pages, ctx, ref maxY);
+                pageHeaderH, contentWidth, pages, ctx, ref maxY, pageHeader);
         }
 
         // ReportFooter — siempre se mueve a página nueva si su Height declarado no cabe
@@ -119,7 +119,8 @@ public sealed class LayoutEngine
         double contentWidth,
         List<RenderPage> pages,
         LayoutContext ctx,
-        ref double maxY)
+        ref double maxY,
+        PageHeaderBand? pageHeader)
     {
         // Nota: KeepTogether en DetailBand no se aplica aquí por la limitación de ref locals
         // (no podemos reasignar workingPage en este scope). Para bandas de totales o resumen
@@ -145,7 +146,7 @@ public sealed class LayoutEngine
             {
                 // Tablas se manejan con un helper genérico — modifica cursorY directamente.
                 RenderTableElement(element, band, report, workingPage, origin,
-                    ref cursorY, usableHeight, pageHeaderH, contentWidth, pages, ctx, ref maxY);
+                    ref cursorY, usableHeight, pageHeaderH, contentWidth, pages, ctx, ref maxY, pageHeader);
                 if (cursorY > naturalBottom) naturalBottom = cursorY;
             }
             else
@@ -201,13 +202,14 @@ public sealed class LayoutEngine
         double contentWidth,
         List<RenderPage> pages,
         LayoutContext ctx,
-        ref double maxY)
+        ref double maxY,
+        PageHeaderBand? pageHeader)
     {
         var rowType = element.GetType().GetGenericArguments()[0];
         var method = s_renderTableMethod.MakeGenericMethod(rowType);
 
         var args = new object?[] { element, report, workingPage, origin,
-            cursorY, usableHeight, pageHeaderH, contentWidth, pages, ctx };
+            cursorY, usableHeight, pageHeaderH, contentWidth, pages, ctx, pageHeader };
 
         var newCursorY = (double)method.Invoke(this, args)!;
         cursorY = newCursorY;
@@ -223,7 +225,8 @@ public sealed class LayoutEngine
         double pageHeaderH,
         double contentWidth,
         List<RenderPage> pages,
-        LayoutContext ctx)
+        LayoutContext ctx,
+        PageHeaderBand? pageHeader)
     {
         var currentPage = workingPage;
         var maxY = origin.Y + pageHeaderH + usableHeight;
@@ -385,6 +388,9 @@ public sealed class LayoutEngine
             if (cursorY + rowHeight > maxY)
             {
                 DrawOuterBorder(segmentTop, cursorY);
+                // Insert the repeating page header into the page we're about to close, so multi-page
+                // tables keep the masthead on every page (not just the first).
+                InsertPageHeader(currentPage);
                 pages.Add(currentPage.Build());
                 currentPage = new PageBuilder(pages.Count + 1);
                 cursorY = origin.Y + pageHeaderH;
@@ -395,6 +401,17 @@ public sealed class LayoutEngine
                     cursorY += table.HeaderHeight;
                 }
             }
+        }
+
+        // Inserts the report's PageHeader band at the top of a page (mirrors FinishPage), so a page the
+        // table itself closes carries the masthead. No-op when there's no page header.
+        void InsertPageHeader(PageBuilder page)
+        {
+            if (pageHeader is null) return;
+            var tmp = new PageBuilder(page.PageNumber);
+            double y = origin.Y;
+            EmitBand(pageHeader, tmp, origin.X, ref y, report, ctx);
+            page.Commands.InsertRange(0, tmp.Commands);
         }
 
         // === Sin agrupación: loop simple ===
@@ -530,16 +547,15 @@ public sealed class LayoutEngine
 
         DrawOuterBorder(segmentTop, cursorY);
 
-        // Importante: transferir el estado final al workingPage original
-        // Si abrimos nuevas páginas, el workingPage original ya fue cerrado
-        // y currentPage puede ser uno nuevo. Sincronizamos comandos:
+        // Si la tabla abrió páginas nuevas, currentPage tiene el número CORRECTO (pages.Count+1) pero el
+        // caller seguirá usando workingPage para el ReportFooter y para cerrar la última página. Copiamos
+        // el contenido Y el número de página a workingPage para que la última página (con su footer) quede
+        // bien numerada — antes el número quedaba en 1 y se duplicaba la página.
         if (!ReferenceEquals(currentPage, workingPage))
         {
             workingPage.Commands.Clear();
             workingPage.Commands.AddRange(currentPage.Commands);
-            // Y el número de página del workingPage se vuelve el de currentPage
-            // (pero PageBuilder es inmutable en su PageNumber — aceptamos que
-            // quien nos llame use pages.Count + 1 al crear el siguiente).
+            workingPage.PageNumber = currentPage.PageNumber;
         }
 
         return cursorY;
