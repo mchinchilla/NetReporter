@@ -481,7 +481,9 @@ public sealed class TemplateReport
             Bounds = bounds,
             Style = style,
             Fill = e.Fill is not null ? Color.FromHex(e.Fill) : null,
-            BorderLine = e.BorderLine is not null ? ResolveBorderLine(e.BorderLine) : null
+            BorderLine = e.BorderLine is not null ? ResolveBorderLine(e.BorderLine) : null,
+            // Mismo campo que ya consume la tabla (:393) — habilita esquinas redondeadas desde YAML.
+            CornerRadius = e.CornerRadius ?? 0
         };
     }
 
