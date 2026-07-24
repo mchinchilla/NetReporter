@@ -31,7 +31,8 @@ public sealed record DrawRectangleCommand(
     Rect Bounds,
     Color? Fill,
     BorderLine? Border,
-    double CornerRadius = 0) : RenderCommand(Bounds);
+    double CornerRadius = 0,
+    RectCorners Corners = RectCorners.All) : RenderCommand(Bounds);
 
 public sealed record DrawImageCommand(
     Rect Bounds,

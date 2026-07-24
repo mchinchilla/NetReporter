@@ -117,6 +117,14 @@ public sealed class ElementYaml
     /// <summary>Corner radius (points) for <see cref="OuterBorder"/>.</summary>
     public double? CornerRadius { get; set; }
 
+    /// <summary>
+    /// Esquinas que redondea <see cref="CornerRadius"/>. Acepta <c>all</c> (por defecto),
+    /// <c>none</c>, los atajos <c>top</c> / <c>bottom</c> / <c>left</c> / <c>right</c>, o una
+    /// lista separada por comas de <c>topLeft, topRight, bottomRight, bottomLeft</c>.
+    /// Sirve para apilar bandas que se lean como una sola tarjeta.
+    /// </summary>
+    public string? RoundedCorners { get; set; }
+
     // table groups
     public string? GroupBy { get; set; }
     public GroupHeaderYaml? GroupHeader { get; set; }

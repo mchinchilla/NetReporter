@@ -687,7 +687,7 @@ public sealed class LayoutEngine
 
             case RectangleElement rect:
                 page.Commands.Add(new DrawRectangleCommand(
-                    absBounds, rect.Fill, rect.BorderLine, rect.CornerRadius) { SourcePath = path });
+                    absBounds, rect.Fill, rect.BorderLine, rect.CornerRadius, rect.Corners) { SourcePath = path });
                 return absBounds.Bottom;
 
             case ImageElement image:

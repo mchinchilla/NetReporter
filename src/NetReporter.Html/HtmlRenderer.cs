@@ -198,8 +198,17 @@ public sealed class HtmlRenderer
             sb.Append("background:").Append(Hex(fill)).Append(';');
         if (cmd.Border is { } border)
             sb.Append("border:").Append(Px(border.Thickness)).Append("px solid ").Append(Hex(border.Color)).Append(';');
-        if (cmd.CornerRadius > 0)
-            sb.Append("border-radius:").Append(Px(cmd.CornerRadius)).Append("px;");
+        if (cmd.CornerRadius > 0 && cmd.Corners != RectCorners.None)
+        {
+            // Orden CSS: superior-izq, superior-der, inferior-der, inferior-izq (igual que Skia).
+            var r = Px(cmd.CornerRadius);
+            string Corner(RectCorners corner) => cmd.Corners.HasFlag(corner) ? $"{r}px" : "0";
+            sb.Append("border-radius:")
+              .Append(Corner(RectCorners.TopLeft)).Append(' ')
+              .Append(Corner(RectCorners.TopRight)).Append(' ')
+              .Append(Corner(RectCorners.BottomRight)).Append(' ')
+              .Append(Corner(RectCorners.BottomLeft)).Append(';');
+        }
         sb.AppendLine("\"></div>");
     }
 

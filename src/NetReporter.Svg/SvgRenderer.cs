@@ -1,4 +1,5 @@
 using System.Text;
+using NetReporter.Core.Primitives;
 using NetReporter.Core.RenderList;
 using NetReporter.Core.Styles;
 using SkiaSharp;
@@ -185,6 +186,12 @@ public sealed class SvgRenderer
             (float)cmd.Bounds.Bottom);
         var r = (float)cmd.CornerRadius;
 
+        // Un solo SKRoundRect para relleno y borde: si no hay radio (o ninguna esquina
+        // seleccionada) se cae al rectángulo recto de siempre.
+        using var rounded = r > 0 && cmd.Corners != RectCorners.None
+            ? BuildRoundRect(rect, r, cmd.Corners)
+            : null;
+
         if (cmd.Fill is { } fill && fill.A > 0)
         {
             using var fillPaint = new SKPaint
@@ -193,7 +200,7 @@ public sealed class SvgRenderer
                 Style = SKPaintStyle.Fill,
                 IsAntialias = true
             };
-            if (r > 0) canvas.DrawRoundRect(rect, r, r, fillPaint);
+            if (rounded is not null) canvas.DrawRoundRect(rounded, fillPaint);
             else canvas.DrawRect(rect, fillPaint);
         }
 
@@ -206,9 +213,29 @@ public sealed class SvgRenderer
                 Style = SKPaintStyle.Stroke,
                 IsAntialias = true
             };
-            if (r > 0) canvas.DrawRoundRect(rect, r, r, borderPaint);
+            if (rounded is not null) canvas.DrawRoundRect(rounded, borderPaint);
             else canvas.DrawRect(rect, borderPaint);
         }
+    }
+
+    /// <summary>
+    /// Rectángulo con radio aplicado solo a las esquinas pedidas. El orden de los radios que
+    /// espera Skia es superior-izq, superior-der, inferior-der, inferior-izq.
+    /// </summary>
+    private static SKRoundRect BuildRoundRect(SKRect rect, float radius, RectCorners corners)
+    {
+        SKPoint R(RectCorners corner) =>
+            corners.HasFlag(corner) ? new SKPoint(radius, radius) : SKPoint.Empty;
+
+        var rounded = new SKRoundRect();
+        rounded.SetRectRadii(rect,
+        [
+            R(RectCorners.TopLeft),
+            R(RectCorners.TopRight),
+            R(RectCorners.BottomRight),
+            R(RectCorners.BottomLeft)
+        ]);
+        return rounded;
     }
 
     private static SKColor ToSk(NrColor c) => new(c.R, c.G, c.B, c.A);

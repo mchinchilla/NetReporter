@@ -483,8 +483,42 @@ public sealed class TemplateReport
             Fill = e.Fill is not null ? Color.FromHex(e.Fill) : null,
             BorderLine = e.BorderLine is not null ? ResolveBorderLine(e.BorderLine) : null,
             // Mismo campo que ya consume la tabla (:393) — habilita esquinas redondeadas desde YAML.
-            CornerRadius = e.CornerRadius ?? 0
+            CornerRadius = e.CornerRadius ?? 0,
+            Corners = ParseCorners(e.RoundedCorners)
         };
+    }
+
+    /// <summary>
+    /// Interpreta <c>roundedCorners</c>: <c>all</c> / <c>none</c>, los atajos <c>top</c>,
+    /// <c>bottom</c>, <c>left</c>, <c>right</c>, o una lista por comas de esquinas sueltas.
+    /// Ausente o vacío ⇒ las cuatro, que es como se comportaba antes de existir el campo.
+    /// </summary>
+    private static RectCorners ParseCorners(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return RectCorners.All;
+
+        var corners = RectCorners.None;
+        foreach (var token in value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            corners |= token.ToLowerInvariant().Replace("-", string.Empty).Replace("_", string.Empty) switch
+            {
+                "all" => RectCorners.All,
+                "none" => RectCorners.None,
+                "top" => RectCorners.Top,
+                "bottom" => RectCorners.Bottom,
+                "left" => RectCorners.Left,
+                "right" => RectCorners.Right,
+                "topleft" => RectCorners.TopLeft,
+                "topright" => RectCorners.TopRight,
+                "bottomright" => RectCorners.BottomRight,
+                "bottomleft" => RectCorners.BottomLeft,
+                _ => throw new InvalidOperationException(
+                    $"roundedCorners: valor no reconocido '{token}'. Use all, none, top, bottom, left, right, " +
+                    "topLeft, topRight, bottomRight o bottomLeft (separados por comas).")
+            };
+        }
+
+        return corners;
     }
 
     /// <summary>
