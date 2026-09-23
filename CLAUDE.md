@@ -87,6 +87,7 @@ When the user asks for a feature that "should also work in XLSX", remember XLSX 
 ## Packaging and release
 
 - Every library under `src/` is a NuGet package (`NetReporter.*`) plus the `NetReporter` meta-package. Shared package metadata lives in `src/Directory.Build.props`; the root `Directory.Build.props` marks everything else `IsPackable=false`.
+- The README embedded in the packages is `docs/nuget-readme.md`, not the GitHub README: nuget.org strips raw HTML (the centered `<div>` shows as text) and only renders images from trusted domains, so that file stays plain Markdown with absolute `raw.githubusercontent.com` URLs. Keep it in sync when the public API or install instructions change.
 - Versions come from git tags, not from csproj files. `.github/workflows/publish.yml` runs on every push to `main`: it computes the next `vX.Y.Z` from the latest tag (patch by default, `[minor]` / `[major]` in a commit message bump those parts), builds, tests, packs, pushes to nuget.org with the `NUGET_API_KEY` secret, then tags the commit and creates a GitHub release. Local builds get version `1.0.0-local`.
 - `NetReporter.Svg` references `SkiaSharp.NativeAssets.Linux` on purpose: the base `SkiaSharp` package only ships macOS/Windows natives for `net10.0`, and CI (and Linux consumers) need it.
 
