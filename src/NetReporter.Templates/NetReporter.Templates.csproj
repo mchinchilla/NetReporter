@@ -14,6 +14,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <Description>YAML templates for NetReporter: loads and rewrites report definitions, JSON Path bindings ($.client.name), template strings ({{ pageNumber }}) and templated file names.</Description>
   </PropertyGroup>
 
 </Project>

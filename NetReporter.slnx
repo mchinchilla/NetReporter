@@ -4,6 +4,7 @@
     <Project Path="samples/TemplateSample/TemplateSample.csproj" />
   </Folder>
   <Folder Name="/src/">
+    <Project Path="src/NetReporter/NetReporter.csproj" />
     <Project Path="src/NetReporter.Barcodes/NetReporter.Barcodes.csproj" />
     <Project Path="src/NetReporter.Core/NetReporter.Core.csproj" />
     <Project Path="src/NetReporter.Html/NetReporter.Html.csproj" />

@@ -16,7 +16,7 @@ public sealed record ReportDefinition
 
     /// <summary>
     /// Nombre de archivo sugerido al exportar (sin extensión). Ya resuelto y sanitizado
-    /// por <see cref="NetReporter.Templates.YamlReportLoader"/> — sin caracteres inválidos de filesystem.
+    /// por <c>NetReporter.Templates.YamlReportLoader</c> — sin caracteres inválidos de filesystem.
     /// </summary>
     public string? FileName { get; init; }
 }

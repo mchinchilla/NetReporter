@@ -7,8 +7,9 @@
 **Motor de reportes para .NET 10 con IR — un mismo template produce PDF, HTML, SVG y XLSX.**
 
 [![.NET 10](https://img.shields.io/badge/.NET-10.0-512BD4?style=flat-square&logo=dotnet)](https://dotnet.microsoft.com/)
+[![NuGet](https://img.shields.io/nuget/v/NetReporter?style=flat-square&logo=nuget&label=NuGet)](https://www.nuget.org/packages/NetReporter)
 [![Tests](https://img.shields.io/badge/tests-184%20passing-22c55e?style=flat-square&logo=xunit)](#-tests)
-[![License](https://img.shields.io/badge/license-TBD-lightgrey?style=flat-square)](#-licencias)
+[![License](https://img.shields.io/badge/license-MIT-22c55e?style=flat-square)](#-licencias)
 [![Status](https://img.shields.io/badge/status-prototipo%20funcional-f59e0b?style=flat-square)](#estado)
 
 🎨 Designer visual · 📄 PDF · 🌐 HTML · 🖼️ SVG · 📊 XLSX · 📦 Templates YAML
@@ -206,7 +207,8 @@ NetReporter/
 │   ├── NetReporter.Svg/         🖼️ SvgRenderer (SkiaSharp.SKSvgCanvas)
 │   ├── NetReporter.Html/        🌐 HtmlRenderer (HTML/CSS paginado)
 │   ├── NetReporter.Xlsx/        📊 XlsxRenderer semántico (ClosedXML, Excel Tables nativas)
-│   └── NetReporter.Barcodes/    ▦ Barcode/QR generator vía ZXing (opt-in)
+│   ├── NetReporter.Barcodes/    ▦ Barcode/QR generator vía ZXing (opt-in)
+│   └── NetReporter/             📦 Meta-package que referencia todos los anteriores
 │
 ├── 🧪 tests/
 │   ├── NetReporter.Core.Tests/        ColorTests, PageSetupTests, StyleSheetTests, BorderSetTests, EstimateTextMeasurer, AutoHeight, KeepTogether, GroupedTable
@@ -242,10 +244,32 @@ NetReporter/
 - ✅ macOS / Linux / Windows
 - ⚠️ Licencia QuestPDF Community para uso personal/empresas <1M USD/año
 
-### Setup
+### Instalar desde NuGet
 
 ```bash
-git clone <este-repo>
+dotnet add package NetReporter   # meta-package: Core + Templates + todos los renderers + Barcodes
+```
+
+O referenciar solo las piezas que necesites:
+
+| Paquete | Contenido |
+|---|---|
+| `NetReporter.Core` | IR, estilos, layout engine, RenderList |
+| `NetReporter.Templates` | Templates YAML, bindings JSON Path, template strings |
+| `NetReporter.Pdf` | Renderer PDF (host QuestPDF) |
+| `NetReporter.Svg` | Renderer SVG (SkiaSharp) |
+| `NetReporter.Html` | Renderer HTML/CSS paginado |
+| `NetReporter.Xlsx` | Renderer XLSX semántico (ClosedXML) |
+| `NetReporter.Barcodes` | QR / Code 128 / Code 39 / EAN-13 (ZXing.Net) |
+
+Todos los paquetes comparten una misma versión. Cada push a `main` publica una nueva versión **patch** mediante
+[`.github/workflows/publish.yml`](.github/workflows/publish.yml); incluye `[minor]` o `[major]` en el mensaje
+del commit para subir esa parte en su lugar. Cada release queda etiquetado como `vX.Y.Z` en GitHub.
+
+### Compilar desde el código fuente
+
+```bash
+git clone https://github.com/mchinchilla/NetReporter.git
 cd NetReporter
 dotnet build
 ```
@@ -749,7 +773,7 @@ dotnet test
 
 | Componente | Licencia |
 |---|---|
-| **NetReporter** | TBD |
+| **NetReporter** | MIT |
 | **QuestPDF** | MIT para uso no comercial y empresas <1M USD/año revenue. Comercial: Professional ($699 one-time). [Pricing](https://www.questpdf.com/pricing.html) |
 | **SkiaSharp** | MIT |
 | **YamlDotNet** | MIT |

@@ -10,6 +10,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <Description>Paginated HTML/CSS renderer for NetReporter: self-contained, printable output using CSS @page.</Description>
   </PropertyGroup>
 
 </Project>

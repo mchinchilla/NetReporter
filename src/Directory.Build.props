@@ -1,0 +1,33 @@
+<Project>
+
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
+
+  <!-- NuGet package metadata shared by every library under src/ -->
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+
+    <Authors>Marvin Chinchilla</Authors>
+    <Copyright>Copyright (c) 2026 Marvin Chinchilla</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/mchinchilla/NetReporter</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/mchinchilla/NetReporter</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>reporting;report;reports;pdf;html;svg;xlsx;excel;yaml;template;invoice;questpdf;skiasharp;dotnet</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+
+    <!-- Source Link + symbols so consumers can step into NetReporter code -->
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+
+    <!-- Ship XML docs for IntelliSense; members without a /// comment are allowed (CS1591) -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="$(MSBuildThisFileDirectory)../README.md" Pack="true" PackagePath="/" Visible="false" />
+  </ItemGroup>
+
+</Project>

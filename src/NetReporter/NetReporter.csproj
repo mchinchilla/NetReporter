@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Meta-package: "dotnet add package NetReporter" pulls in the whole engine
+    (Core + Templates + every renderer + Barcodes). It ships no assembly of its own.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+
+    <Description>Reporting engine for .NET with an intermediate representation: one template (C# API or YAML) produces PDF, HTML, SVG and XLSX. This meta-package references NetReporter.Core, NetReporter.Templates, NetReporter.Pdf, NetReporter.Svg, NetReporter.Html, NetReporter.Xlsx and NetReporter.Barcodes.</Description>
+
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <IncludeSymbols>false</IncludeSymbols>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <!-- NU5128: expected for a dependency-only package with no lib/ folder -->
+    <NoWarn>$(NoWarn);NU5128</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\NetReporter.Core\NetReporter.Core.csproj" />
+    <ProjectReference Include="..\NetReporter.Templates\NetReporter.Templates.csproj" />
+    <ProjectReference Include="..\NetReporter.Pdf\NetReporter.Pdf.csproj" />
+    <ProjectReference Include="..\NetReporter.Svg\NetReporter.Svg.csproj" />
+    <ProjectReference Include="..\NetReporter.Html\NetReporter.Html.csproj" />
+    <ProjectReference Include="..\NetReporter.Xlsx\NetReporter.Xlsx.csproj" />
+    <ProjectReference Include="..\NetReporter.Barcodes\NetReporter.Barcodes.csproj" />
+  </ItemGroup>
+
+</Project>

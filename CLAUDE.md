@@ -19,6 +19,7 @@ src/
   NetReporter.Html/        HtmlRenderer (paginated HTML/CSS @page)
   NetReporter.Xlsx/        XlsxRenderer — semantic, consumes ReportDefinition directly
   NetReporter.Barcodes/    ZXing-based QR/Code128/Code39/EAN-13 (opt-in)
+  NetReporter/             Meta-package (no code) that references all of the above
 tests/
   NetReporter.Core.Tests/  NetReporter.Templates.Tests/  NetReporter.Html.Tests/
   NetReporter.Xlsx.Tests/  NetReporter.Barcodes.Tests/   — 184 tests total
@@ -82,6 +83,12 @@ When the user asks for a feature that "should also work in XLSX", remember XLSX 
 - The preview supports zoom (25%–400%) via `transform: scale(var(--zoom))` on `[data-preview-root]`, with an outer `[data-zoom-spacer]` reserving the post-scaled width/height so the parent's `overflow-auto` shows scroll correctly. CSS `zoom` was tried first but breaks layout: it makes the scaled content report a larger size to flexbox, which pushes the preview panel into the YAML editor / toolbox.
 - Mouse coords are compensated by `this.zoom` in drag/resize/create handlers — anything new that converts viewport-px to page-pt must do the same.
 - The flex chain housing the preview (`<section class="flex-1 ...">` and `<div id="preview" class="flex-1 ...">`) needs **`min-w-0`** on each flex item. Without it, flexbox's default `min-width: auto` lets the scaled content grow the panel and invade the editor — `overflow-auto` is not enough by itself. If you add a new flex container in this chain, keep `min-w-0`.
+
+## Packaging and release
+
+- Every library under `src/` is a NuGet package (`NetReporter.*`) plus the `NetReporter` meta-package. Shared package metadata lives in `src/Directory.Build.props`; the root `Directory.Build.props` marks everything else `IsPackable=false`.
+- Versions come from git tags, not from csproj files. `.github/workflows/publish.yml` runs on every push to `main`: it computes the next `vX.Y.Z` from the latest tag (patch by default, `[minor]` / `[major]` in a commit message bump those parts), builds, tests, packs, pushes to nuget.org with the `NUGET_API_KEY` secret, then tags the commit and creates a GitHub release. Local builds get version `1.0.0-local`.
+- `NetReporter.Svg` references `SkiaSharp.NativeAssets.Linux` on purpose: the base `SkiaSharp` package only ships macOS/Windows natives for `net10.0`, and CI (and Linux consumers) need it.
 
 ## Scope discipline
 

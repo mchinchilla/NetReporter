@@ -14,6 +14,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <Description>Vector QR, Code 128, Code 39 and EAN-13 barcodes for NetReporter via ZXing.Net (opt-in).</Description>
   </PropertyGroup>
 
 </Project>

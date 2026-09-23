@@ -24,7 +24,10 @@ public static class YamlReportRewriter
     /// Aplica un delta (dx, dy) al <c>bounds</c> del elemento identificado por <paramref name="path"/>
     /// y devuelve el YAML resultante.
     /// </summary>
+    /// <param name="yaml">YAML del reporte a modificar.</param>
     /// <param name="path">Path tipo "bands.N.elements.M".</param>
+    /// <param name="deltaX">Desplazamiento horizontal en puntos.</param>
+    /// <param name="deltaY">Desplazamiento vertical en puntos.</param>
     public static string MoveElement(string yaml, string path, double deltaX, double deltaY)
     {
         return UpdateElement(yaml, path, e =>

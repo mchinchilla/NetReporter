@@ -1,0 +1,19 @@
+<Project>
+
+  <!--
+    Shared settings for every project in the solution.
+    Package metadata lives in src/Directory.Build.props — only the src/ libraries are packable.
+  -->
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <!-- The Web SDK (Designer) warns when a non-packable project is part of a solution-level 'dotnet pack' -->
+    <WarnOnPackingNonPackableProject>false</WarnOnPackingNonPackableProject>
+
+    <!-- Local builds get a "-local" suffix; the publish workflow overrides Version with -p:Version=X.Y.Z -->
+    <Version>1.0.0-local</Version>
+
+    <!-- Deterministic, reproducible builds when running under GitHub Actions -->
+    <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
+  </PropertyGroup>
+
+</Project>

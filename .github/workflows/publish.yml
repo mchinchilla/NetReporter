@@ -1,0 +1,150 @@
+name: Publish NuGet packages
+
+# Every push to main builds, tests, packs and publishes a new version of all
+# NetReporter.* packages to nuget.org, then tags the commit as vX.Y.Z and
+# creates a GitHub release with the .nupkg files attached.
+#
+# Versioning: the next version is derived from the latest vX.Y.Z tag.
+#   - default                      → patch bump  (1.2.3 → 1.2.4)
+#   - commit message has [minor]   → minor bump  (1.2.3 → 1.3.0)
+#   - commit message has [major]   → major bump  (1.2.3 → 2.0.0)
+#   - no tag yet                   → INITIAL_VERSION
+# Run it manually (workflow_dispatch) to force a specific bump.
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.idea/**'
+      - '.gitattributes'
+      - '.gitignore'
+      - 'LICENSE'
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Part of the version to bump (overrides [minor]/[major] commit markers)
+        type: choice
+        options: [patch, minor, major]
+        default: patch
+
+permissions:
+  contents: write # push the vX.Y.Z tag and create the release
+
+concurrency:
+  group: publish-nuget
+  cancel-in-progress: false
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  INITIAL_VERSION: 1.0.0
+  NUGET_SOURCE: https://api.nuget.org/v3/index.json
+
+jobs:
+  version:
+    name: Compute version
+    runs-on: ubuntu-latest
+    outputs:
+      skip: ${{ steps.next.outputs.skip }}
+      version: ${{ steps.next.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history + tags
+
+      - name: Compute next version from tags
+        id: next
+        shell: bash
+        env:
+          BUMP_INPUT: ${{ inputs.bump }}
+        run: |
+          set -euo pipefail
+          semver='^v[0-9]+\.[0-9]+\.[0-9]+$'
+
+          # Re-run of an already published commit (or a manually tagged one): nothing to do.
+          existing=$(git tag --points-at HEAD | grep -E "$semver" | sort -V | tail -n1 || true)
+          if [ -n "$existing" ]; then
+            echo "HEAD is already tagged as $existing — skipping publish."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          last=$(git tag --list | grep -E "$semver" | sort -V | tail -n1 || true)
+          if [ -z "$last" ]; then
+            next="$INITIAL_VERSION"
+            echo "No previous release tag — starting at v$next"
+          else
+            IFS=. read -r major minor patch <<< "${last#v}"
+            bump="$BUMP_INPUT"
+            if [ -z "$bump" ]; then
+              log=$(git log "$last..HEAD" --format='%s%n%b')
+              if   grep -qiE '\[major\]' <<< "$log"; then bump=major
+              elif grep -qiE '\[minor\]' <<< "$log"; then bump=minor
+              else bump=patch; fi
+            fi
+            case "$bump" in
+              major) next="$((major + 1)).0.0" ;;
+              minor) next="$major.$((minor + 1)).0" ;;
+              *)     next="$major.$minor.$((patch + 1))" ;;
+            esac
+            echo "Last tag $last → $bump bump → v$next"
+          fi
+
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+          echo "version=$next" >> "$GITHUB_OUTPUT"
+
+  publish:
+    name: Build, test & publish v${{ needs.version.outputs.version }}
+    needs: version
+    if: needs.version.outputs.skip != 'true'
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore
+        run: dotnet restore NetReporter.slnx
+
+      - name: Build
+        run: dotnet build NetReporter.slnx --configuration Release --no-restore -p:Version=$VERSION
+
+      - name: Test
+        run: dotnet test NetReporter.slnx --configuration Release --no-build -p:Version=$VERSION
+
+      - name: Pack
+        run: dotnet pack NetReporter.slnx --configuration Release --no-build -p:Version=$VERSION --output artifacts/packages
+
+      - name: Upload packages as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuget-packages-v${{ env.VERSION }}
+          path: artifacts/packages/*.*nupkg
+          if-no-files-found: error
+
+      - name: Push to nuget.org
+        run: >
+          dotnet nuget push "artifacts/packages/*.nupkg"
+          --api-key "${{ secrets.NUGET_API_KEY }}"
+          --source "$NUGET_SOURCE"
+          --skip-duplicate
+
+      - name: Tag commit and create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "v$VERSION" -m "NetReporter v$VERSION"
+          git push origin "v$VERSION"
+          gh release create "v$VERSION" artifacts/packages/*.nupkg \
+            --title "v$VERSION" \
+            --generate-notes
