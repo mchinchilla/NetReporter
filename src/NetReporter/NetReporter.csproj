@@ -16,9 +16,15 @@
     <IncludeBuildOutput>false</IncludeBuildOutput>
     <IncludeSymbols>false</IncludeSymbols>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
-    <!-- NU5128: expected for a dependency-only package with no lib/ folder -->
-    <NoWarn>$(NoWarn);NU5128</NoWarn>
   </PropertyGroup>
+
+  <!--
+    Empty lib/<tfm>/_._ placeholder: no assembly, but NuGet clients and nuget.org see which framework
+    the package targets (nuget.org shows the ".NET 10.0" badge only for packages with lib/ assets).
+  -->
+  <ItemGroup>
+    <None Include="_._" Pack="true" PackagePath="lib/$(TargetFramework)/" Visible="false" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\NetReporter.Core\NetReporter.Core.csproj" />
