@@ -88,7 +88,8 @@ public sealed class TemplateStringTests
     [Fact]
     public void Compile_UnknownKeyword_Throws()
     {
-        Assert.Throws<FormatException>(() =>
+        // DslSyntaxException deriva de FormatException: los callers existentes lo siguen atrapando.
+        Assert.ThrowsAny<FormatException>(() =>
             TemplateString.Compile("{{ elvis }}", Parse("{}")));
     }
 

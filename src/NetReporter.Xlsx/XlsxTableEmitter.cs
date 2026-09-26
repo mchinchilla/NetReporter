@@ -1,4 +1,3 @@
-using System.Reflection;
 using ClosedXML.Excel;
 using NetReporter.Core.Definition;
 using NetReporter.Core.Elements;
@@ -8,25 +7,14 @@ namespace NetReporter.Xlsx;
 /// <summary>
 /// Emite un <see cref="TableElement{TRow}"/> como un rango semántico de Excel:
 /// header row + data rows con tipos preservados. Opcionalmente lo envuelve como
-/// Excel Table nativa para tener filtros/sorting/banded rows.
+/// Excel Table nativa para tener filtros/sorting/banded rows. Las tablas agrupadas usan
+/// el "outline" de Excel (filas agrupables/colapsables por nivel) en vez de una Table nativa.
 ///
-/// Patrón: usamos reflection UNA VEZ por tipo de fila (igual que LayoutEngine) para
-/// invocar <see cref="EmitAtGeneric{TRow}"/>. NO es reflection en hot path.
+/// El tipo de fila se recupera con <see cref="ITableVisitor{TResult}"/> — sin reflection.
 /// </summary>
 internal static class XlsxTableEmitter
 {
-    private static readonly MethodInfo s_emitAtGenericMethod =
-        typeof(XlsxTableEmitter).GetMethod(nameof(EmitAtGeneric),
-            BindingFlags.Static | BindingFlags.NonPublic)!;
-
-    /// <summary>
-    /// Detecta si <paramref name="element"/> es <see cref="TableElement{TRow}"/> por reflection.
-    /// </summary>
-    public static bool IsTable(ReportElement element)
-    {
-        var t = element.GetType();
-        return t.IsGenericType && t.GetGenericTypeDefinition() == typeof(TableElement<>);
-    }
+    public static bool IsTable(ReportElement element) => element is ITableElement;
 
     /// <summary>
     /// Emite la tabla empezando en <paramref name="startRow"/> (1-based) y devuelve la última fila usada.
@@ -37,11 +25,14 @@ internal static class XlsxTableEmitter
         IXLWorksheet ws,
         ReportDefinition report,
         XlsxEvaluationContext ctx,
-        XlsxRenderOptions options)
+        XlsxRenderOptions options) =>
+        ((ITableElement)element).Accept(new Emitter(startRow, ws, report, ctx, options));
+
+    private sealed class Emitter(
+        int startRow, IXLWorksheet ws, ReportDefinition report, XlsxEvaluationContext ctx, XlsxRenderOptions options)
+        : ITableVisitor<int>
     {
-        var rowType = element.GetType().GetGenericArguments()[0];
-        var method = s_emitAtGenericMethod.MakeGenericMethod(rowType);
-        return (int)method.Invoke(null, new object?[] { element, startRow, ws, report, ctx, options })!;
+        public int Visit<TRow>(TableElement<TRow> table) => EmitAtGeneric(table, startRow, ws, report, ctx, options);
     }
 
     private static int EmitAtGeneric<TRow>(
@@ -67,26 +58,38 @@ internal static class XlsxTableEmitter
 
         var dataStart = startRow + 1;
         var currentRow = dataStart;
+        var levels = table.EffectiveGroups;
 
-        if (table.GroupBy is null)
+        if (levels.Count == 0)
         {
             for (int i = 0; i < table.Rows.Count; i++)
             {
                 ctx.RowIndex = i;
                 ctx.CurrentRow = table.Rows[i];
                 var style = (i % 2 == 1) ? altStyle : rowStyle;
-                EmitDataRow(table, table.Rows[i], currentRow, style, ws, report, ctx);
+                EmitDataRow(table, table.Rows[i], currentRow, style, ws, report);
                 currentRow++;
             }
         }
         else
         {
-            currentRow = EmitGrouped(table, currentRow, ws, report, ctx, rowStyle, altStyle);
+            currentRow = EmitGrouped(table, levels, currentRow, ws, report, ctx, rowStyle, altStyle);
         }
 
-        // Crear Excel Table nativa si hay filas y la opción está activa.
         var dataEnd = currentRow - 1;
-        if (options.EmitNativeTables && dataEnd >= dataStart && table.Rows.Count > 0 && table.GroupBy is null)
+
+        // Resumen (total general) debajo de los datos: fuera de la Excel Table para no mezclarlo con filtros.
+        if (table.Summary is not null && table.Rows.Count > 0)
+        {
+            ctx.GroupKey = null;
+            ctx.GroupRowCount = table.Rows.Count;
+            EmitAggregateRow(table, table.Summary, table.Rows, currentRow, ws, report, ctx);
+            currentRow++;
+            ctx.GroupRowCount = 0;
+        }
+
+        // Crear Excel Table nativa si hay filas, la opción está activa y la tabla no está agrupada.
+        if (options.EmitNativeTables && dataEnd >= dataStart && table.Rows.Count > 0 && levels.Count == 0)
         {
             var range = ws.Range(startRow, 1, dataEnd, table.Columns.Count);
             // Nombres de tabla deben ser únicos por sheet — usamos un prefijo + startRow.
@@ -104,6 +107,7 @@ internal static class XlsxTableEmitter
 
     private static int EmitGrouped<TRow>(
         TableElement<TRow> table,
+        IReadOnlyList<TableGroupLevel<TRow>> levels,
         int startDataRow,
         IXLWorksheet ws,
         ReportDefinition report,
@@ -111,115 +115,118 @@ internal static class XlsxTableEmitter
         NetReporter.Core.Styles.ResolvedStyle rowStyle,
         NetReporter.Core.Styles.ResolvedStyle altStyle)
     {
-        var groupBy = table.GroupBy!;
-        var groupHeader = table.GroupHeader;
-        var groupFooter = table.GroupFooter;
-
-        var groupHeaderStyle = groupHeader is not null ? report.Styles.Resolve(groupHeader.Style) : rowStyle;
-        var groupFooterStyle = groupFooter is not null ? report.Styles.Resolve(groupFooter.Style) : rowStyle;
-
         var currentRow = startDataRow;
         var globalRowIndex = 0;
-        var buffer = new List<TRow>();
-        object? currentKey = null;
 
-        void EmitGroup()
+        void SetGroupContext(object? key, int count, int depth)
         {
-            if (buffer.Count == 0) return;
+            ctx.GroupKey = key;
+            ctx.GroupRowCount = count;
+            while (ctx.GroupKeyStack.Count > depth) ctx.GroupKeyStack.RemoveAt(ctx.GroupKeyStack.Count - 1);
+            ctx.GroupKeyStack.Add(key);
+        }
 
-            ctx.GroupKey = currentKey;
-            ctx.GroupRowCount = buffer.Count;
-
-            // Group header: se mergea sobre todas las columnas de la tabla.
-            if (groupHeader is not null)
+        void EmitLevel(IReadOnlyList<TRow> rows, int level)
+        {
+            if (level == levels.Count)
             {
-                var content = groupHeader.Content.Evaluate(ctx);
-                var headerCell = ws.Cell(currentRow, 1);
-                headerCell.Value = content;
-                XlsxStyleApplier.Apply(headerCell.Style, groupHeaderStyle);
-                if (table.Columns.Count > 1)
-                    ws.Range(currentRow, 1, currentRow, table.Columns.Count).Merge();
-                currentRow++;
-            }
-
-            // Filas del grupo.
-            foreach (var row in buffer)
-            {
-                ctx.CurrentRow = row;
-                ctx.RowIndex = globalRowIndex;
-                var style = (globalRowIndex % 2 == 1) ? altStyle : rowStyle;
-                EmitDataRow(table, row, currentRow, style, ws, report, ctx);
-                currentRow++;
-                globalRowIndex++;
-            }
-
-            // Group footer: una celda por columna, paralela a la tabla.
-            if (groupFooter is not null)
-            {
-                for (int c = 0; c < table.Columns.Count; c++)
+                foreach (var row in rows)
                 {
-                    var col = table.Columns[c];
-                    var cell = c < groupFooter.Cells.Count ? groupFooter.Cells[c] : null;
-                    var footerCell = ws.Cell(currentRow, c + 1);
-                    XlsxStyleApplier.Apply(footerCell.Style, groupFooterStyle);
-
-                    if (cell is null)
-                    {
-                        footerCell.Value = string.Empty;
-                        continue;
-                    }
-
-                    if (cell.Aggregate is { } kind)
-                    {
-                        var values = buffer.Select(r => col.Binding.Evaluate(r));
-                        var num = ComputeAggregate(kind, values);
-                        XlsxValueWriter.Write(footerCell, num, cell.Format ?? col.Format, report.Culture);
-                    }
-                    else if (cell.Content is not null)
-                    {
-                        footerCell.Value = cell.Content.Evaluate(ctx);
-                    }
-
-                    if (cell.Align is { } al)
-                        footerCell.Style.Alignment.Horizontal = al switch
-                        {
-                            NetReporter.Core.Styles.TextAlignment.Left    => XLAlignmentHorizontalValues.Left,
-                            NetReporter.Core.Styles.TextAlignment.Center  => XLAlignmentHorizontalValues.Center,
-                            NetReporter.Core.Styles.TextAlignment.Right   => XLAlignmentHorizontalValues.Right,
-                            NetReporter.Core.Styles.TextAlignment.Justify => XLAlignmentHorizontalValues.Justify,
-                            _ => XLAlignmentHorizontalValues.Left
-                        };
+                    ctx.CurrentRow = row;
+                    ctx.RowIndex = globalRowIndex;
+                    var style = (globalRowIndex % 2 == 1) ? altStyle : rowStyle;
+                    EmitDataRow(table, row, currentRow, style, ws, report);
+                    currentRow++;
+                    globalRowIndex++;
                 }
-                currentRow++;
+                return;
+            }
+
+            var group = levels[level];
+            var headerStyle = group.Header is not null ? report.Styles.Resolve(group.Header.Style) : rowStyle;
+
+            foreach (var (key, groupRows) in TableGrouping.Partition(rows, group.By))
+            {
+                SetGroupContext(key, groupRows.Count, level);
+
+                // Group header: se mergea sobre todas las columnas de la tabla.
+                if (group.Header is not null)
+                {
+                    var headerCell = ws.Cell(currentRow, 1);
+                    headerCell.Value = group.Header.Content.Evaluate(ctx);
+                    XlsxStyleApplier.Apply(headerCell.Style, headerStyle);
+                    if (table.Columns.Count > 1)
+                        ws.Range(currentRow, 1, currentRow, table.Columns.Count).Merge();
+                    currentRow++;
+                }
+
+                // Las filas de detalle del grupo se agrupan en el outline de Excel (colapsables).
+                var detailStart = currentRow;
+                EmitLevel(groupRows, level + 1);
+                if (currentRow > detailStart)
+                    ws.Rows(detailStart, currentRow - 1).Group();
+
+                SetGroupContext(key, groupRows.Count, level);
+                if (group.Footer is not null)
+                {
+                    EmitAggregateRow(table, group.Footer, groupRows, currentRow, ws, report, ctx);
+                    currentRow++;
+                }
             }
         }
 
-        foreach (var row in table.Rows)
-        {
-            var key = groupBy.Evaluate(row);
-            if (buffer.Count == 0)
-            {
-                currentKey = key;
-                buffer.Add(row);
-            }
-            else if (Equals(currentKey, key))
-            {
-                buffer.Add(row);
-            }
-            else
-            {
-                EmitGroup();
-                buffer = new List<TRow> { row };
-                currentKey = key;
-            }
-        }
-
-        EmitGroup();
+        EmitLevel(table.Rows, 0);
 
         ctx.GroupKey = null;
         ctx.GroupRowCount = 0;
+        ctx.GroupKeyStack.Clear();
 
         return currentRow;
+    }
+
+    /// <summary>Pie de grupo o resumen: una celda por columna, paralela a la tabla.</summary>
+    private static void EmitAggregateRow<TRow>(
+        TableElement<TRow> table,
+        GroupFooter footer,
+        IReadOnlyList<TRow> rows,
+        int rowNumber,
+        IXLWorksheet ws,
+        ReportDefinition report,
+        XlsxEvaluationContext ctx)
+    {
+        var footerStyle = report.Styles.Resolve(footer.Style);
+        for (int c = 0; c < table.Columns.Count; c++)
+        {
+            var col = table.Columns[c];
+            var cell = c < footer.Cells.Count ? footer.Cells[c] : null;
+            var footerCell = ws.Cell(rowNumber, c + 1);
+            XlsxStyleApplier.Apply(footerCell.Style, footerStyle);
+
+            if (cell is null)
+            {
+                footerCell.Value = string.Empty;
+                continue;
+            }
+
+            if (cell.Aggregate is { } kind)
+            {
+                var num = TableGrouping.Aggregate(kind, rows.Select(r => col.Binding.Evaluate(r)));
+                XlsxValueWriter.Write(footerCell, num, cell.Format ?? col.Format, report.Culture);
+            }
+            else if (cell.Content is not null)
+            {
+                footerCell.Value = cell.Content.Evaluate(ctx);
+            }
+
+            if (cell.Align is { } al)
+                footerCell.Style.Alignment.Horizontal = al switch
+                {
+                    NetReporter.Core.Styles.TextAlignment.Center  => XLAlignmentHorizontalValues.Center,
+                    NetReporter.Core.Styles.TextAlignment.Right   => XLAlignmentHorizontalValues.Right,
+                    NetReporter.Core.Styles.TextAlignment.Justify => XLAlignmentHorizontalValues.Justify,
+                    _ => XLAlignmentHorizontalValues.Left
+                };
+        }
     }
 
     private static void EmitDataRow<TRow>(
@@ -228,8 +235,7 @@ internal static class XlsxTableEmitter
         int rowNumber,
         NetReporter.Core.Styles.ResolvedStyle rowStyle,
         IXLWorksheet ws,
-        ReportDefinition report,
-        XlsxEvaluationContext ctx)
+        ReportDefinition report)
     {
         for (int c = 0; c < table.Columns.Count; c++)
         {
@@ -245,32 +251,4 @@ internal static class XlsxTableEmitter
             XlsxValueWriter.Write(cell, value, col.Format, report.Culture);
         }
     }
-
-    private static double ComputeAggregate(AggregateKind kind, IEnumerable<object?> values)
-    {
-        if (kind == AggregateKind.Count)
-            return values.Count(v => v is not null);
-
-        var nums = values.Select(ToDouble).Where(v => v.HasValue).Select(v => v!.Value).ToList();
-        return kind switch
-        {
-            AggregateKind.Sum => nums.Sum(),
-            AggregateKind.Avg => nums.Count == 0 ? 0 : nums.Average(),
-            _ => 0
-        };
-    }
-
-    private static double? ToDouble(object? v) => v switch
-    {
-        null      => null,
-        double d  => d,
-        float f   => f,
-        int i     => i,
-        long l    => l,
-        decimal m => (double)m,
-        string s  => double.TryParse(s, System.Globalization.NumberStyles.Any,
-                          System.Globalization.CultureInfo.InvariantCulture, out var d) ? d : null,
-        _ => null
-    };
-
 }

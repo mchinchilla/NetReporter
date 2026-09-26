@@ -1,0 +1,156 @@
+# Ventas por región → categoría — demuestra GRUPOS MULTINIVEL (v1.1).
+#   · groups: dos niveles (región, categoría) con encabezado y pie propios
+#   · {{ group(0) }} para leer la clave del nivel externo desde el interno
+#   · agregados sum / count / avg / min / max en los pies
+#   · summary: fila de total general al final de la tabla
+#   · columna calculada con expresión (= $.unidades * $.precio)
+#   · la tabla pagina: header repetido y el encabezado de grupo nunca queda huérfano
+
+name: NestedGroups
+title: "Ventas por región y categoría"
+fileName: "ventas-region-categoria-{{ $.periodo }}"
+
+page:
+  size: Letter
+  margins: { all: 1.5cm }
+
+culture: es-HN
+
+styles:
+  Default:
+    fontFamily: Helvetica
+    fontSize: 9
+    foreground: "#0F172A"
+  Title:
+    basedOn: Default
+    fontSize: 17
+    bold: true
+  Caption:
+    basedOn: Default
+    fontSize: 8
+    foreground: "#64748B"
+  CaptionRight:
+    basedOn: Caption
+    align: right
+  TableHeader:
+    basedOn: Default
+    bold: true
+    background: "#1E293B"
+    foreground: "#FFFFFF"
+    padding: { horizontal: 5, vertical: 4 }
+  TableRow:
+    basedOn: Default
+    padding: { horizontal: 5, vertical: 3 }
+  RegionHeader:
+    basedOn: Default
+    fontSize: 10.5
+    bold: true
+    background: "#0369A1"
+    foreground: "#FFFFFF"
+    padding: { horizontal: 6, vertical: 4 }
+  CategoryHeader:
+    basedOn: Default
+    bold: true
+    background: "#E0F2FE"
+    foreground: "#075985"
+    padding: { left: 16, right: 6, top: 3, bottom: 3 }
+  CategoryFooter:
+    basedOn: TableRow
+    italic: true
+    foreground: "#334155"
+    border:
+      top: { thickness: 0.5, color: "#BAE6FD" }
+  RegionFooter:
+    basedOn: TableRow
+    bold: true
+    background: "#F1F5F9"
+    border:
+      top: { thickness: 0.75, color: "#0369A1" }
+  TableSummary:
+    basedOn: TableRow
+    fontSize: 10
+    bold: true
+    background: "#1E293B"
+    foreground: "#FFFFFF"
+
+bands:
+  - kind: PageHeader
+    height: 20
+    elements:
+      - { type: text, bounds: { x: 0, y: 0, width: 300, height: 12 }, content: "{{ $.empresa }}", style: Caption }
+      - { type: text, bounds: { x: 300, y: 0, width: 227, height: 12 }, content: "Período {{ $.periodo }} · pág. {{ pageNumber }}/{{ totalPages }}", style: CaptionRight }
+
+  - kind: ReportHeader
+    height: 52
+    elements:
+      - { type: text, bounds: { x: 0, y: 0, width: 527, height: 24 }, content: "Ventas por región y categoría", style: Title }
+      - type: text
+        bounds: { x: 0, y: 28, width: 527, height: 12 }
+        content: "{{ count($.ventas[*]) }} líneas · {{ sum($.ventas[*].unidades) : N0 }} unidades · regiones ordenadas por nombre"
+        style: Caption
+
+  - kind: Detail
+    height: 0
+    elements:
+      - type: table
+        bounds: { x: 0, y: 0, width: 527, height: 0 }
+        rows: "$.ventas"
+        headerStyle: TableHeader
+        rowStyle: TableRow
+        headerHeight: 20
+        rowHeight: 16
+        rowSeparator: { thickness: 0.25, color: "#E2E8F0" }
+        columns:
+          - { header: "Producto",  binding: "$.producto",                width: 207 }
+          - { header: "Unidades",  binding: "$.unidades",                width: 70,  format: "N0", align: right }
+          - { header: "Precio",    binding: "$.precio",                  width: 80,  format: "N2", align: right }
+          - { header: "Total",     binding: "= $.unidades * $.precio",   width: 95,  format: "N2", align: right }
+          - { header: "Margen %",  binding: "$.margen",                  width: 75,  format: "N1", align: right }
+
+        groups:
+          - by: "$.region"
+            header:
+              height: 20
+              style: RegionHeader
+              content: "Región {{ #group }} · {{ #count }} productos"
+            footer:
+              height: 18
+              style: RegionFooter
+              cells:
+                - { content: "Total región {{ #group }}" }
+                - { aggregate: sum, format: "N0", align: right }
+                - null
+                - { aggregate: sum, format: "N2", align: right }
+                - { aggregate: avg, format: "N1", align: right }
+          - by: "$.categoria"
+            header:
+              height: 17
+              style: CategoryHeader
+              content: "{{ group(0) }} › {{ #group }} ({{ #count }})"
+            footer:
+              height: 16
+              style: CategoryFooter
+              cells:
+                - { content: "Subtotal {{ #group }}{{ #count > 1 ? ' (mín / máx)' : '' }}" }
+                - { aggregate: sum, format: "N0", align: right }
+                - { aggregate: min, format: "N2", align: right }
+                - { aggregate: sum, format: "N2", align: right }
+                - { aggregate: max, format: "N1", align: right }
+
+        summary:
+          height: 22
+          style: TableSummary
+          cells:
+            - { content: "TOTAL GENERAL · {{ #count }} líneas" }
+            - { aggregate: sum, format: "N0", align: right }
+            - { aggregate: avg, format: "N2", align: right }
+            - { aggregate: sum, format: "N2", align: right }
+            - { aggregate: avg, format: "N1", align: right }
+
+  - kind: ReportFooter
+    height: 30
+    elements:
+      - type: text
+        bounds: { x: 0, y: 10, width: 527, height: 12 }
+        content: "Precio del pie de categoría = precio mínimo del grupo; margen = máximo. Pie de región: margen promedio."
+        style: Caption

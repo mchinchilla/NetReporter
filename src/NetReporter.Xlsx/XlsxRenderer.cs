@@ -10,7 +10,8 @@ namespace NetReporter.Xlsx;
 /// Renderer XLSX semántico. Consume <see cref="ReportDefinition"/> directamente
 /// (NO el RenderList): los <see cref="TextElement"/>s se vuelven celdas y los
 /// <see cref="TableElement{TRow}"/> se vuelven rangos de Excel reales — editables,
-/// filtrables, sortables. Elementos puramente decorativos (Line/Rectangle/Barcode)
+/// filtrables, sortables. Los <see cref="ChartElement"/> se exportan como su tabla de datos
+/// (categoría + una columna por serie). Elementos puramente decorativos (Line/Rectangle/Barcode)
 /// se omiten ya que XLSX no es un formato de layout absoluto.
 /// </summary>
 public sealed class XlsxRenderer
@@ -86,6 +87,12 @@ public sealed class XlsxRenderer
             return;
         }
 
+        if (element is ChartElement chart)
+        {
+            EmitChart(chart, ws, report, cursor, options);
+            return;
+        }
+
         // Line / Rectangle / Barcode: omitidos — son ornamentos visuales sin equivalente semántico
         // en una hoja de cálculo. (Un código de barras como rectángulos individuales no tendría
         // utilidad en Excel.)
@@ -114,6 +121,62 @@ public sealed class XlsxRenderer
         cursor.AdvanceRows(rowsNeeded - 1); // ya tomamos 1 con AdvanceRow.
     }
 
+    /// <summary>
+    /// Un chart no tiene equivalente de celda útil como dibujo, pero sus datos sí: se emiten como
+    /// una tabla (título opcional + categoría + una columna por serie), que en Excel se puede graficar.
+    /// </summary>
+    private static void EmitChart(
+        ChartElement chart,
+        IXLWorksheet ws,
+        ReportDefinition report,
+        RowCursor cursor,
+        XlsxRenderOptions options)
+    {
+        var baseStyle = report.Styles.Resolve(chart.Style);
+        var headerStyle = baseStyle with { Weight = FontWeight.Bold, Background = NetReporter.Core.Primitives.Color.Transparent };
+
+        if (!string.IsNullOrWhiteSpace(chart.Title))
+        {
+            var titleCell = ws.Cell(cursor.AdvanceRow(), 1);
+            titleCell.Value = chart.Title;
+            XlsxStyleApplier.Apply(titleCell.Style, headerStyle);
+        }
+
+        var series = chart.Kind is ChartKind.Pie or ChartKind.Donut
+            ? chart.Series.Take(1).ToList()
+            : chart.Series.ToList();
+        if (series.Count == 0 || chart.Categories.Count == 0) return;
+
+        var headerRow = cursor.AdvanceRow();
+        ws.Cell(headerRow, 1).Value = "Category";
+        XlsxStyleApplier.Apply(ws.Cell(headerRow, 1).Style, headerStyle);
+        for (var s = 0; s < series.Count; s++)
+        {
+            var cell = ws.Cell(headerRow, s + 2);
+            cell.Value = series[s].Name;
+            XlsxStyleApplier.Apply(cell.Style, headerStyle with { TextAlign = TextAlignment.Right });
+        }
+
+        for (var c = 0; c < chart.Categories.Count; c++)
+        {
+            var row = cursor.AdvanceRow();
+            ws.Cell(row, 1).Value = chart.Categories[c];
+            XlsxStyleApplier.Apply(ws.Cell(row, 1).Style, baseStyle);
+            for (var s = 0; s < series.Count; s++)
+            {
+                var cell = ws.Cell(row, s + 2);
+                var value = c < series[s].Values.Count ? series[s].Values[c] : null;
+                XlsxStyleApplier.Apply(cell.Style, baseStyle with { TextAlign = TextAlignment.Right });
+                XlsxValueWriter.Write(cell, value, chart.ValueFormat, report.Culture);
+            }
+        }
+
+        var lastRow = headerRow + chart.Categories.Count;
+        if (options.EmitNativeTables)
+            ws.Range(headerRow, 1, lastRow, series.Count + 1).CreateTable($"C_{headerRow}");
+        cursor.BlankRow();
+    }
+
     private static void EmitText(
         TextElement text,
         IXLWorksheet ws,
@@ -122,7 +185,10 @@ public sealed class XlsxRenderer
         RowCursor cursor)
     {
         var content = text.Content.Evaluate(ctx);
-        var style = report.Styles.Resolve(text.Style);
+        var style = text.StyleSelector?.Evaluate(ctx) is { } dynamicName
+                    && !string.IsNullOrWhiteSpace(dynamicName) && report.Styles.Contains(dynamicName.Trim())
+            ? report.Styles.Resolve(new StyleRef(dynamicName.Trim()))
+            : report.Styles.Resolve(text.Style);
 
         var row = cursor.AdvanceRow();
         var cell = ws.Cell(row, 1);

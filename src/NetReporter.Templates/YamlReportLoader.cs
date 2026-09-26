@@ -109,7 +109,8 @@ public sealed class TemplateReport
         return new ReportDefinition
         {
             Name = _yaml.Name ?? "Report",
-            Title = _yaml.Title,
+            // title admite template strings igual que fileName ({{ $.anio }} → 2025).
+            Title = string.IsNullOrWhiteSpace(_yaml.Title) ? _yaml.Title : TemplateString.Resolve(_yaml.Title, data),
             FileName = ResolveFileName(_yaml.FileName, data),
             Page = page,
             Styles = styles,
@@ -291,18 +292,25 @@ public sealed class TemplateReport
             .ToArray();
 
         var kind = (b.Kind ?? "Detail").ToLowerInvariant();
-        var autoHeight = b.AutoHeight ?? false;
-        var keepTogether = b.KeepTogether ?? false;
-        return kind switch
+        Band band = kind switch
         {
-            "reportheader" => new ReportHeaderBand { Height = b.Height, Elements = elements, AutoHeight = autoHeight, KeepTogether = keepTogether },
-            "pageheader"   => new PageHeaderBand   { Height = b.Height, Elements = elements, AutoHeight = autoHeight, KeepTogether = keepTogether },
-            "detail"       => new DetailBand       { Height = b.Height, Elements = elements, AutoHeight = autoHeight, KeepTogether = keepTogether },
-            "pagefooter"   => new PageFooterBand   { Height = b.Height, Elements = elements, AutoHeight = autoHeight, KeepTogether = keepTogether },
-            "reportfooter" => new ReportFooterBand { Height = b.Height, Elements = elements, AutoHeight = autoHeight, KeepTogether = keepTogether },
+            "reportheader" => new ReportHeaderBand { Height = b.Height, Elements = elements },
+            "pageheader"   => new PageHeaderBand   { Height = b.Height, Elements = elements },
+            "detail"       => new DetailBand       { Height = b.Height, Elements = elements },
+            "pagefooter"   => new PageFooterBand   { Height = b.Height, Elements = elements },
+            "reportfooter" => new ReportFooterBand { Height = b.Height, Elements = elements },
             _ => throw new FormatException(
                 $"Band.kind desconocido: '{b.Kind}'. " +
                 "Usa ReportHeader, PageHeader, Detail, PageFooter o ReportFooter.")
+        };
+
+        return band with
+        {
+            AutoHeight = b.AutoHeight ?? false,
+            KeepTogether = b.KeepTogether ?? false,
+            PrintOnFirstPage = b.PrintOnFirstPage ?? true,
+            PrintOnLastPage = b.PrintOnLastPage ?? true,
+            Visible = string.IsNullOrWhiteSpace(b.Visible) ? null : BindingFactory.CompileCondition(b.Visible, data)
         };
     }
 
@@ -317,7 +325,11 @@ public sealed class TemplateReport
     {
         var type = (e.Type ?? "text").ToLowerInvariant();
         var bounds = ResolveBounds(e.Bounds);
-        var style = e.Style is not null ? new StyleRef(e.Style) : StyleRef.Default;
+
+        // Un estilo con {{ }} es dinámico: se evalúa en el render y, si el nombre resultante no existe,
+        // cae al estilo "Default".
+        var dynamicStyle = e.Style is not null && e.Style.Contains("{{", StringComparison.Ordinal);
+        var style = e.Style is not null && !dynamicStyle ? new StyleRef(e.Style) : StyleRef.Default;
 
         ReportElement? built = type switch
         {
@@ -327,12 +339,20 @@ public sealed class TemplateReport
             "rectangle" => BuildRectangle(e, bounds, style),
             "image"     => BuildImage(e, bounds, style, data),
             "barcode"   => BuildBarcode(e, bounds, style, data),
+            "chart"     => BuildChart(e, bounds, style, data),
             _ => throw new FormatException(
-                $"Element.type desconocido: '{e.Type}'. Usa text/table/line/rectangle/image/barcode.")
+                $"Element.type desconocido: '{e.Type}'. Usa text/table/line/rectangle/image/barcode/chart.")
         };
 
+        if (built is null) return null;
+
         // Etiqueta el elemento con su origen en el template para que el Designer pueda editarlo.
-        return built is null ? null : built with { SourcePath = sourcePath };
+        return built with
+        {
+            SourcePath = sourcePath,
+            StyleSelector = dynamicStyle ? TemplateString.Compile(e.Style!, data) : null,
+            Visible = string.IsNullOrWhiteSpace(e.Visible) ? null : BindingFactory.CompileCondition(e.Visible, data)
+        };
     }
 
     private static Rect ResolveBounds(BoundsYaml? b) =>
@@ -345,7 +365,9 @@ public sealed class TemplateReport
         {
             Bounds = bounds,
             Style = style,
-            Content = TemplateString.Compile(content, data)
+            Content = TemplateString.Compile(content, data),
+            WordWrap = e.WordWrap ?? true,
+            AutoHeight = e.AutoHeight ?? false
         };
     }
 
@@ -357,7 +379,7 @@ public sealed class TemplateReport
             throw new FormatException("Element.type=table requiere al menos una columna.");
 
         var rows = JsonPath.SelectMany(data, e.Rows);
-        var columns = e.Columns.Select(BuildColumn).ToArray();
+        var columns = e.Columns.Select(c => BuildColumn(c, data)).ToArray();
 
         var headerMode = (e.HeaderMode ?? "RepeatOnPageBreak").ToLowerInvariant() switch
         {
@@ -378,12 +400,14 @@ public sealed class TemplateReport
             HeaderStyle = e.HeaderStyle is not null ? new StyleRef(e.HeaderStyle) : new StyleRef("TableHeader"),
             RowStyle    = e.RowStyle    is not null ? new StyleRef(e.RowStyle)    : new StyleRef("TableRow"),
             AlternateRowStyle = e.AlternateRowStyle is not null ? new StyleRef(e.AlternateRowStyle) : null,
-            GroupBy = e.GroupBy is not null ? new JsonPathBinding(e.GroupBy) : null,
+            GroupBy = e.GroupBy is not null ? BindingFactory.Create(e.GroupBy, data) : null,
             GroupHeader = e.GroupHeader is not null ? BuildGroupHeader(e.GroupHeader, data) : null,
             GroupFooter = e.GroupFooter is not null ? BuildGroupFooter(e.GroupFooter, data) : null,
+            Groups = e.Groups is { Count: > 0 } ? e.Groups.Select(g => BuildGroupLevel(g, data)).ToArray() : null,
+            Summary = e.Summary is not null ? BuildGroupFooter(e.Summary, data, "TableSummary") : null,
             HeaderRule = e.HeaderRule is not null ? ResolveBorderLine(e.HeaderRule) : null,
             RowSeparator = e.RowSeparator is not null ? ResolveBorderLine(e.RowSeparator) : null,
-            RowStyleSelector = e.RowStyleBinding is not null ? new JsonPathBinding(e.RowStyleBinding) : null,
+            RowStyleSelector = e.RowStyleBinding is not null ? BindingFactory.Create(e.RowStyleBinding, data) : null,
             RowStyleMap = e.RowStyleMap is not null
                 ? e.RowStyleMap.ToDictionary(kv => kv.Key, kv => new StyleRef(kv.Value))
                 : null,
@@ -401,7 +425,19 @@ public sealed class TemplateReport
         Style = g.Style is not null ? new StyleRef(g.Style) : new StyleRef("GroupHeader")
     };
 
-    private static GroupFooter BuildGroupFooter(GroupFooterYaml g, JsonElement data)
+    private static TableGroupLevel<JsonElement> BuildGroupLevel(GroupLevelYaml g, JsonElement data)
+    {
+        if (string.IsNullOrWhiteSpace(g.By))
+            throw new FormatException("Cada nivel de 'groups' requiere 'by' (JSON Path o expresión = …).");
+        return new TableGroupLevel<JsonElement>
+        {
+            By = BindingFactory.Create(g.By, data),
+            Header = g.Header is not null ? BuildGroupHeader(g.Header, data) : null,
+            Footer = g.Footer is not null ? BuildGroupFooter(g.Footer, data) : null
+        };
+    }
+
+    private static GroupFooter BuildGroupFooter(GroupFooterYaml g, JsonElement data, string defaultStyle = "GroupFooter")
     {
         var cells = (g.Cells ?? new List<GroupFooterCellYaml?>())
             .Select(c => c is null ? null : BuildGroupFooterCell(c, data))
@@ -410,7 +446,7 @@ public sealed class TemplateReport
         {
             Height = g.Height,
             Cells = cells,
-            Style = g.Style is not null ? new StyleRef(g.Style) : new StyleRef("GroupFooter")
+            Style = g.Style is not null ? new StyleRef(g.Style) : new StyleRef(defaultStyle)
         };
     }
 
@@ -424,8 +460,10 @@ public sealed class TemplateReport
                 "sum"   => AggregateKind.Sum,
                 "count" => AggregateKind.Count,
                 "avg"   => AggregateKind.Avg,
+                "min"   => AggregateKind.Min,
+                "max"   => AggregateKind.Max,
                 _ => throw new FormatException(
-                    $"Aggregate desconocido: '{c.Aggregate}'. Usa sum/count/avg.")
+                    $"Aggregate desconocido: '{c.Aggregate}'. Usa sum/count/avg/min/max.")
             };
         }
 
@@ -438,7 +476,7 @@ public sealed class TemplateReport
         };
     }
 
-    private static TableColumn<JsonElement> BuildColumn(TableColumnYaml c)
+    private static TableColumn<JsonElement> BuildColumn(TableColumnYaml c, JsonElement data)
     {
         if (c.Header is null)
             throw new FormatException("TableColumn requiere 'header'.");
@@ -448,7 +486,7 @@ public sealed class TemplateReport
         var align = c.Align is not null ? ParseAlign(c.Align) : TextAlignment.Left;
         return new TableColumn<JsonElement>(
             c.Header,
-            new JsonPathBinding(c.Binding),
+            BindingFactory.Create(c.Binding, data),
             c.Width,
             c.Format,
             align,
@@ -520,6 +558,83 @@ public sealed class TemplateReport
 
         return corners;
     }
+
+    private static ChartElement BuildChart(ElementYaml e, Rect bounds, StyleRef style, JsonElement data)
+    {
+        if (string.IsNullOrWhiteSpace(e.Rows))
+            throw new FormatException("Element.type=chart requiere 'rows' (JSON Path a las filas de datos).");
+        if (string.IsNullOrWhiteSpace(e.Category))
+            throw new FormatException("Element.type=chart requiere 'category' (binding de la etiqueta de cada fila).");
+        if (e.Series is not { Count: > 0 })
+            throw new FormatException("Element.type=chart requiere al menos una serie en 'series'.");
+
+        var kind = (e.ChartType ?? "bar").ToLowerInvariant().Replace("-", string.Empty) switch
+        {
+            "bar" or "column"                 => ChartKind.Bar,
+            "horizontalbar" or "hbar"         => ChartKind.HorizontalBar,
+            "line"                            => ChartKind.Line,
+            "area"                            => ChartKind.Area,
+            "pie"                             => ChartKind.Pie,
+            "donut" or "doughnut"             => ChartKind.Donut,
+            _ => throw new FormatException(
+                $"chartType inválido: '{e.ChartType}'. Usa bar/horizontalBar/line/area/pie/donut.")
+        };
+
+        ChartLegendPosition? legend = e.Legend?.ToLowerInvariant() switch
+        {
+            null or "" or "auto" => null,
+            "none"   => ChartLegendPosition.None,
+            "top"    => ChartLegendPosition.Top,
+            "bottom" => ChartLegendPosition.Bottom,
+            "right"  => ChartLegendPosition.Right,
+            _ => throw new FormatException($"legend inválido: '{e.Legend}'. Usa none/top/bottom/right.")
+        };
+
+        var rows = JsonPath.SelectMany(data, e.Rows);
+        var category = BindingFactory.Create(e.Category, data);
+        var categories = rows
+            .Select(r => Expressions.DslValues.ToText(Expressions.DslValues.Normalize(category.Evaluate(r)), CultureInfo.InvariantCulture))
+            .ToList();
+
+        var series = e.Series.Select((s, i) =>
+        {
+            if (string.IsNullOrWhiteSpace(s.Value))
+                throw new FormatException($"La serie #{i + 1} del chart requiere 'value'.");
+            var binding = BindingFactory.Create(s.Value, data);
+            var values = rows.Select(r => ToChartNumber(binding.Evaluate(r))).ToList();
+            return new ChartSeries(s.Name is null ? $"Serie {i + 1}" : TemplateString.Resolve(s.Name, data), values)
+            {
+                Color = s.Color is not null ? Color.FromHex(s.Color) : null
+            };
+        }).ToList();
+
+        return new ChartElement
+        {
+            Bounds = bounds,
+            Style = style,
+            Kind = kind,
+            Categories = categories,
+            Series = series,
+            Title = e.Title is not null ? TemplateString.Resolve(e.Title, data) : null,
+            Legend = legend,
+            ShowValues = e.ShowValues ?? false,
+            ShowPercent = e.ShowPercent ?? false,
+            ShowGrid = e.ShowGrid ?? true,
+            ShowMarkers = e.ShowMarkers ?? true,
+            Stacked = e.Stacked ?? false,
+            ValueFormat = e.ValueFormat,
+            AxisMin = e.AxisMin,
+            AxisMax = e.AxisMax,
+            Palette = e.Palette is { Count: > 0 } ? e.Palette.Select(Color.FromHex).ToList() : null,
+            InnerRadius = e.InnerRadius ?? 0.55,
+            LineWidth = e.LineWidth ?? 2,
+            Background = e.Fill is not null ? Color.FromHex(e.Fill) : null,
+            Border = e.BorderLine is not null ? ResolveBorderLine(e.BorderLine) : null
+        };
+    }
+
+    private static double? ToChartNumber(object? value) =>
+        Expressions.DslValues.ToNumber(Expressions.DslValues.Normalize(value)) is { } n ? (double)n : null;
 
     /// <summary>
     /// Builds an image element. The <c>source</c> may be a literal data URI / file path, or a

@@ -71,6 +71,14 @@ public sealed class BandYaml
     public double Height { get; set; }
     public bool? AutoHeight { get; set; }
     public bool? KeepTogether { get; set; }
+
+    /// <summary>Condición DSL; si es falsa la banda no se emite (p. ej. <c>"count($.notas[*]) > 0"</c>).</summary>
+    public string? Visible { get; set; }
+
+    /// <summary>PageHeader/PageFooter: imprimir en la primera / última página (default true).</summary>
+    public bool? PrintOnFirstPage { get; set; }
+    public bool? PrintOnLastPage { get; set; }
+
     public List<ElementYaml>? Elements { get; set; }
 }
 
@@ -78,10 +86,17 @@ public sealed class ElementYaml
 {
     public string? Type { get; set; }
     public BoundsYaml? Bounds { get; set; }
+
+    /// <summary>Nombre de estilo, o template dinámico: <c>"{{ $.saldo &lt; 0 ? 'Negativo' : 'Normal' }}"</c>.</summary>
     public string? Style { get; set; }
+
+    /// <summary>Condición DSL; si es falsa el elemento no se emite (p. ej. <c>"$.descuento > 0"</c>).</summary>
+    public string? Visible { get; set; }
 
     // text
     public string? Content { get; set; }
+    public bool? WordWrap { get; set; }
+    public bool? AutoHeight { get; set; }
 
     // table
     public string? Rows { get; set; }
@@ -130,6 +145,12 @@ public sealed class ElementYaml
     public GroupHeaderYaml? GroupHeader { get; set; }
     public GroupFooterYaml? GroupFooter { get; set; }
 
+    /// <summary>Agrupación multinivel (índice 0 = nivel externo). Tiene prioridad sobre groupBy.</summary>
+    public List<GroupLevelYaml>? Groups { get; set; }
+
+    /// <summary>Fila de total general al final de la tabla (celdas como un groupFooter).</summary>
+    public GroupFooterYaml? Summary { get; set; }
+
     // line
     public string? Orientation { get; set; }
     public double? Thickness { get; set; }
@@ -148,6 +169,57 @@ public sealed class ElementYaml
     public string? Format { get; set; }
     public string? BarcodeForeground { get; set; }
     public string? BarcodeBackground { get; set; }
+
+    // chart: rows (JSON Path) + category + series; fill/borderLine = fondo/borde del chart
+    /// <summary>bar | horizontalBar | line | area | pie | donut.</summary>
+    public string? ChartType { get; set; }
+    public string? Category { get; set; }
+    public List<ChartSeriesYaml>? Series { get; set; }
+    public string? Title { get; set; }
+    /// <summary>none | top | bottom | right (ausente = automático).</summary>
+    public string? Legend { get; set; }
+    public bool? ShowValues { get; set; }
+    public bool? ShowPercent { get; set; }
+    public bool? ShowGrid { get; set; }
+    public bool? ShowMarkers { get; set; }
+    public bool? Stacked { get; set; }
+    public string? ValueFormat { get; set; }
+    public double? AxisMin { get; set; }
+    public double? AxisMax { get; set; }
+    public List<string>? Palette { get; set; }
+    public double? InnerRadius { get; set; }
+    public double? LineWidth { get; set; }
+}
+
+/// <summary>Formato del clipboard del Designer (copiar/pegar elementos entre bandas o templates).</summary>
+public sealed class ClipboardYaml
+{
+    /// <summary>Marca de formato/versión: siempre 1.</summary>
+    public int NetReporterClipboard { get; set; }
+    public List<ClipboardItemYaml>? Items { get; set; }
+}
+
+public sealed class ClipboardItemYaml
+{
+    /// <summary>Banda de origen (se usa al pegar sin banda destino).</summary>
+    public int Band { get; set; }
+    public ElementYaml? Element { get; set; }
+}
+
+public sealed class ChartSeriesYaml
+{
+    public string? Name { get; set; }
+    /// <summary>Binding por fila: JSON Path (<c>$.total</c>) o expresión (<c>= $.total * 1.15</c>).</summary>
+    public string? Value { get; set; }
+    public string? Color { get; set; }
+}
+
+public sealed class GroupLevelYaml
+{
+    /// <summary>Clave del nivel: JSON Path o expresión <c>= …</c> evaluada por fila.</summary>
+    public string? By { get; set; }
+    public GroupHeaderYaml? Header { get; set; }
+    public GroupFooterYaml? Footer { get; set; }
 }
 
 public sealed class GroupHeaderYaml
@@ -167,7 +239,7 @@ public sealed class GroupFooterYaml
 public sealed class GroupFooterCellYaml
 {
     public string? Content { get; set; }
-    public string? Aggregate { get; set; }   // "sum" | "count" | "avg"
+    public string? Aggregate { get; set; }   // "sum" | "count" | "avg" | "min" | "max"
     public string? Format { get; set; }
     public string? Align { get; set; }
 }

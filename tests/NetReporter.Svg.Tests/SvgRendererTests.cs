@@ -39,4 +39,38 @@ public sealed class SvgRendererTests
         Assert.Single(svg);
         Assert.False(string.IsNullOrWhiteSpace(svg[0]));
     }
+
+    [Fact]
+    public void Render_ClosedPath_EmitsFilledPath()
+    {
+        var points = new[] { new Point(10, 10), new Point(60, 10), new Point(35, 50) };
+        var list = BuildList(DrawPathCommand.Create(points, closed: true, Color.FromHex("#2563EB"), null));
+
+        var svg = new SvgRenderer().Render(list)[0];
+
+        Assert.Contains("<path", svg);
+        Assert.Contains("2563EB", svg, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Render_OpenPath_IsStrokedNotFilled()
+    {
+        var points = new[] { new Point(10, 10), new Point(60, 40), new Point(110, 20) };
+        var list = BuildList(DrawPathCommand.Create(points, closed: false, null,
+            new NetReporter.Core.Styles.BorderLine(2, Color.FromHex("#F59E0B"))));
+
+        var svg = new SvgRenderer().Render(list)[0];
+
+        Assert.Contains("<path", svg);
+        Assert.Contains("stroke", svg);
+        Assert.Contains("F59E0B", svg, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Render_DegeneratePath_IsSkipped()
+    {
+        var list = BuildList(DrawPathCommand.Create(new[] { new Point(1, 1) }, closed: true, Color.Black, null));
+        var svg = new SvgRenderer().Render(list)[0];
+        Assert.DoesNotContain("<path", svg);
+    }
 }

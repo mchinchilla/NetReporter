@@ -1,0 +1,286 @@
+{
+  "empresa": "Distribuidora Ejemplo S. de R.L.",
+  "periodo": "2025-Q4",
+  "ventas": [
+    {
+      "region": "Centro",
+      "categoria": "Computadoras",
+      "producto": "Laptop Air 13",
+      "unidades": 21,
+      "precio": 22603.59,
+      "margen": 10.4
+    },
+    {
+      "region": "Centro",
+      "categoria": "Computadoras",
+      "producto": "Mini PC",
+      "unidades": 17,
+      "precio": 12908.03,
+      "margen": 13.6
+    },
+    {
+      "region": "Centro",
+      "categoria": "Computadoras",
+      "producto": "Desktop Torre i7",
+      "unidades": 25,
+      "precio": 24635.44,
+      "margen": 9.8
+    },
+    {
+      "region": "Centro",
+      "categoria": "Computadoras",
+      "producto": "Laptop Pro 14",
+      "unidades": 26,
+      "precio": 28645.48,
+      "margen": 9.5
+    },
+    {
+      "region": "Centro",
+      "categoria": "Periféricos",
+      "producto": "Teclado mecánico",
+      "unidades": 104,
+      "precio": 1766.67,
+      "margen": 13.7
+    },
+    {
+      "region": "Centro",
+      "categoria": "Periféricos",
+      "producto": "Monitor 27\" 4K",
+      "unidades": 37,
+      "precio": 9593.82,
+      "margen": 11.8
+    },
+    {
+      "region": "Centro",
+      "categoria": "Redes",
+      "producto": "Access Point",
+      "unidades": 49,
+      "precio": 2832.9,
+      "margen": 22.9
+    },
+    {
+      "region": "Centro",
+      "categoria": "Redes",
+      "producto": "Cable UTP (caja)",
+      "unidades": 51,
+      "precio": 2171.93,
+      "margen": 22.2
+    },
+    {
+      "region": "Litoral",
+      "categoria": "Computadoras",
+      "producto": "All-in-One 24",
+      "unidades": 55,
+      "precio": 26690.43,
+      "margen": 21.8
+    },
+    {
+      "region": "Litoral",
+      "categoria": "Computadoras",
+      "producto": "Laptop Pro 14",
+      "unidades": 83,
+      "precio": 28401.97,
+      "margen": 32.0
+    },
+    {
+      "region": "Litoral",
+      "categoria": "Periféricos",
+      "producto": "Mouse inalámbrico",
+      "unidades": 23,
+      "precio": 695.14,
+      "margen": 21.7
+    },
+    {
+      "region": "Litoral",
+      "categoria": "Periféricos",
+      "producto": "Teclado mecánico",
+      "unidades": 90,
+      "precio": 1892.45,
+      "margen": 15.5
+    },
+    {
+      "region": "Litoral",
+      "categoria": "Periféricos",
+      "producto": "Monitor 27\" 4K",
+      "unidades": 21,
+      "precio": 9425.7,
+      "margen": 18.9
+    },
+    {
+      "region": "Litoral",
+      "categoria": "Periféricos",
+      "producto": "Audífonos BT",
+      "unidades": 90,
+      "precio": 2026.92,
+      "margen": 20.7
+    },
+    {
+      "region": "Litoral",
+      "categoria": "Redes",
+      "producto": "Router Wi-Fi 6",
+      "unidades": 83,
+      "precio": 3345.64,
+      "margen": 17.1
+    },
+    {
+      "region": "Litoral",
+      "categoria": "Redes",
+      "producto": "Access Point",
+      "unidades": 130,
+      "precio": 2973.57,
+      "margen": 19.9
+    },
+    {
+      "region": "Norte",
+      "categoria": "Computadoras",
+      "producto": "Desktop Torre i7",
+      "unidades": 19,
+      "precio": 23710.46,
+      "margen": 26.2
+    },
+    {
+      "region": "Norte",
+      "categoria": "Computadoras",
+      "producto": "Mini PC",
+      "unidades": 117,
+      "precio": 12132.9,
+      "margen": 18.0
+    },
+    {
+      "region": "Norte",
+      "categoria": "Periféricos",
+      "producto": "Monitor 27\" 4K",
+      "unidades": 32,
+      "precio": 9793.82,
+      "margen": 13.7
+    },
+    {
+      "region": "Norte",
+      "categoria": "Periféricos",
+      "producto": "Webcam HD",
+      "unidades": 76,
+      "precio": 1396.25,
+      "margen": 14.4
+    },
+    {
+      "region": "Norte",
+      "categoria": "Periféricos",
+      "producto": "Teclado mecánico",
+      "unidades": 103,
+      "precio": 1927.11,
+      "margen": 20.9
+    },
+    {
+      "region": "Norte",
+      "categoria": "Periféricos",
+      "producto": "Audífonos BT",
+      "unidades": 45,
+      "precio": 2089.33,
+      "margen": 22.3
+    },
+    {
+      "region": "Norte",
+      "categoria": "Redes",
+      "producto": "Cable UTP (caja)",
+      "unidades": 74,
+      "precio": 2245.41,
+      "margen": 33.6
+    },
+    {
+      "region": "Norte",
+      "categoria": "Redes",
+      "producto": "Access Point",
+      "unidades": 100,
+      "precio": 3085.03,
+      "margen": 11.9
+    },
+    {
+      "region": "Occidente",
+      "categoria": "Computadoras",
+      "producto": "Laptop Air 13",
+      "unidades": 62,
+      "precio": 20831.42,
+      "margen": 29.6
+    },
+    {
+      "region": "Occidente",
+      "categoria": "Computadoras",
+      "producto": "All-in-One 24",
+      "unidades": 49,
+      "precio": 26066.53,
+      "margen": 8.1
+    },
+    {
+      "region": "Occidente",
+      "categoria": "Computadoras",
+      "producto": "Desktop Torre i7",
+      "unidades": 110,
+      "precio": 24885.79,
+      "margen": 23.9
+    },
+    {
+      "region": "Occidente",
+      "categoria": "Periféricos",
+      "producto": "Teclado mecánico",
+      "unidades": 104,
+      "precio": 1831.31,
+      "margen": 10.7
+    },
+    {
+      "region": "Occidente",
+      "categoria": "Periféricos",
+      "producto": "Monitor 27\" 4K",
+      "unidades": 105,
+      "precio": 9371.0,
+      "margen": 9.8
+    },
+    {
+      "region": "Occidente",
+      "categoria": "Periféricos",
+      "producto": "Audífonos BT",
+      "unidades": 56,
+      "precio": 2087.53,
+      "margen": 10.9
+    },
+    {
+      "region": "Occidente",
+      "categoria": "Periféricos",
+      "producto": "Mouse inalámbrico",
+      "unidades": 16,
+      "precio": 662.56,
+      "margen": 22.7
+    },
+    {
+      "region": "Occidente",
+      "categoria": "Redes",
+      "producto": "Router Wi-Fi 6",
+      "unidades": 56,
+      "precio": 3438.78,
+      "margen": 11.9
+    },
+    {
+      "region": "Occidente",
+      "categoria": "Redes",
+      "producto": "Switch 24 puertos",
+      "unidades": 67,
+      "precio": 8259.82,
+      "margen": 23.7
+    },
+    {
+      "region": "Occidente",
+      "categoria": "Redes",
+      "producto": "Cable UTP (caja)",
+      "unidades": 124,
+      "precio": 2117.03,
+      "margen": 30.1
+    },
+    {
+      "region": "Occidente",
+      "categoria": "Redes",
+      "producto": "Access Point",
+      "unidades": 122,
+      "precio": 2944.22,
+      "margen": 16.1
+    }
+  ]
+}

@@ -8,8 +8,13 @@
 
 ![NetReporter Designer: YAML editor with live SVG preview, drag/drop, zoom and PDF/HTML/XLSX export](https://raw.githubusercontent.com/mchinchilla/NetReporter/main/docs/images/designer.png)
 
-Full documentation (English and Spanish), the YAML schema reference, nine sample templates and the
+Full documentation (English and Spanish), the YAML schema reference, thirteen sample templates and the
 visual web designer live on GitHub: <https://github.com/mchinchilla/NetReporter>
+
+**New in 1.1:** expression DSL (`{{ $.qty * $.price : N2 }}`, `if()`, `sum($.lines[*].total)`), multi-level
+grouped tables with grand totals, KeepTogether on detail bands, charts (bar, line, area, pie, donut,
+horizontal bar), `visible:` conditions and dynamic styles. See the GitHub README for the list of
+behavior changes before upgrading production templates.
 
 ## Install
 
@@ -21,8 +26,8 @@ Or reference only the pieces you need. All packages share the same version numbe
 
 | Package | Contents |
 |---|---|
-| `NetReporter.Core` | Report IR (bands, elements, styles), typed data bindings, layout engine, `RenderList` |
-| `NetReporter.Templates` | YAML templates, JSON Path bindings (`$.client.name`), template strings (`{{ pageNumber }}`) |
+| `NetReporter.Core` | Report IR (bands, elements, styles, charts), typed data bindings, layout engine, `RenderList` |
+| `NetReporter.Templates` | YAML templates, JSON Path bindings (`$.client.name`), template strings (`{{ pageNumber }}`), expression DSL |
 | `NetReporter.Pdf` | PDF renderer (vector, selectable text; hosted by QuestPDF) |
 | `NetReporter.Svg` | SVG renderer via SkiaSharp, one document per page |
 | `NetReporter.Html` | Paginated, self-contained HTML/CSS `@page` renderer |
@@ -138,8 +143,12 @@ byte[]                xlsx = new XlsxRenderer().Render(report);         // seman
 ## Features
 
 - Layout engine with pagination, repeated table headers and Report/Page Header/Footer + Detail bands.
-- Real word wrap, auto-height bands and `keepTogether` blocks that never split across pages.
-- Typed tables (`TableElement<TRow>`), grouped tables with `sum` / `count` / `avg` subtotals.
+- Real word wrap, auto-height bands and `keepTogether` blocks (report and detail bands) that never split across pages.
+- Typed tables (`TableElement<TRow>`), multi-level grouped tables with `sum` / `count` / `avg` / `min` / `max`
+  subtotals and a grand-total row, computed columns (`binding: "= $.qty * $.price"`).
+- Expression DSL compiled once to delegates: arithmetic, comparisons, ternaries, 40+ text/number/date/aggregate
+  functions, `visible:` conditions and dynamic styles.
+- Charts: bar, horizontal bar, line, area, pie and donut, drawn as vector primitives (XLSX gets the data table).
 - Embedded images (PNG/JPEG/GIF/WebP), vector barcodes and QR codes.
 - Inheritable style sheet (`basedOn`) with cycle detection, per-report culture for number and date formats.
 - Page sizes: Letter, Legal, A3-A6, B4-B5, Tabloid and custom sizes such as 80 mm / 58 mm receipts.

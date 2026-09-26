@@ -32,6 +32,14 @@
     <EmbeddedResource Include="..\..\samples\TemplateSample\invoice-complete.yaml" LogicalName="Samples.invoice-complete.yaml" />
     <EmbeddedResource Include="..\..\samples\TemplateSample\invoice-complete-data.json" LogicalName="Samples.invoice-complete.json" />
     <EmbeddedResource Include="..\..\samples\TemplateSample\invoice-complete-pastel.yaml" LogicalName="Samples.invoice-complete-pastel.yaml" />
+    <EmbeddedResource Include="..\..\samples\TemplateSample\sales-dashboard.yaml" LogicalName="Samples.sales-dashboard.yaml" />
+    <EmbeddedResource Include="..\..\samples\TemplateSample\sales-dashboard-data.json" LogicalName="Samples.sales-dashboard.json" />
+    <EmbeddedResource Include="..\..\samples\TemplateSample\nested-groups.yaml" LogicalName="Samples.nested-groups.yaml" />
+    <EmbeddedResource Include="..\..\samples\TemplateSample\nested-groups-data.json" LogicalName="Samples.nested-groups.json" />
+    <EmbeddedResource Include="..\..\samples\TemplateSample\account-statement.yaml" LogicalName="Samples.account-statement.yaml" />
+    <EmbeddedResource Include="..\..\samples\TemplateSample\account-statement-data.json" LogicalName="Samples.account-statement.json" />
+    <EmbeddedResource Include="..\..\samples\TemplateSample\contracts-keep-together.yaml" LogicalName="Samples.contracts-keep-together.yaml" />
+    <EmbeddedResource Include="..\..\samples\TemplateSample\contracts-data.json" LogicalName="Samples.contracts-keep-together.json" />
   </ItemGroup>
 
   <PropertyGroup>

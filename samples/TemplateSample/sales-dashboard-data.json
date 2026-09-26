@@ -1,0 +1,38 @@
+{
+  "empresa": "Distribuidora Ejemplo S. de R.L.",
+  "anio": 2025,
+  "corte": "2025-12-31",
+  "meses": [
+    { "mes": "Ene", "ventas": 182400, "anterior": 165200, "meta": 175000 },
+    { "mes": "Feb", "ventas": 171300, "anterior": 158900, "meta": 175000 },
+    { "mes": "Mar", "ventas": 205800, "anterior": 181000, "meta": 190000 },
+    { "mes": "Abr", "ventas": 198200, "anterior": 187500, "meta": 190000 },
+    { "mes": "May", "ventas": 214900, "anterior": 196300, "meta": 205000 },
+    { "mes": "Jun", "ventas": 187600, "anterior": 201800, "meta": 205000 },
+    { "mes": "Jul", "ventas": 223400, "anterior": 205100, "meta": 215000 },
+    { "mes": "Ago", "ventas": 231700, "anterior": 212400, "meta": 215000 },
+    { "mes": "Sep", "ventas": 209500, "anterior": 199800, "meta": 215000 },
+    { "mes": "Oct", "ventas": 244100, "anterior": 221600, "meta": 230000 },
+    { "mes": "Nov", "ventas": 262800, "anterior": 240300, "meta": 245000 },
+    { "mes": "Dic", "ventas": 298500, "anterior": 271900, "meta": 280000 }
+  ],
+  "canales": [
+    { "canal": "Tiendas", "monto": 1245000 },
+    { "canal": "Mayoreo", "monto": 812000 },
+    { "canal": "En línea", "monto": 431200 }
+  ],
+  "categorias": [
+    { "nombre": "Computadoras", "ventas": 1120000 },
+    { "nombre": "Periféricos", "ventas": 540000 },
+    { "nombre": "Redes", "ventas": 368000 },
+    { "nombre": "Software", "ventas": 296000 },
+    { "nombre": "Servicios", "ventas": 164200 }
+  ],
+  "regiones": [
+    { "region": "Centro", "ventas": 965000 },
+    { "region": "Norte", "ventas": 742000 },
+    { "region": "Litoral", "ventas": 418500 },
+    { "region": "Occidente", "ventas": 236700 },
+    { "region": "Sur", "ventas": 126000 }
+  ]
+}

@@ -68,7 +68,23 @@ public sealed class HomeController : Controller
             RowHeight = request.RowHeight,
             HeaderStyle = request.HeaderStyle,
             RowStyle = request.RowStyle,
-            AlternateRowStyle = request.AlternateRowStyle
+            AlternateRowStyle = request.AlternateRowStyle,
+            Visible = request.Visible,
+            CornerRadius = request.CornerRadius,
+            Source = request.Source,
+            Fit = request.Fit,
+            Value = request.Value,
+            BarcodeFormat = request.BarcodeFormat,
+            BarcodeForeground = request.BarcodeForeground,
+            BarcodeBackground = request.BarcodeBackground,
+            ChartType = request.ChartType,
+            Category = request.Category,
+            Title = request.Title,
+            Legend = request.Legend,
+            ShowValues = request.ShowValues,
+            ShowPercent = request.ShowPercent,
+            Stacked = request.Stacked,
+            ValueFormat = request.ValueFormat
         };
         return await ApplyChange(
             request.Json,
@@ -122,6 +138,80 @@ public sealed class HomeController : Controller
                 request.Path ?? string.Empty,
                 cols));
     }
+
+    // === Multi-selección + clipboard ===
+
+    private static readonly System.Text.Json.JsonSerializerOptions s_jsonOptions =
+        new() { PropertyNameCaseInsensitive = true };
+
+    [HttpPost]
+    public async Task<IActionResult> MoveMany([FromForm] MoveManyRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        return await ApplyChange(request.Json, () =>
+        {
+            var moves = System.Text.Json.JsonSerializer.Deserialize<List<MovePayload>>(request.MovesJson ?? "[]", s_jsonOptions)
+                        ?? new List<MovePayload>();
+            return YamlReportRewriter.MoveElements(
+                request.Yaml ?? string.Empty,
+                moves.Where(m => !string.IsNullOrWhiteSpace(m.Path)).Select(m => (m.Path!, m.Dx, m.Dy)));
+        });
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> DeleteMany([FromForm] MultiPathRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        return await ApplyChange(request.Json, () =>
+            YamlReportRewriter.DeleteElements(request.Yaml ?? string.Empty, ParsePaths(request.PathsJson)));
+    }
+
+    [HttpPost]
+    public IActionResult Copy([FromForm] MultiPathRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        try
+        {
+            var clipboard = YamlReportRewriter.CopyElements(request.Yaml ?? string.Empty, ParsePaths(request.PathsJson));
+            return Json(new { clipboard });
+        }
+        catch (Exception ex) { return Json(new { error = $"{ex.GetType().Name}: {ex.Message}" }); }
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> Paste([FromForm] PasteRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        string newYaml;
+        IReadOnlyList<string> newPaths;
+        try
+        {
+            (newYaml, newPaths) = YamlReportRewriter.PasteElements(
+                request.Yaml ?? string.Empty, request.Clipboard ?? string.Empty,
+                request.BandIndex, request.OffsetX, request.OffsetY);
+        }
+        catch (Exception ex) { return Json(new { error = $"{ex.GetType().Name}: {ex.Message}" }); }
+
+        var preview = BuildPreview(newYaml, request.Json ?? "{}");
+        var previewHtml = await RenderPartialToString("_Preview", preview);
+        return Json(new { yaml = newYaml, previewHtml, newPaths });
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> UpdateSeries([FromForm] UpdateSeriesRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        return await ApplyChange(request.Json, () =>
+        {
+            var parsed = System.Text.Json.JsonSerializer.Deserialize<List<ChartSeriesPayload>>(request.SeriesJson ?? "[]", s_jsonOptions)
+                         ?? new List<ChartSeriesPayload>();
+            return YamlReportRewriter.UpdateSeries(request.Yaml ?? string.Empty, request.Path ?? string.Empty,
+                parsed.Select(p => new ChartSeriesYaml { Name = p.Name, Value = p.Value, Color = p.Color }).ToList());
+        });
+    }
+
+    private static List<string> ParsePaths(string? json) =>
+        System.Text.Json.JsonSerializer.Deserialize<List<string>>(json ?? "[]", s_jsonOptions) ?? new List<string>();
 
     [HttpPost]
     public async Task<IActionResult> Duplicate([FromForm] DuplicateRequest request)
@@ -516,6 +606,9 @@ public sealed class HomeController : Controller
                 "text"      => "text",
                 "line"      => "line",
                 "rectangle" => "rectangle",
+                "image"     => "image",
+                "barcode"   => "barcode",
+                "chart"     => "chart",
                 _ => agg.First switch
                 {
                     DrawTextCommand      => "text",
@@ -549,7 +642,30 @@ public sealed class HomeController : Controller
                 RowStyle: source?.RowStyle,
                 AlternateRowStyle: source?.AlternateRowStyle,
                 ColumnCount: source?.Columns?.Count,
-                Columns: columns));
+                Columns: columns,
+                Visible: source?.Visible,
+                CornerRadius: source?.CornerRadius,
+                // Los data URI pueden pesar cientos de KB: el overlay solo necesita saber si es uno.
+                Source: source?.Source is { } src && src.StartsWith("data:", StringComparison.OrdinalIgnoreCase)
+                    ? "data:" : source?.Source,
+                Fit: source?.Fit,
+                Value: source?.Value,
+                BarcodeFormat: kind == "barcode" ? source?.Format : null,
+                BarcodeForeground: source?.BarcodeForeground,
+                BarcodeBackground: source?.BarcodeBackground,
+                ChartType: source?.ChartType,
+                Category: source?.Category,
+                Title: source?.Title,
+                Legend: source?.Legend,
+                ShowValues: source?.ShowValues,
+                ShowPercent: source?.ShowPercent,
+                Stacked: source?.Stacked,
+                ValueFormat: source?.ValueFormat,
+                Series: source?.Series?.Select(se => new ChartSeriesView(se.Name ?? "", se.Value ?? "", se.Color ?? "")).ToArray(),
+                BoundsX: source?.Bounds?.X,
+                BoundsY: source?.Bounds?.Y,
+                BoundsWidth: source?.Bounds?.Width,
+                BoundsHeight: source?.Bounds?.Height));
         }
 
         return result;

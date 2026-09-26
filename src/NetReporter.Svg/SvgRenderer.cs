@@ -67,6 +67,9 @@ public sealed class SvgRenderer
                 case DrawImageCommand img:
                     DrawImage(canvas, img);
                     break;
+                case DrawPathCommand path:
+                    DrawPath(canvas, path);
+                    break;
             }
         }
     }
@@ -150,11 +153,15 @@ public sealed class SvgRenderer
         };
         float y = (float)cmd.Bounds.Y + topOffset + (-metrics.Ascent);
 
+        // El recorte evita que el texto desborde a lo ancho. En vertical se deja un margen de ~0.35em:
+        // los acentos de las mayúsculas (Á, Í, Ó, Ñ…) sobresalen del ascent de la fuente y, con un
+        // recorte exacto a la caja, se perdían ("MARÍA" se veía como "MARIA").
+        var verticalSlack = (float)(cmd.Style.FontSize * 0.35);
         var clipRect = new SKRect(
             (float)cmd.Bounds.X,
-            (float)cmd.Bounds.Y,
+            (float)cmd.Bounds.Y - verticalSlack,
             (float)cmd.Bounds.Right,
-            (float)cmd.Bounds.Bottom);
+            (float)cmd.Bounds.Bottom + verticalSlack);
 
         canvas.Save();
         canvas.ClipRect(clipRect);
@@ -215,6 +222,38 @@ public sealed class SvgRenderer
             };
             if (rounded is not null) canvas.DrawRoundRect(rounded, borderPaint);
             else canvas.DrawRect(rect, borderPaint);
+        }
+    }
+
+    private static void DrawPath(SKCanvas canvas, DrawPathCommand cmd)
+    {
+        if (cmd.Points.Count < 2) return;
+
+        using var builder = new SKPathBuilder();
+        builder.MoveTo((float)cmd.Points[0].X, (float)cmd.Points[0].Y);
+        for (var i = 1; i < cmd.Points.Count; i++)
+            builder.LineTo((float)cmd.Points[i].X, (float)cmd.Points[i].Y);
+        if (cmd.Closed) builder.Close();
+        using var path = builder.Detach();
+
+        if (cmd.Closed && cmd.Fill is { } fill && fill.A > 0)
+        {
+            using var fillPaint = new SKPaint { Color = ToSk(fill), Style = SKPaintStyle.Fill, IsAntialias = true };
+            canvas.DrawPath(path, fillPaint);
+        }
+
+        if (cmd.Stroke is { } stroke && stroke.Thickness > 0)
+        {
+            using var strokePaint = new SKPaint
+            {
+                Color = ToSk(stroke.Color),
+                StrokeWidth = (float)stroke.Thickness,
+                Style = SKPaintStyle.Stroke,
+                StrokeJoin = SKStrokeJoin.Round,
+                StrokeCap = SKStrokeCap.Round,
+                IsAntialias = true
+            };
+            canvas.DrawPath(path, strokePaint);
         }
     }
 

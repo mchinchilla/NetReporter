@@ -8,7 +8,16 @@ public abstract record ReportElement
 {
     public required Rect Bounds { get; init; }
     public StyleRef Style { get; init; } = StyleRef.Default;
+
+    /// <summary>Si evalúa a <c>false</c>, el elemento no se emite. Null = siempre visible.</summary>
     public IExpression<bool>? Visible { get; init; }
+
+    /// <summary>
+    /// Estilo dinámico: la expresión devuelve el NOMBRE de un estilo. Si ese estilo existe en el
+    /// <see cref="StyleSheet"/> se usa en lugar de <see cref="Style"/>; si no (o devuelve vacío), se
+    /// usa <see cref="Style"/>. Null = estilo estático.
+    /// </summary>
+    public IExpression<string>? StyleSelector { get; init; }
 
     /// <summary>
     /// Ruta de origen del elemento en el template fuente (ej: "bands.1.elements.2").

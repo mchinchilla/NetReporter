@@ -29,4 +29,30 @@ public sealed class ElementPatch
     public string? HeaderStyle { get; init; }
     public string? RowStyle { get; init; }
     public string? AlternateRowStyle { get; init; }
+
+    // común: condición de visibilidad ("" la quita)
+    public string? Visible { get; init; }
+
+    // rectangle
+    public double? CornerRadius { get; init; }
+
+    // image
+    public string? Source { get; init; }    // path, data URI o template
+    public string? Fit { get; init; }       // contain | fill
+
+    // barcode
+    public string? Value { get; init; }
+    public string? BarcodeFormat { get; init; }     // qr | code128 | code39 | ean13
+    public string? BarcodeForeground { get; init; }
+    public string? BarcodeBackground { get; init; }
+
+    // chart (Rows también aplica)
+    public string? ChartType { get; init; }
+    public string? Category { get; init; }
+    public string? Title { get; init; }
+    public string? Legend { get; init; }
+    public bool? ShowValues { get; init; }
+    public bool? ShowPercent { get; init; }
+    public bool? Stacked { get; init; }
+    public string? ValueFormat { get; init; }
 }

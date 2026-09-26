@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using NetReporter.Core.Expressions;
+using NetReporter.Templates.Expressions;
 
 namespace NetReporter.Templates.Binding;
 
@@ -11,6 +12,9 @@ namespace NetReporter.Templates.Binding;
 ///   {{ totalPages }}   — total de páginas
 ///   {{ rowIndex }}     — índice de fila (en contexto de tabla)
 ///   {{ $.path }}       — JSON Path sobre el data root capturado
+///   {{ $.path:N2 }}    — con format string .NET (cultura del reporte)
+///   {{ expr }}         — cualquier expresión DSL (ver <see cref="DslExpression"/>), p. ej.
+///                        {{ $.cantidad * $.precio : N2 }} o {{ $.saldo == 0 ? 'PAGADO' : 'PENDIENTE' }}
 /// Texto fuera de {{...}} se mantiene literal.
 /// </summary>
 public static class TemplateString
@@ -108,6 +112,8 @@ public static class TemplateString
         if (expr.Length == 0)
             return new LiteralPart(string.Empty);
 
+        // Los placeholders clásicos mantienen su ruta rápida y su salida exacta (p. ej. un número JSON
+        // se imprime tal cual viene en el JSON). Todo lo demás se compila como expresión DSL.
         return expr switch
         {
             "pageNumber" => PageNumberPart.Instance,
@@ -115,11 +121,21 @@ public static class TemplateString
             "rowIndex"   => RowIndexPart.Instance,
             "#group"     => GroupKeyPart.Instance,
             "#count"     => GroupCountPart.Instance,
-            _ when expr.StartsWith('$') => JsonPathPart.Create(expr),
-            _ => throw new FormatException(
-                $"Expresión de template no reconocida: '{{{{ {expr} }}}}'. " +
-                "Soportado: pageNumber, totalPages, rowIndex, #group, #count, $.path, $.path:format")
+            _ when IsSimplePath(expr) => JsonPathPart.Create(expr),
+            _ => DslPart.Create(expr)
         };
+    }
+
+    /// <summary><c>$.a.b[0]</c> con sufijo <c>:formato</c> opcional — sin operadores, <c>$$</c> ni <c>[*]</c>.</summary>
+    private static bool IsSimplePath(string expr)
+    {
+        var (path, _) = DslExpression.SplitFormat(expr);
+        if (path.Length == 0 || path[0] != '$' || path.StartsWith("$$", StringComparison.Ordinal)) return false;
+        if (path.Contains("[*]", StringComparison.Ordinal)) return false;
+        foreach (var c in path)
+            if (!(char.IsLetterOrDigit(c) || c is '$' or '.' or '_' or '-' or '[' or ']'))
+                return false;
+        return true;
     }
 
     // === Parts ===
@@ -189,18 +205,35 @@ public static class TemplateString
         /// </summary>
         public static JsonPathPart Create(string expr)
         {
-            var colon = expr.IndexOf(':');
-            if (colon < 0) return new JsonPathPart(expr.Trim(), null);
-            var fmt = expr[(colon + 1)..].Trim();
-            return new JsonPathPart(expr[..colon].Trim(), fmt.Length == 0 ? null : fmt);
+            var (path, format) = DslExpression.SplitFormat(expr);
+            return new JsonPathPart(path, format);
         }
 
         public override string Evaluate(IEvaluationContext ctx, JsonElement contextRoot)
         {
+            if (contextRoot.ValueKind == JsonValueKind.Undefined) return string.Empty;
             var el = JsonPath.Select(contextRoot, _path);
-            if (_format is not null && JsonPath.ToBoxedValue(el) is IFormattable f)
-                return f.ToString(_format, System.Globalization.CultureInfo.CurrentCulture);
+            if (_format is not null)
+                return el is { } value ? DslValues.ToText(DslValues.FromJson(value), ctx.Culture, _format) : string.Empty;
             return JsonPath.ToDisplayString(el);
         }
+    }
+
+    /// <summary>Placeholder con una expresión DSL arbitraria y formato opcional.</summary>
+    private sealed class DslPart : TemplatePart
+    {
+        private readonly DslExpression _expr;
+        private readonly string? _format;
+
+        private DslPart(DslExpression expr, string? format) { _expr = expr; _format = format; }
+
+        public static DslPart Create(string text)
+        {
+            var (expression, format) = DslExpression.SplitFormat(text);
+            return new DslPart(DslExpression.Parse(expression), format);
+        }
+
+        public override string Evaluate(IEvaluationContext ctx, JsonElement contextRoot) =>
+            _expr.EvaluateText(new DslScope(ctx, contextRoot, contextRoot), _format);
     }
 }

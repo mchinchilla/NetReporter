@@ -395,4 +395,100 @@ public sealed class XlsxRendererTests
         // No deberían existir filas adicionales.
         Assert.True(ws.Cell(2, 1).IsEmpty());
     }
+
+    private sealed record Sale(string Region, string Category, double Amount);
+
+    [Fact]
+    public void Render_NestedGroups_EmitsHeadersFootersSummary_AndOutline()
+    {
+        var rows = new[]
+        {
+            new Sale("Norte", "HW", 100), new Sale("Norte", "HW", 50), new Sale("Norte", "SW", 30),
+            new Sale("Sur", "HW", 20)
+        };
+        GroupFooter Sum(string label) => new()
+        {
+            Height = 16,
+            Cells = new GroupFooterCell?[]
+            {
+                new() { Content = Expr.Of(ctx => $"{label} {ctx.GroupKey}") },
+                new() { Aggregate = AggregateKind.Sum }
+            }
+        };
+        var table = new TableElement<Sale>
+        {
+            Bounds = new Rect(0, 0, 200, 0),
+            Rows = rows,
+            Columns = new[]
+            {
+                new TableColumn<Sale>("Cat", Bind.From<Sale, object?>(s => s.Category), 100),
+                new TableColumn<Sale>("Monto", Bind.From<Sale, object?>(s => s.Amount), 100)
+            },
+            Groups = new[]
+            {
+                new TableGroupLevel<Sale>
+                {
+                    By = Bind.From<Sale, object?>(s => s.Region),
+                    Header = new GroupHeader { Height = 16, Content = Expr.Of(ctx => $"Región {ctx.GroupKey}") },
+                    Footer = Sum("Total")
+                },
+                new TableGroupLevel<Sale> { By = Bind.From<Sale, object?>(s => s.Category), Footer = Sum("Sub") }
+            },
+            Summary = new GroupFooter
+            {
+                Height = 16,
+                Cells = new GroupFooterCell?[] { new() { Content = Expr.Str("General") }, new() { Aggregate = AggregateKind.Max } }
+            }
+        };
+        var ws = OpenFirstSheet(new XlsxRenderer().Render(MakeReport(new DetailBand { Height = 0, Elements = new ReportElement[] { table } })));
+
+        var values = ws.RowsUsed().Select(r => r.Cell(1).GetString() + "|" + r.Cell(2).GetString()).ToList();
+        Assert.Equal(new[]
+        {
+            "Cat|Monto", "Región Norte|", "HW|100", "HW|50", "Sub HW|150", "SW|30", "Sub SW|30", "Total Norte|180",
+            "Región Sur|", "HW|20", "Sub HW|20", "Total Sur|20", "General|100"
+        }, values);
+
+        // Las filas de detalle quedan agrupadas en el outline de Excel.
+        Assert.True(ws.Row(3).OutlineLevel >= 1);
+        Assert.Empty(ws.Tables); // tablas agrupadas no se envuelven en Excel Table
+    }
+
+    [Fact]
+    public void Render_Chart_EmitsDataTable()
+    {
+        var chart = new ChartElement
+        {
+            Bounds = new Rect(0, 0, 300, 200),
+            Kind = ChartKind.Bar,
+            Title = "Ventas",
+            Categories = new[] { "Ene", "Feb" },
+            Series = new[] { new ChartSeries("2025", new double?[] { 10, 20 }), new ChartSeries("2026", new double?[] { 15, null }) }
+        };
+        var ws = OpenFirstSheet(new XlsxRenderer().Render(MakeReport(new ReportHeaderBand { Height = 200, Elements = new ReportElement[] { chart } })));
+
+        Assert.Equal("Ventas", ws.Cell(1, 1).GetString());
+        Assert.Equal("Category", ws.Cell(2, 1).GetString());
+        Assert.Equal("2026", ws.Cell(2, 3).GetString());
+        Assert.Equal("Feb", ws.Cell(4, 1).GetString());
+        Assert.Equal(20, ws.Cell(4, 2).GetDouble());
+        Assert.True(ws.Cell(4, 3).IsEmpty());
+        Assert.Single(ws.Tables);
+    }
+
+    [Fact]
+    public void Render_StyleSelector_AppliesDynamicStyle()
+    {
+        var report = MakeReport(new ReportHeaderBand
+        {
+            Height = 20,
+            Elements = new ReportElement[]
+            {
+                new TextElement { Bounds = new Rect(0, 0, 100, 20), Content = Expr.Str("X"), StyleSelector = Expr.Of(_ => "Title") }
+            }
+        });
+        var ws = OpenFirstSheet(new XlsxRenderer().Render(report));
+        Assert.True(ws.Cell(1, 1).Style.Font.Bold);
+        Assert.Equal(18, ws.Cell(1, 1).Style.Font.FontSize);
+    }
 }

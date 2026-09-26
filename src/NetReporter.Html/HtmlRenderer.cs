@@ -133,6 +133,7 @@ public sealed class HtmlRenderer
                 case DrawLineCommand l:      WriteLine(sb, l); break;
                 case DrawRectangleCommand r: WriteRectangle(sb, r); break;
                 case DrawImageCommand i:     WriteImage(sb, i); break;
+                case DrawPathCommand p:      WritePath(sb, p); break;
             }
         }
         sb.AppendLine("</section>");
@@ -210,6 +211,39 @@ public sealed class HtmlRenderer
               .Append(Corner(RectCorners.BottomLeft)).Append(';');
         }
         sb.AppendLine("\"></div>");
+    }
+
+    /// <summary>
+    /// Paths (charts) como un &lt;svg&gt; inline posicionado absoluto sobre sus bounds. El viewBox usa
+    /// las mismas coordenadas de página, así los puntos se escriben tal cual.
+    /// </summary>
+    private static void WritePath(StringBuilder sb, DrawPathCommand cmd)
+    {
+        if (cmd.Points.Count < 2) return;
+        var pad = cmd.Stroke?.Thickness ?? 0;
+        var x = cmd.Bounds.X - pad;
+        var y = cmd.Bounds.Y - pad;
+        var w = Math.Max(cmd.Bounds.Width + pad * 2, 1);
+        var h = Math.Max(cmd.Bounds.Height + pad * 2, 1);
+
+        sb.Append("<svg class=\"nr-el\" style=\"overflow:visible;");
+        WriteRect(sb, new Rect(x, y, w, h));
+        sb.Append("\" viewBox=\"").Append(Px(x)).Append(' ').Append(Px(y)).Append(' ')
+          .Append(Px(w)).Append(' ').Append(Px(h)).Append("\"><path d=\"");
+        for (var i = 0; i < cmd.Points.Count; i++)
+        {
+            sb.Append(i == 0 ? 'M' : 'L').Append(Px(cmd.Points[i].X)).Append(' ').Append(Px(cmd.Points[i].Y));
+        }
+        if (cmd.Closed) sb.Append('Z');
+        sb.Append("\" fill=\"");
+        sb.Append(cmd.Closed && cmd.Fill is { A: > 0 } fill ? Rgba(fill) : "none");
+        sb.Append('"');
+        if (cmd.Stroke is { Thickness: > 0 } stroke)
+        {
+            sb.Append(" stroke=\"").Append(Rgba(stroke.Color)).Append("\" stroke-width=\"")
+              .Append(Px(stroke.Thickness)).Append("\" stroke-linejoin=\"round\" stroke-linecap=\"round\"");
+        }
+        sb.AppendLine("/></svg>");
     }
 
     private static void WriteImage(StringBuilder sb, DrawImageCommand cmd)

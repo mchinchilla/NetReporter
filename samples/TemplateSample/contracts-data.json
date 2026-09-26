@@ -1,0 +1,300 @@
+{
+  "fecha": "2025-12-01",
+  "clientes": [
+    {
+      "nombre": "Comercial Palmira S.A.",
+      "contrato": "CT-2025-014",
+      "vence": "2026-03-31",
+      "servicios": [
+        {
+          "servicio": "Monitoreo de red",
+          "cantidad": 33,
+          "mensual": 4898.39
+        },
+        {
+          "servicio": "Hosting de servidores",
+          "cantidad": 40,
+          "mensual": 7864.33
+        },
+        {
+          "servicio": "Licencias antivirus",
+          "cantidad": 7,
+          "mensual": 4625.65
+        },
+        {
+          "servicio": "Wi-Fi para visitantes",
+          "cantidad": 10,
+          "mensual": 1297.77
+        },
+        {
+          "servicio": "Mantenimiento preventivo",
+          "cantidad": 3,
+          "mensual": 6017.33
+        },
+        {
+          "servicio": "Soporte técnico 24/7",
+          "cantidad": 26,
+          "mensual": 9470.49
+        },
+        {
+          "servicio": "Telefonía IP (extensiones)",
+          "cantidad": 40,
+          "mensual": 6528.16
+        },
+        {
+          "servicio": "Firewall administrado",
+          "cantidad": 40,
+          "mensual": 590.26
+        }
+      ]
+    },
+    {
+      "nombre": "Ferretería Central",
+      "contrato": "CT-2024-221",
+      "vence": "2026-01-15",
+      "servicios": [
+        {
+          "servicio": "Hosting de servidores",
+          "cantidad": 19,
+          "mensual": 5122.88
+        },
+        {
+          "servicio": "Enlace MPLS sucursal",
+          "cantidad": 6,
+          "mensual": 4726.03
+        },
+        {
+          "servicio": "Internet dedicado 100 Mbps",
+          "cantidad": 18,
+          "mensual": 4253.38
+        },
+        {
+          "servicio": "Wi-Fi para visitantes",
+          "cantidad": 36,
+          "mensual": 9759.72
+        },
+        {
+          "servicio": "Soporte técnico 24/7",
+          "cantidad": 6,
+          "mensual": 7068.02
+        },
+        {
+          "servicio": "Cámaras de seguridad",
+          "cantidad": 21,
+          "mensual": 7537.21
+        },
+        {
+          "servicio": "Mesa de ayuda",
+          "cantidad": 33,
+          "mensual": 3152.52
+        },
+        {
+          "servicio": "Firewall administrado",
+          "cantidad": 5,
+          "mensual": 5715.38
+        },
+        {
+          "servicio": "Licencias antivirus",
+          "cantidad": 7,
+          "mensual": 4193.74
+        },
+        {
+          "servicio": "Telefonía IP (extensiones)",
+          "cantidad": 19,
+          "mensual": 4063.9
+        },
+        {
+          "servicio": "Licencias de correo",
+          "cantidad": 2,
+          "mensual": 8372.35
+        },
+        {
+          "servicio": "Respaldo en la nube 1 TB",
+          "cantidad": 1,
+          "mensual": 2446.24
+        },
+        {
+          "servicio": "Monitoreo de red",
+          "cantidad": 4,
+          "mensual": 4844.38
+        },
+        {
+          "servicio": "Mantenimiento preventivo",
+          "cantidad": 26,
+          "mensual": 4375.05
+        }
+      ]
+    },
+    {
+      "nombre": "Tecnología Moderna S.A.",
+      "contrato": "CT-2025-102",
+      "vence": "2027-06-30",
+      "servicios": [
+        {
+          "servicio": "Cámaras de seguridad",
+          "cantidad": 8,
+          "mensual": 1708.48
+        },
+        {
+          "servicio": "Mesa de ayuda",
+          "cantidad": 7,
+          "mensual": 552.43
+        },
+        {
+          "servicio": "Soporte técnico 24/7",
+          "cantidad": 30,
+          "mensual": 7902.15
+        },
+        {
+          "servicio": "Mantenimiento preventivo",
+          "cantidad": 12,
+          "mensual": 6827.42
+        },
+        {
+          "servicio": "Respaldo en la nube 1 TB",
+          "cantidad": 13,
+          "mensual": 4633.42
+        },
+        {
+          "servicio": "Licencias de correo",
+          "cantidad": 13,
+          "mensual": 9662.38
+        },
+        {
+          "servicio": "Enlace MPLS sucursal",
+          "cantidad": 9,
+          "mensual": 4369.81
+        },
+        {
+          "servicio": "Telefonía IP (extensiones)",
+          "cantidad": 25,
+          "mensual": 1539.35
+        },
+        {
+          "servicio": "Firewall administrado",
+          "cantidad": 27,
+          "mensual": 9706.99
+        },
+        {
+          "servicio": "Internet dedicado 100 Mbps",
+          "cantidad": 1,
+          "mensual": 2972.58
+        },
+        {
+          "servicio": "Wi-Fi para visitantes",
+          "cantidad": 38,
+          "mensual": 3293.76
+        }
+      ]
+    },
+    {
+      "nombre": "Hotel Plaza del Valle",
+      "contrato": "CT-2023-087",
+      "vence": "2026-08-01",
+      "servicios": [
+        {
+          "servicio": "Internet dedicado 100 Mbps",
+          "cantidad": 3,
+          "mensual": 9699.97
+        },
+        {
+          "servicio": "Soporte técnico 24/7",
+          "cantidad": 14,
+          "mensual": 4578.41
+        },
+        {
+          "servicio": "Telefonía IP (extensiones)",
+          "cantidad": 1,
+          "mensual": 7674.65
+        },
+        {
+          "servicio": "Firewall administrado",
+          "cantidad": 22,
+          "mensual": 8213.21
+        },
+        {
+          "servicio": "Cámaras de seguridad",
+          "cantidad": 25,
+          "mensual": 1136.28
+        },
+        {
+          "servicio": "Enlace MPLS sucursal",
+          "cantidad": 6,
+          "mensual": 2401.66
+        }
+      ]
+    },
+    {
+      "nombre": "Clínica San Rafael",
+      "contrato": "CT-2025-131",
+      "vence": "2026-11-30",
+      "servicios": [
+        {
+          "servicio": "Mesa de ayuda",
+          "cantidad": 10,
+          "mensual": 3356.09
+        },
+        {
+          "servicio": "Soporte técnico 24/7",
+          "cantidad": 15,
+          "mensual": 8096.45
+        },
+        {
+          "servicio": "Internet dedicado 100 Mbps",
+          "cantidad": 16,
+          "mensual": 7232.41
+        },
+        {
+          "servicio": "Cámaras de seguridad",
+          "cantidad": 11,
+          "mensual": 7363.62
+        },
+        {
+          "servicio": "Licencias de correo",
+          "cantidad": 36,
+          "mensual": 2288.11
+        },
+        {
+          "servicio": "Licencias antivirus",
+          "cantidad": 25,
+          "mensual": 8698.47
+        },
+        {
+          "servicio": "Monitoreo de red",
+          "cantidad": 39,
+          "mensual": 1183.95
+        },
+        {
+          "servicio": "Enlace MPLS sucursal",
+          "cantidad": 4,
+          "mensual": 1420.9
+        },
+        {
+          "servicio": "Respaldo en la nube 1 TB",
+          "cantidad": 3,
+          "mensual": 5240.53
+        },
+        {
+          "servicio": "Mantenimiento preventivo",
+          "cantidad": 17,
+          "mensual": 2679.11
+        },
+        {
+          "servicio": "Firewall administrado",
+          "cantidad": 26,
+          "mensual": 2852.78
+        },
+        {
+          "servicio": "Hosting de servidores",
+          "cantidad": 39,
+          "mensual": 5040.85
+        },
+        {
+          "servicio": "Wi-Fi para visitantes",
+          "cantidad": 34,
+          "mensual": 2090.3
+        }
+      ]
+    }
+  ]
+}

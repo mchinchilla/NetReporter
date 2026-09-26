@@ -40,6 +40,14 @@
     <None Update="keep-together-data.json" CopyToOutputDirectory="PreserveNewest" />
     <None Update="invoice-complete.yaml" CopyToOutputDirectory="PreserveNewest" />
     <None Update="invoice-complete-data.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="sales-dashboard.yaml" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="sales-dashboard-data.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="nested-groups.yaml" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="nested-groups-data.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="account-statement.yaml" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="account-statement-data.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="contracts-keep-together.yaml" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="contracts-data.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

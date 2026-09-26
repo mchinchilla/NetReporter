@@ -75,7 +75,28 @@ else
                              data-row-style="@(el.RowStyle ?? "")"
                              data-alternate-row-style="@(el.AlternateRowStyle ?? "")"
                              data-column-count="@(el.ColumnCount?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "")"
-                             data-columns="@(el.Columns is null ? "[]" : System.Text.Json.JsonSerializer.Serialize(el.Columns))">
+                             data-columns="@(el.Columns is null ? "[]" : System.Text.Json.JsonSerializer.Serialize(el.Columns))"
+                             data-visible="@(el.Visible ?? "")"
+                             data-corner-radius="@(el.CornerRadius?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "")"
+                             data-source="@(el.Source ?? "")"
+                             data-fit="@(el.Fit ?? "")"
+                             data-value="@(el.Value ?? "")"
+                             data-barcode-format="@(el.BarcodeFormat ?? "")"
+                             data-barcode-foreground="@(el.BarcodeForeground ?? "")"
+                             data-barcode-background="@(el.BarcodeBackground ?? "")"
+                             data-chart-type="@(el.ChartType ?? "")"
+                             data-category="@(el.Category ?? "")"
+                             data-title="@(el.Title ?? "")"
+                             data-legend="@(el.Legend ?? "")"
+                             data-show-values="@(el.ShowValues == true ? "true" : "")"
+                             data-show-percent="@(el.ShowPercent == true ? "true" : "")"
+                             data-stacked="@(el.Stacked == true ? "true" : "")"
+                             data-value-format="@(el.ValueFormat ?? "")"
+                             data-series="@(el.Series is null ? "[]" : System.Text.Json.JsonSerializer.Serialize(el.Series))"
+                             data-bx="@(el.BoundsX?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "")"
+                             data-by="@(el.BoundsY?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "")"
+                             data-bw="@(el.BoundsWidth?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "")"
+                             data-bh="@(el.BoundsHeight?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "")">
                             <div class="resize-handle handle-nw" data-dir="nw"></div>
                             <div class="resize-handle handle-n"  data-dir="n"></div>
                             <div class="resize-handle handle-ne" data-dir="ne"></div>
@@ -120,6 +141,14 @@ else
         border-color: rgb(245, 158, 11);
         background-color: rgba(245, 158, 11, 0.12);
     }
+    /* Multi-selección: los elementos secundarios se marcan igual, sin handles de resize. */
+    .element-overlay.multi-selected {
+        border-color: rgb(245, 158, 11);
+        border-style: solid;
+        background-color: rgba(245, 158, 11, 0.10);
+    }
+    .element-overlay.multi-selected > .resize-handle { display: none !important; }
+
     .element-overlay.dragging {
         border-style: solid;
         border-color: rgb(217, 119, 6);

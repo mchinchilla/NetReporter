@@ -101,13 +101,36 @@
                     <span class="text-[9px] text-slate-400" x-text="redoStack.length > 0 ? '(' + redoStack.length + ')' : ''"></span>
                 </button>
             </div>
-            <span x-show="selected" x-cloak class="inline-flex items-center gap-1 bg-amber-100 text-amber-800 px-2 py-0.5 rounded">
+            <span x-show="selected && !isMulti" x-cloak class="inline-flex items-center gap-1 bg-amber-100 text-amber-800 px-2 py-0.5 rounded">
                 <span x-text="selected?.kind"></span>
                 · <code x-text="selected?.path"></code>
             </span>
+            <span x-show="isMulti" x-cloak class="inline-flex items-center gap-1 bg-amber-100 text-amber-800 px-2 py-0.5 rounded"
+                  x-text="selection.length + ' elementos seleccionados'"></span>
+            <span x-show="clipboard" x-cloak class="text-slate-400" title="Hay elementos en el portapapeles (Ctrl/Cmd+V para pegar)">📋</span>
             <span x-show="!selected" class="text-slate-400">Ningún elemento seleccionado</span>
         </div>
     </header>
+
+    <!-- Rectángulo de selección por marco (rubber band) -->
+    <div x-show="marquee && marquee.active"
+         x-cloak
+         class="fixed pointer-events-none border border-sky-500 bg-sky-400/10 z-40"
+         :style="marquee ? `left:${Math.min(marquee.x0, marquee.x1)}px;top:${Math.min(marquee.y0, marquee.y1)}px;width:${Math.abs(marquee.x1 - marquee.x0)}px;height:${Math.abs(marquee.y1 - marquee.y0)}px` : ''"></div>
+
+    <!-- Sugerencias de bindings a partir de data.json -->
+    <datalist id="json-paths">
+        <template x-for="p in jsonPaths" :key="p"><option :value="p"></option></template>
+    </datalist>
+    <datalist id="json-template-paths">
+        <template x-for="p in jsonPaths" :key="p"><option :value="'{{ ' + p + ' }}'"></option></template>
+    </datalist>
+    <datalist id="json-array-paths">
+        <template x-for="p in arrayPaths" :key="p"><option :value="p"></option></template>
+    </datalist>
+    <datalist id="json-row-paths">
+        <template x-for="p in rowPaths" :key="p"><option :value="p"></option></template>
+    </datalist>
 
     <!-- Ghost que sigue el cursor durante la creación -->
     <div x-show="creating"
@@ -173,6 +196,8 @@
                 <div class="ml-auto flex items-center px-4 text-xs text-slate-400 gap-2 flex-wrap">
                     <span><kbd class="px-1 bg-slate-200 rounded text-slate-700">Shift</kbd> snap</span>
                     <span><kbd class="px-1 bg-slate-200 rounded text-slate-700">← ↑ → ↓</kbd> nudge</span>
+                    <span><kbd class="px-1 bg-slate-200 rounded text-slate-700">Shift+clic</kbd> multi</span>
+                    <span><kbd class="px-1 bg-slate-200 rounded text-slate-700">Ctrl+C/V</kbd> copiar</span>
                     <span><kbd class="px-1 bg-slate-200 rounded text-slate-700">Ctrl+D</kbd> dup</span>
                     <span><kbd class="px-1 bg-slate-200 rounded text-slate-700">Del</kbd> borrar</span>
                     <span><kbd class="px-1 bg-slate-200 rounded text-slate-700">Ctrl+Z</kbd> undo</span>
@@ -315,10 +340,10 @@
                    class="absolute top-12 right-4 w-72 bg-white rounded-lg shadow-lg border border-slate-200 text-sm flex flex-col"
                    style="max-height: calc(100vh - 6rem);">
                 <header class="flex items-center justify-between px-3 py-2 bg-slate-50 border-b border-slate-200 shrink-0 rounded-t-lg">
-                    <div class="font-semibold text-slate-800">Propiedades</div>
+                    <div class="font-semibold text-slate-800" x-text="isMulti ? 'Selección múltiple' : 'Propiedades'"></div>
                     <div class="flex items-center gap-1">
                         <button type="button"
-                                @@click="deleteSelected()"
+                                @@click="deleteSelection()"
                                 class="text-red-500 hover:text-red-700 text-base leading-none"
                                 title="Eliminar (Del)">🗑</button>
                         <button type="button"
@@ -328,7 +353,36 @@
                     </div>
                 </header>
 
-                <div class="p-3 space-y-3 overflow-y-auto flex-1" x-show="selected">
+                <!-- Panel de selección múltiple -->
+                <div class="p-3 space-y-3 overflow-y-auto flex-1" x-show="isMulti">
+                    <ul class="text-[11px] text-slate-600 space-y-0.5 max-h-32 overflow-y-auto">
+                        <template x-for="item in selection" :key="item.path">
+                            <li class="flex items-center gap-1">
+                                <span class="px-1 bg-amber-100 text-amber-800 rounded uppercase text-[9px]" x-text="item.kind"></span>
+                                <code class="text-slate-700" x-text="item.path"></code>
+                            </li>
+                        </template>
+                    </ul>
+                    <fieldset class="border border-slate-200 rounded p-2">
+                        <legend class="text-[10px] uppercase text-slate-500 px-1">Alinear</legend>
+                        <div class="grid grid-cols-3 gap-1 text-[11px]">
+                            <button type="button" @@click="alignSelection('left')"    class="border border-slate-300 rounded py-1 hover:bg-sky-50" title="Alinear a la izquierda">⇤ Izq.</button>
+                            <button type="button" @@click="alignSelection('hcenter')" class="border border-slate-300 rounded py-1 hover:bg-sky-50" title="Centrar horizontalmente">↔ Centro</button>
+                            <button type="button" @@click="alignSelection('right')"   class="border border-slate-300 rounded py-1 hover:bg-sky-50" title="Alinear a la derecha">⇥ Der.</button>
+                            <button type="button" @@click="alignSelection('top')"     class="border border-slate-300 rounded py-1 hover:bg-sky-50" title="Alinear arriba">⤒ Arriba</button>
+                            <button type="button" @@click="alignSelection('vmiddle')" class="border border-slate-300 rounded py-1 hover:bg-sky-50" title="Centrar verticalmente">↕ Medio</button>
+                            <button type="button" @@click="alignSelection('bottom')"  class="border border-slate-300 rounded py-1 hover:bg-sky-50" title="Alinear abajo">⤓ Abajo</button>
+                        </div>
+                    </fieldset>
+                    <div class="grid grid-cols-3 gap-1 text-[11px]">
+                        <button type="button" @@click="copySelection()"      class="border border-slate-300 rounded py-1 hover:bg-sky-50" title="Ctrl/Cmd+C">📋 Copiar</button>
+                        <button type="button" @@click="duplicateSelection()" class="border border-slate-300 rounded py-1 hover:bg-sky-50" title="Ctrl/Cmd+D">⧉ Duplicar</button>
+                        <button type="button" @@click="deleteSelection()"    class="border border-red-300 text-red-600 rounded py-1 hover:bg-red-50" title="Del">🗑 Borrar</button>
+                    </div>
+                    <p class="text-[10px] text-slate-400">Arrastra cualquiera para mover el grupo · flechas para nudge · Shift+clic para quitar/agregar.</p>
+                </div>
+
+                <div class="p-3 space-y-3 overflow-y-auto flex-1" x-show="selected && !isMulti">
                     <div class="text-xs text-slate-500">
                         <code x-text="selected?.path" class="block text-slate-700"></code>
                         <span class="inline-block mt-1 px-1.5 py-0.5 bg-amber-100 text-amber-800 rounded uppercase tracking-wide text-[10px]"
@@ -370,8 +424,17 @@
                         </div>
                     </fieldset>
 
-                    <!-- Estilo (text + rectangle) -->
-                    <label x-show="selected?.kind === 'text' || selected?.kind === 'rectangle'"
+                    <!-- Visibilidad condicional (todos los kinds) -->
+                    <label class="flex flex-col text-[11px] text-slate-600">
+                        Visible si… <span class="text-[10px] text-slate-400">(expresión; vacío = siempre)</span>
+                        <input type="text" x-model="form.visible"
+                               @@change="applyPatch({Visible: form.visible || ' '})"
+                               placeholder="$.descuento > 0"
+                               class="mt-0.5 border border-slate-300 rounded px-2 py-1 text-sm font-mono">
+                    </label>
+
+                    <!-- Estilo (text + rectangle + chart) -->
+                    <label x-show="['text', 'rectangle', 'chart'].includes(selected?.kind)"
                            class="flex flex-col text-[11px] text-slate-600">
                         Estilo
                         <input type="text" list="style-names"
@@ -390,7 +453,9 @@
                                   @@input.debounce.400ms="applyPatch({Content: form.content})"
                                   class="mt-0.5 border border-slate-300 rounded px-2 py-1 text-sm text-slate-900 font-mono"></textarea>
                         <span class="text-[10px] text-slate-400 mt-0.5">
-                            Soporta <code>{{'{{ '}}$.path{{' }}'}}</code>, <code>{{'{{ '}}pageNumber{{' }}'}}</code>, <code>{{'{{ '}}totalPages{{' }}'}}</code>.
+                            Soporta <code>{{ $.path }}</code>, <code>{{ pageNumber }}</code> y expresiones:
+                            <code>{{ $.total * 1.15 : N2 }}</code>, <code>{{ upper($.nombre) }}</code>,
+                            <code>{{ $.saldo == 0 ? 'PAGADO' : 'PENDIENTE' }}</code>.
                         </span>
                     </label>
 
@@ -414,24 +479,187 @@
                         </div>
                     </template>
 
-                    <!-- Rectángulo: fill -->
-                    <label x-show="selected?.kind === 'rectangle'"
-                           class="flex flex-col text-[11px] text-slate-600">
-                        Fill
-                        <input type="color"
-                               x-model="form.fill"
-                               @@input.debounce.400ms="applyPatch({Fill: form.fill})"
-                               class="mt-0.5 border border-slate-300 rounded h-8">
-                    </label>
+                    <!-- Rectángulo: fill + esquinas -->
+                    <div x-show="selected?.kind === 'rectangle'" class="grid grid-cols-2 gap-2">
+                        <label class="flex flex-col text-[11px] text-slate-600">
+                            Fill
+                            <input type="color"
+                                   x-model="form.fill"
+                                   @@input.debounce.400ms="applyPatch({Fill: form.fill})"
+                                   class="mt-0.5 border border-slate-300 rounded h-8">
+                        </label>
+                        <label class="flex flex-col text-[11px] text-slate-600">
+                            Radio esquinas
+                            <input type="number" step="1" min="0"
+                                   x-model.number="form.cornerRadius"
+                                   @@input.debounce.400ms="applyPatch({CornerRadius: form.cornerRadius || 0})"
+                                   class="mt-0.5 border border-slate-300 rounded px-2 py-1 text-sm">
+                        </label>
+                    </div>
+
+                    <!-- Imagen: picker -->
+                    <template x-if="selected?.kind === 'image'">
+                        <div class="space-y-2">
+                            <div class="flex items-center gap-2">
+                                <button type="button" @@click="document.getElementById('image-upload').click()"
+                                        class="flex-1 text-[11px] bg-sky-600 text-white rounded px-2 py-1.5 hover:bg-sky-700">
+                                    🖼 Elegir imagen…
+                                </button>
+                                <input type="file" id="image-upload" accept="image/png,image/jpeg,image/gif,image/webp"
+                                       class="hidden" @@change="onImageFileChosen($event)">
+                            </div>
+                            <p class="text-[10px] text-slate-500" x-show="form.source === 'data:'">
+                                Imagen embebida en el template (data URI). También puedes usar un path o un template:
+                            </p>
+                            <label class="flex flex-col text-[11px] text-slate-600">
+                                Source (path o template)
+                                <input type="text" list="json-template-paths"
+                                       :value="form.source === 'data:' ? '' : form.source"
+                                       @@change="form.source = $event.target.value; applyPatch({Source: form.source})"
+                                       placeholder="logo.png o {{ $.logo }}"
+                                       class="mt-0.5 border border-slate-300 rounded px-2 py-1 text-sm font-mono">
+                            </label>
+                            <label class="flex flex-col text-[11px] text-slate-600">
+                                Ajuste
+                                <select x-model="form.fit" @@change="applyPatch({Fit: form.fit})"
+                                        class="mt-0.5 border border-slate-300 rounded px-2 py-1 text-sm bg-white">
+                                    <option value="contain">contain (mantener proporción)</option>
+                                    <option value="fill">fill (estirar)</option>
+                                </select>
+                            </label>
+                        </div>
+                    </template>
+
+                    <!-- Barcode: picker -->
+                    <template x-if="selected?.kind === 'barcode'">
+                        <div class="space-y-2">
+                            <label class="flex flex-col text-[11px] text-slate-600">
+                                Formato
+                                <select x-model="form.barcodeFormat" @@change="applyPatch({BarcodeFormat: form.barcodeFormat})"
+                                        class="mt-0.5 border border-slate-300 rounded px-2 py-1 text-sm bg-white">
+                                    <option value="qr">QR</option>
+                                    <option value="code128">Code 128</option>
+                                    <option value="code39">Code 39</option>
+                                    <option value="ean13">EAN-13 (12–13 dígitos)</option>
+                                </select>
+                            </label>
+                            <label class="flex flex-col text-[11px] text-slate-600">
+                                Valor (texto o template)
+                                <input type="text" list="json-template-paths"
+                                       x-model="form.value"
+                                       @@input.debounce.500ms="applyPatch({Value: form.value})"
+                                       class="mt-0.5 border border-slate-300 rounded px-2 py-1 text-sm font-mono">
+                            </label>
+                            <div class="grid grid-cols-2 gap-2">
+                                <label class="flex flex-col text-[11px] text-slate-600">
+                                    Color
+                                    <input type="color" x-model="form.barcodeForeground"
+                                           @@input.debounce.400ms="applyPatch({BarcodeForeground: form.barcodeForeground})"
+                                           class="mt-0.5 border border-slate-300 rounded h-8">
+                                </label>
+                                <label class="flex flex-col text-[11px] text-slate-600">
+                                    Fondo
+                                    <input type="color" x-model="form.barcodeBackground"
+                                           @@input.debounce.400ms="applyPatch({BarcodeBackground: form.barcodeBackground})"
+                                           class="mt-0.5 border border-slate-300 rounded h-8">
+                                </label>
+                            </div>
+                        </div>
+                    </template>
+
+                    <!-- Chart -->
+                    <template x-if="selected?.kind === 'chart'">
+                        <div class="space-y-2">
+                            <div class="grid grid-cols-2 gap-2">
+                                <label class="flex flex-col text-[11px] text-slate-600">
+                                    Tipo
+                                    <select x-model="form.chartType" @@change="applyPatch({ChartType: form.chartType})"
+                                            class="mt-0.5 border border-slate-300 rounded px-2 py-1 text-sm bg-white">
+                                        <option value="bar">Barras</option>
+                                        <option value="horizontalBar">Barras horiz.</option>
+                                        <option value="line">Líneas</option>
+                                        <option value="area">Área</option>
+                                        <option value="pie">Pastel</option>
+                                        <option value="donut">Dona</option>
+                                    </select>
+                                </label>
+                                <label class="flex flex-col text-[11px] text-slate-600">
+                                    Leyenda
+                                    <select x-model="form.legend" @@change="applyPatch({Legend: form.legend || 'auto'})"
+                                            class="mt-0.5 border border-slate-300 rounded px-2 py-1 text-sm bg-white">
+                                        <option value="">auto</option>
+                                        <option value="none">ninguna</option>
+                                        <option value="top">arriba</option>
+                                        <option value="bottom">abajo</option>
+                                        <option value="right">derecha</option>
+                                    </select>
+                                </label>
+                            </div>
+                            <label class="flex flex-col text-[11px] text-slate-600">
+                                Título
+                                <input type="text" x-model="form.title"
+                                       @@input.debounce.500ms="applyPatch({Title: form.title || ' '})"
+                                       class="mt-0.5 border border-slate-300 rounded px-2 py-1 text-sm">
+                            </label>
+                            <label class="flex flex-col text-[11px] text-slate-600">
+                                Filas (JSON Path al array)
+                                <input type="text" list="json-array-paths" x-model="form.rows"
+                                       @@change="refreshRowPaths(form.rows); applyPatch({Rows: form.rows})"
+                                       class="mt-0.5 border border-slate-300 rounded px-2 py-1 text-sm font-mono">
+                            </label>
+                            <label class="flex flex-col text-[11px] text-slate-600">
+                                Categoría (por fila)
+                                <input type="text" list="json-row-paths" x-model="form.category"
+                                       @@change="applyPatch({Category: form.category})"
+                                       class="mt-0.5 border border-slate-300 rounded px-2 py-1 text-sm font-mono">
+                            </label>
+                            <div class="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-slate-600">
+                                <label class="flex items-center gap-1"><input type="checkbox" x-model="form.showValues" @@change="applyPatch({ShowValues: form.showValues})"> valores</label>
+                                <label class="flex items-center gap-1"><input type="checkbox" x-model="form.showPercent" @@change="applyPatch({ShowPercent: form.showPercent})"> %</label>
+                                <label class="flex items-center gap-1"><input type="checkbox" x-model="form.stacked" @@change="applyPatch({Stacked: form.stacked})"> apilado</label>
+                            </div>
+                            <label class="flex flex-col text-[11px] text-slate-600">
+                                Formato de valores
+                                <input type="text" x-model="form.valueFormat" placeholder="N0, C0, 0.0"
+                                       @@input.debounce.500ms="applyPatch({ValueFormat: form.valueFormat || ' '})"
+                                       class="mt-0.5 border border-slate-300 rounded px-2 py-1 text-sm">
+                            </label>
+                            <div class="border border-slate-200 rounded p-1.5 space-y-1.5">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-[10px] uppercase text-slate-500 tracking-wide">
+                                        Series (<span x-text="form.series.length"></span>)
+                                    </span>
+                                    <button type="button" @@click="addSeries()"
+                                            class="text-[10px] bg-sky-600 text-white rounded px-2 py-0.5 hover:bg-sky-700">+ serie</button>
+                                </div>
+                                <template x-for="(se, idx) in form.series" :key="idx">
+                                    <div class="border border-slate-200 rounded bg-slate-50 p-1 space-y-1">
+                                        <div class="flex items-center gap-1">
+                                            <input type="color" x-model="se.color" @@change="flushSeries()"
+                                                   class="w-6 h-6 border border-slate-300 rounded shrink-0" title="Color">
+                                            <input type="text" x-model="se.name" placeholder="Nombre"
+                                                   @@input.debounce.500ms="flushSeries()"
+                                                   class="flex-1 min-w-0 border border-slate-300 rounded px-1 py-0.5 text-[11px] bg-white">
+                                            <button type="button" @@click="removeSeries(idx)" :disabled="form.series.length === 1"
+                                                    class="text-[10px] text-red-500 hover:text-red-700 px-0.5 disabled:opacity-30">✕</button>
+                                        </div>
+                                        <input type="text" list="json-row-paths" x-model="se.value" placeholder="$.total o = $.a * $.b"
+                                               @@change="flushSeries()"
+                                               class="w-full border border-slate-300 rounded px-1 py-0.5 text-[11px] font-mono bg-white">
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
 
                     <!-- Tabla: rows path + config -->
                     <template x-if="selected?.kind === 'table'">
                         <div class="space-y-2">
                             <label class="flex flex-col text-[11px] text-slate-600">
                                 Rows (JSON Path)
-                                <input type="text"
+                                <input type="text" list="json-array-paths"
                                        x-model="form.rows"
-                                       @@input.debounce.400ms="applyPatch({Rows: form.rows})"
+                                       @@input.debounce.400ms="refreshRowPaths(form.rows); applyPatch({Rows: form.rows})"
                                        placeholder="$.items"
                                        class="mt-0.5 border border-slate-300 rounded px-2 py-1 text-sm font-mono text-slate-900">
                             </label>
@@ -534,9 +762,9 @@
                                         <!-- Detalles solo cuando expandida -->
                                         <div x-show="col.expanded" x-cloak class="px-1 pb-1 space-y-0.5 border-t border-slate-200 pt-1">
                                             <label class="block text-[9px] uppercase text-slate-500 tracking-wide">Binding</label>
-                                            <input type="text" x-model="col.binding"
+                                            <input type="text" x-model="col.binding" list="json-row-paths"
                                                    @@input.debounce.400ms="flushColumns()"
-                                                   placeholder="$.campo"
+                                                   placeholder="$.campo o = $.a * $.b"
                                                    class="w-full border border-slate-300 rounded px-1 py-0.5 text-[11px] font-mono bg-white">
                                             <div class="grid grid-cols-2 gap-0.5 mt-1">
                                                 <div>
@@ -591,8 +819,20 @@
                 style: '', content: '', color: '#000000', thickness: 0.5, fill: '#ffffff',
                 rows: '', headerMode: 'RepeatOnPageBreak', headerHeight: 22, rowHeight: 18,
                 headerStyle: '', rowStyle: '', alternateRowStyle: '', columnCount: 0,
-                columns: []
+                columns: [],
+                visible: '', cornerRadius: 0,
+                source: '', fit: 'contain',
+                value: '', barcodeFormat: 'qr', barcodeForeground: '#000000', barcodeBackground: '#ffffff',
+                chartType: 'bar', category: '', title: '', legend: '', showValues: false, showPercent: false,
+                stacked: false, valueFormat: '', series: []
             },
+            // Multi-selección: [{ path, kind }]. `selected` es el elemento "primario" (el del drawer).
+            selection: [],
+            marquee: null,           // { x0, y0, x1, y1, active, additive } en viewport-px
+            clipboard: null,         // YAML de /Home/Copy
+            clipboardFromCut: false,
+            CLIPBOARD_STORAGE_KEY: 'netreporter.designer.clipboard',
+            jsonPaths: [], arrayPaths: [], rowPaths: [],
             MIN_SIZE: 4,
             MAX_HISTORY: 50,
             SNAP: 5,
@@ -613,6 +853,7 @@
             get currentTemplate()    { return this.currentSelection.startsWith('user:') ? this.currentSelection.slice(5) : ''; },
             get currentSampleName()  { return this.currentSelection.startsWith('sample:') ? this.currentSelection.slice(7) : ''; },
             get isUserTemplate()     { return this.currentSelection.startsWith('user:'); },
+            get isMulti()            { return this.selection.length > 1; },
 
             bands: [],
             newBandKind: 'Detail',
@@ -621,7 +862,10 @@
                 { kind: 'text',      label: 'Text',  icon: 'T' },
                 { kind: 'line',      label: 'Line',  icon: '━' },
                 { kind: 'rectangle', label: 'Rect',  icon: '▭' },
-                { kind: 'table',     label: 'Table', icon: '⊞' }
+                { kind: 'table',     label: 'Table', icon: '⊞' },
+                { kind: 'image',     label: 'Image', icon: '🖼' },
+                { kind: 'barcode',   label: 'Code',  icon: '▦' },
+                { kind: 'chart',     label: 'Chart', icon: '📊' }
             ],
 
             async init() {
@@ -634,6 +878,16 @@
                 const mark = () => { this.isDirty = true; };
                 document.getElementById('yaml-editor')?.addEventListener('input', mark);
                 document.getElementById('json-editor')?.addEventListener('input', mark);
+
+                // Sugerencias de bindings: se recalculan cuando cambia data.json.
+                let jsonTimer = null;
+                document.getElementById('json-editor')?.addEventListener('input', () => {
+                    clearTimeout(jsonTimer);
+                    jsonTimer = setTimeout(() => this.refreshJsonPaths(), 500);
+                });
+                this.refreshJsonPaths();
+
+                try { this.clipboard = localStorage.getItem(this.CLIPBOARD_STORAGE_KEY) || null; } catch {}
 
                 // Refrescar lista de bandas + reaplicar zoom cada vez que HTMX actualiza el preview.
                 document.getElementById('preview')?.addEventListener('htmx:afterSwap', () => {
@@ -778,6 +1032,8 @@
                 const html = await res.text();
                 document.getElementById('preview').innerHTML = html;
                 this.clearSelection();
+                this.refreshBandsFromPreview();
+                this.applyZoomToDom();
             },
 
             onKeyDown(evt) {
@@ -803,9 +1059,29 @@
                         this.redo();
                         return;
                     }
-                    if (key === 'd' && this.selected) {
+                    if (key === 'd' && this.selection.length) {
                         evt.preventDefault();
-                        this.duplicateSelected();
+                        this.duplicateSelection();
+                        return;
+                    }
+                    if (key === 'c' && this.selection.length) {
+                        evt.preventDefault();
+                        this.copySelection();
+                        return;
+                    }
+                    if (key === 'x' && this.selection.length) {
+                        evt.preventDefault();
+                        this.cutSelection();
+                        return;
+                    }
+                    if (key === 'v') {
+                        evt.preventDefault();
+                        this.pasteClipboard();
+                        return;
+                    }
+                    if (key === 'a') {
+                        evt.preventDefault();
+                        this.selectAll();
                         return;
                     }
                     // Zoom: Ctrl/Cmd + (= o +) → in, + (- o _) → out, + 0 → reset.
@@ -827,15 +1103,17 @@
                     return;
                 }
 
-                // Delete / Backspace → borrar elemento seleccionado.
-                if (this.selected && (evt.key === 'Delete' || evt.key === 'Backspace')) {
+                if (evt.key === 'Escape') { this.clearSelection(); return; }
+
+                // Delete / Backspace → borrar la selección (uno o varios).
+                if (this.selection.length && (evt.key === 'Delete' || evt.key === 'Backspace')) {
                     evt.preventDefault();
-                    this.deleteSelected();
+                    this.deleteSelection();
                     return;
                 }
 
-                // Arrow keys → nudge del elemento seleccionado (sin modifier salvo Shift).
-                if (!this.selected) return;
+                // Arrow keys → nudge de toda la selección (sin modifier salvo Shift).
+                if (!this.selection.length) return;
                 const arrows = {
                     ArrowLeft:  [-1,  0],
                     ArrowRight: [ 1,  0],
@@ -905,6 +1183,7 @@
                     document.getElementById('preview').innerHTML = data.previewHtml;
                     this.isDirty = true;
                     this.refreshBandsFromPreview();
+                    this.applyZoomToDom();
                     this.reselectByPath(path, /* preserveFormState */ true);
                 } finally { this.saving = false; }
             },
@@ -965,31 +1244,23 @@
                 } finally { this.saving = false; }
             },
 
-            async duplicateSelected() {
-                if (!this.selected) return;
-                const path = this.selected.path;
-                this.pushUndo();
-                this.saving = true;
-                try {
-                    const form = this.buildFormData();
-                    form.append('Path', path);
-                    const res = await fetch('/Home/Duplicate', { method: 'POST', body: form });
-                    const data = await res.json();
-                    if (data.error) { alert('Error: ' + data.error); return; }
-                    this.applyServerResponse(data);
-                    if (data.newPath) this.reselectByPath(data.newPath);
-                } finally { this.saving = false; }
+            selectionPaths() { return this.selection.map(s => s.path); },
+
+            async duplicateSelection() {
+                if (!this.selection.length) return;
+                // Duplicar = copiar + pegar en las mismas bandas con offset (+10, +10). No toca el portapapeles.
+                const clip = await this.requestCopy(this.selectionPaths());
+                if (clip) await this.pasteYaml(clip, null, 10, 10);
             },
 
-            async deleteSelected() {
-                if (!this.selected) return;
-                const path = this.selected.path;
+            async deleteSelection() {
+                if (!this.selection.length) return;
                 this.pushUndo();
                 this.saving = true;
                 try {
                     const form = this.buildFormData();
-                    form.append('Path', path);
-                    const res = await fetch('/Home/Delete', { method: 'POST', body: form });
+                    form.append('PathsJson', JSON.stringify(this.selectionPaths()));
+                    const res = await fetch('/Home/DeleteMany', { method: 'POST', body: form });
                     const data = await res.json();
                     if (data.error) {
                         alert('Error al borrar: ' + data.error);
@@ -997,6 +1268,223 @@
                         this.applyServerResponse(data);
                     }
                 } finally { this.saving = false; }
+            },
+
+            // === Clipboard ===
+
+            async requestCopy(paths) {
+                const form = this.buildFormData();
+                form.append('PathsJson', JSON.stringify(paths));
+                const res = await fetch('/Home/Copy', { method: 'POST', body: form });
+                const data = await res.json();
+                if (data.error) { alert('Error al copiar: ' + data.error); return null; }
+                return data.clipboard;
+            },
+
+            async copySelection() {
+                const clip = await this.requestCopy(this.selectionPaths());
+                if (!clip) return false;
+                this.clipboard = clip;
+                this.clipboardFromCut = false;
+                try { localStorage.setItem(this.CLIPBOARD_STORAGE_KEY, clip); } catch {}
+                // Best effort: también al portapapeles del sistema (útil para pegar en otro navegador/pestaña).
+                try { await navigator.clipboard?.writeText(clip); } catch {}
+                return true;
+            },
+
+            async cutSelection() {
+                if (await this.copySelection()) {
+                    this.clipboardFromCut = true;
+                    await this.deleteSelection();
+                }
+            },
+
+            async pasteClipboard() {
+                let clip = this.clipboard;
+                if (!clip) {
+                    try {
+                        const text = await navigator.clipboard?.readText();
+                        if (text && text.includes('netReporterClipboard')) clip = text;
+                    } catch {}
+                }
+                if (!clip) return;
+                // Destino: la banda del elemento primario seleccionado; sin selección, las bandas originales.
+                const target = this.selected ? parseInt(this.selected.path.split('.')[1], 10) : null;
+                const offset = this.clipboardFromCut ? 0 : 10;
+                this.clipboardFromCut = false;
+                await this.pasteYaml(clip, Number.isFinite(target) ? target : null, offset, offset);
+            },
+
+            async pasteYaml(clip, bandIndex, dx, dy) {
+                this.pushUndo();
+                this.saving = true;
+                try {
+                    const form = this.buildFormData();
+                    form.append('Clipboard', clip);
+                    if (bandIndex !== null && bandIndex !== undefined) form.append('BandIndex', String(bandIndex));
+                    form.append('OffsetX', String(dx));
+                    form.append('OffsetY', String(dy));
+                    const res = await fetch('/Home/Paste', { method: 'POST', body: form });
+                    const data = await res.json();
+                    if (data.error) { alert('Error al pegar: ' + data.error); return; }
+                    this.applyServerResponse(data);
+                    this.reselectByPaths(data.newPaths || []);
+                } finally { this.saving = false; }
+            },
+
+            selectAll() {
+                const seen = new Set();
+                const items = [];
+                for (const el of document.querySelectorAll('.element-overlay')) {
+                    if (seen.has(el.dataset.path)) continue;
+                    seen.add(el.dataset.path);
+                    items.push(el);
+                }
+                this.setSelection(items);
+            },
+
+            // === Alinear (multi) ===
+
+            async alignSelection(mode) {
+                if (this.selection.length < 2) return;
+                const boxes = this.selection.map(s => {
+                    const el = this.overlayFor(s.path);
+                    return {
+                        path: s.path,
+                        x: parseFloat(el?.dataset.x) || 0, y: parseFloat(el?.dataset.y) || 0,
+                        w: parseFloat(el?.dataset.w) || 0, h: parseFloat(el?.dataset.h) || 0
+                    };
+                });
+                const minX = Math.min(...boxes.map(b => b.x));
+                const maxR = Math.max(...boxes.map(b => b.x + b.w));
+                const minY = Math.min(...boxes.map(b => b.y));
+                const maxB = Math.max(...boxes.map(b => b.y + b.h));
+                const cx = (minX + maxR) / 2, cy = (minY + maxB) / 2;
+                const moves = boxes.map(b => {
+                    let dx = 0, dy = 0;
+                    if (mode === 'left')    dx = minX - b.x;
+                    if (mode === 'right')   dx = maxR - (b.x + b.w);
+                    if (mode === 'hcenter') dx = cx - (b.x + b.w / 2);
+                    if (mode === 'top')     dy = minY - b.y;
+                    if (mode === 'bottom')  dy = maxB - (b.y + b.h);
+                    if (mode === 'vmiddle') dy = cy - (b.y + b.h / 2);
+                    return { path: b.path, dx: +dx.toFixed(2), dy: +dy.toFixed(2) };
+                }).filter(m => Math.abs(m.dx) > 0.01 || Math.abs(m.dy) > 0.01);
+                if (moves.length) await this.sendMoves(moves);
+            },
+
+            async sendMoves(moves) {
+                const paths = this.selectionPaths();
+                const primary = this.selected?.path;
+                this.pushUndo();
+                this.moving = true;
+                try {
+                    const form = this.buildFormData();
+                    form.append('MovesJson', JSON.stringify(moves));
+                    const res = await fetch('/Home/MoveMany', { method: 'POST', body: form });
+                    const data = await res.json();
+                    if (data.error) { console.error('MoveMany:', data.error); return false; }
+                    this.applyServerResponse(data);
+                    this.reselectByPaths(paths, primary);
+                    return true;
+                } finally { this.moving = false; }
+            },
+
+            // === Imagen / chart ===
+
+            onImageFileChosen(evt) {
+                const file = evt.target.files?.[0];
+                evt.target.value = '';
+                if (!file) return;
+                if (file.size > 2 * 1024 * 1024 &&
+                    !confirm('La imagen pesa más de 2 MB y quedará embebida en el YAML. ¿Continuar?')) return;
+                const reader = new FileReader();
+                reader.onload = () => this.applyPatch({ Source: reader.result });
+                reader.readAsDataURL(file);
+            },
+
+            addSeries() {
+                const palette = ['#2563EB', '#F59E0B', '#10B981', '#EF4444', '#8B5CF6', '#06B6D4'];
+                this.form.series.push({
+                    name: 'Serie ' + (this.form.series.length + 1),
+                    value: this.rowPaths.find(p => p !== this.form.category) || '$.valor',
+                    color: palette[this.form.series.length % palette.length]
+                });
+                this.flushSeries();
+            },
+
+            removeSeries(idx) {
+                if (this.form.series.length <= 1) return;
+                this.form.series.splice(idx, 1);
+                this.flushSeries();
+            },
+
+            async flushSeries() {
+                if (!this.selected || this.selected.kind !== 'chart') return;
+                const path = this.selected.path;
+                this.pushUndo();
+                this.saving = true;
+                try {
+                    const form = this.buildFormData();
+                    form.append('Path', path);
+                    form.append('SeriesJson', JSON.stringify(this.form.series.map(se => ({
+                        name: se.name, value: se.value, color: se.color
+                    }))));
+                    const res = await fetch('/Home/UpdateSeries', { method: 'POST', body: form });
+                    const data = await res.json();
+                    if (data.error) { console.error('UpdateSeries:', data.error); return; }
+                    document.getElementById('yaml-editor').value = data.yaml;
+                    document.getElementById('preview').innerHTML = data.previewHtml;
+                    this.isDirty = true;
+                    this.refreshBandsFromPreview();
+                    this.applyZoomToDom();
+                    this.reselectByPath(path, /* preserveFormState */ true);
+                } finally { this.saving = false; }
+            },
+
+            // === Sugerencias de bindings desde data.json ===
+
+            refreshJsonPaths() {
+                let data;
+                try { data = JSON.parse(document.getElementById('json-editor').value || '{}'); }
+                catch { return; }
+                const scalars = [], arrays = [];
+                const walk = (node, path, depth) => {
+                    if (depth > 6) return;
+                    if (Array.isArray(node)) {
+                        arrays.push(path);
+                        return;
+                    }
+                    if (node && typeof node === 'object') {
+                        for (const [k, v] of Object.entries(node)) walk(v, path + '.' + k, depth + 1);
+                        return;
+                    }
+                    if (path !== '$') scalars.push(path);
+                };
+                walk(data, '$', 0);
+                this.jsonPaths = scalars.slice(0, 300);
+                this.arrayPaths = arrays.slice(0, 100);
+                this._jsonData = data;
+            },
+
+            refreshRowPaths(rowsPath) {
+                // Campos de la primera fila del array apuntado → sugerencias para columnas/categoría/series.
+                const data = this._jsonData;
+                if (!data || !rowsPath) { this.rowPaths = []; return; }
+                let node = data;
+                for (const seg of rowsPath.replace(/^\$\.?/, '').replace(/\[\*\]$/, '').split('.').filter(Boolean)) {
+                    node = node?.[seg];
+                }
+                const first = Array.isArray(node) ? node.find(x => x && typeof x === 'object') : null;
+                const out = [];
+                const walk = (n, path, depth) => {
+                    if (depth > 3 || n === null || n === undefined) return;
+                    if (typeof n === 'object' && !Array.isArray(n)) {
+                        for (const [k, v] of Object.entries(n)) walk(v, path + '.' + k, depth + 1);
+                    } else if (!Array.isArray(n)) out.push(path);
+                };
+                if (first) walk(first, '$', 0);
+                this.rowPaths = out;
             },
 
             exportPdf() { this.exportTo('/Home/ExportPdf'); },
@@ -1027,18 +1515,19 @@
             },
 
             nudgeSelected(dx, dy) {
-                if (!this.selected) return;
+                if (!this.selection.length) return;
 
-                // Feedback visual inmediato: mover el overlay.
-                const el = this.selected.el;
-                const curLeft = parseFloat(el.style.left) || 0;
-                const curTop  = parseFloat(el.style.top)  || 0;
-                el.style.left = (curLeft + dx) + 'px';
-                el.style.top  = (curTop  + dy) + 'px';
+                // Feedback visual inmediato: mover los overlays de toda la selección.
+                for (const s of this.selection) {
+                    document.querySelectorAll(`.element-overlay[data-path="${s.path}"]`).forEach(el => {
+                        el.style.left = ((parseFloat(el.style.left) || 0) + dx) + 'px';
+                        el.style.top  = ((parseFloat(el.style.top)  || 0) + dy) + 'px';
+                    });
+                }
 
                 // Acumula para flush debounced.
                 if (!this.pendingNudge) {
-                    this.pendingNudge = { dx: 0, dy: 0, path: this.selected.path };
+                    this.pendingNudge = { dx: 0, dy: 0, paths: this.selectionPaths() };
                 }
                 this.pendingNudge.dx += dx;
                 this.pendingNudge.dy += dy;
@@ -1052,23 +1541,7 @@
                 if (!n) return;
                 this.pendingNudge = null;
                 if (n.dx === 0 && n.dy === 0) return;
-
-                this.pushUndo();
-                this.moving = true;
-                try {
-                    const form = this.buildFormData();
-                    form.append('Path', n.path);
-                    form.append('DeltaX', n.dx.toString());
-                    form.append('DeltaY', n.dy.toString());
-                    const res = await fetch('/Home/Move', { method: 'POST', body: form });
-                    const data = await res.json();
-                    if (!data.error) {
-                        this.applyServerResponse(data);
-                        this.reselectByPath(n.path);
-                    } else {
-                        console.error('Nudge:', data.error);
-                    }
-                } finally { this.moving = false; }
+                await this.sendMoves(n.paths.map(path => ({ path, dx: n.dx, dy: n.dy })));
             },
 
             hitTestDropzone(clientX, clientY) {
@@ -1147,28 +1620,41 @@
                     return;
                 }
 
-                // 2) Si clickearon un overlay, seleccionar e iniciar drag potencial.
+                // 2) Clic en vacío: arranca una selección por marco (Shift = sumar a la actual).
                 const target = evt.target.closest('.element-overlay');
-                if (!target) { this.clearSelection(); return; }
+                const additive = evt.shiftKey || evt.metaKey || evt.ctrlKey;
+                if (!target) {
+                    if (!evt.target.closest('.svg-page')) { if (!additive) this.clearSelection(); return; }
+                    evt.preventDefault();
+                    this.marquee = { x0: evt.clientX, y0: evt.clientY, x1: evt.clientX, y1: evt.clientY, active: false, additive };
+                    return;
+                }
                 evt.preventDefault();
 
-                this.clearSelection();
-                target.classList.add('selected');
-                this.selected = {
-                    path: target.dataset.path,
-                    kind: target.dataset.kind,
-                    el: target
-                };
-                this.syncFormFromDataset(target.dataset);
+                // 3) Shift/Cmd/Ctrl + clic: agrega o quita de la selección (sin arrastrar).
+                if (additive) {
+                    this.toggleInSelection(target);
+                    return;
+                }
 
+                // 4) Clic sobre un elemento ya seleccionado en una multi-selección: arrastrar todo el grupo.
+                const inSelection = this.selection.some(s => s.path === target.dataset.path);
+                if (!(inSelection && this.isMulti)) this.setSelection([target]);
+                else this.setPrimary(target);
+
+                const items = [];
+                for (const s of this.selection) {
+                    document.querySelectorAll(`.element-overlay[data-path="${s.path}"]`).forEach(el => items.push({
+                        el, origLeft: parseFloat(el.style.left) || 0, origTop: parseFloat(el.style.top) || 0
+                    }));
+                }
                 this.dragging = {
-                    path: target.dataset.path,
+                    paths: this.selectionPaths(),
                     startX: evt.clientX,
                     startY: evt.clientY,
                     dx: 0, dy: 0,
+                    items,
                     el: target,
-                    origLeft: parseFloat(target.style.left) || 0,
-                    origTop:  parseFloat(target.style.top)  || 0,
                     moved: false
                 };
                 target.setPointerCapture?.(evt.pointerId);
@@ -1221,11 +1707,23 @@
                 return { x: nx, y: ny, w: nw, h: nh };
             },
 
+            // Bounds del YAML (relativos a la banda). Si el overlay no los trae, cae al bbox renderizado.
+            yamlBounds(ds) {
+                const num = (v, fallback) => { const n = parseFloat(v); return Number.isFinite(n) ? n : fallback; };
+                return {
+                    x: num(ds.bx, parseFloat(ds.x) || 0),
+                    y: num(ds.by, parseFloat(ds.y) || 0),
+                    w: num(ds.bw, parseFloat(ds.w) || 0),
+                    h: num(ds.bh, parseFloat(ds.h) || 0)
+                };
+            },
+
             syncFormFromDataset(ds) {
-                this.form.x      = parseFloat(ds.x) || 0;
-                this.form.y      = parseFloat(ds.y) || 0;
-                this.form.width  = parseFloat(ds.w) || 0;
-                this.form.height = parseFloat(ds.h) || 0;
+                const b = this.yamlBounds(ds);
+                this.form.x      = +b.x.toFixed(2);
+                this.form.y      = +b.y.toFixed(2);
+                this.form.width  = +b.w.toFixed(2);
+                this.form.height = +b.h.toFixed(2);
                 this.form.style    = ds.style    || '';
                 this.form.content  = ds.content  || '';
                 this.form.color    = ds.color    || '#000000';
@@ -1240,6 +1738,32 @@
                 this.form.rowStyle          = ds.rowStyle          || '';
                 this.form.alternateRowStyle = ds.alternateRowStyle || '';
                 this.form.columnCount       = parseInt(ds.columnCount, 10) || 0;
+                // v1.1
+                this.form.visible           = ds.visible || '';
+                this.form.cornerRadius      = parseFloat(ds.cornerRadius) || 0;
+                this.form.source            = ds.source || '';
+                this.form.fit               = ds.fit || 'contain';
+                this.form.value             = ds.value || '';
+                this.form.barcodeFormat     = (ds.barcodeFormat || 'qr').toLowerCase();
+                this.form.barcodeForeground = ds.barcodeForeground || '#000000';
+                this.form.barcodeBackground = ds.barcodeBackground || '#ffffff';
+                this.form.chartType         = ds.chartType || 'bar';
+                this.form.category          = ds.category || '';
+                this.form.title             = ds.title || '';
+                this.form.legend            = ds.legend || '';
+                this.form.showValues        = ds.showValues === 'true';
+                this.form.showPercent       = ds.showPercent === 'true';
+                this.form.stacked           = ds.stacked === 'true';
+                this.form.valueFormat       = ds.valueFormat || '';
+                try {
+                    const palette = ['#2563EB', '#F59E0B', '#10B981', '#EF4444', '#8B5CF6', '#06B6D4'];
+                    this.form.series = JSON.parse(ds.series || '[]').map((se, i) => ({
+                        name: se.name ?? se.Name ?? '',
+                        value: se.value ?? se.Value ?? '',
+                        color: (se.color ?? se.Color) || palette[i % palette.length]
+                    }));
+                } catch { this.form.series = []; }
+                if (this.form.rows) this.refreshRowPaths(this.form.rows);
                 try {
                     const parsed = JSON.parse(ds.columns || '[]');
                     // Normaliza PascalCase ↔ camelCase (servidor emite PascalCase por JsonSerializer default).
@@ -1255,6 +1779,14 @@
             },
 
             onPointerMove(evt) {
+                if (this.marquee) {
+                    this.marquee.x1 = evt.clientX;
+                    this.marquee.y1 = evt.clientY;
+                    if (!this.marquee.active &&
+                        (Math.abs(this.marquee.x1 - this.marquee.x0) > 4 || Math.abs(this.marquee.y1 - this.marquee.y0) > 4))
+                        this.marquee.active = true;
+                    return;
+                }
                 if (this.creating) {
                     this.creating.x = evt.clientX;
                     this.creating.y = evt.clientY;
@@ -1291,15 +1823,34 @@
                 this.dragging.dx = dx; this.dragging.dy = dy;
                 if (!this.dragging.moved && (Math.abs(dx) > 2 || Math.abs(dy) > 2)) {
                     this.dragging.moved = true;
-                    this.dragging.el.classList.add('dragging');
+                    this.dragging.items.forEach(i => i.el.classList.add('dragging'));
                 }
                 if (this.dragging.moved) {
-                    this.dragging.el.style.left = (this.dragging.origLeft + dx) + 'px';
-                    this.dragging.el.style.top  = (this.dragging.origTop  + dy) + 'px';
+                    for (const i of this.dragging.items) {
+                        i.el.style.left = (i.origLeft + dx) + 'px';
+                        i.el.style.top  = (i.origTop  + dy) + 'px';
+                    }
                 }
             },
 
             async onPointerUp(evt) {
+                if (this.marquee) {
+                    const m = this.marquee;
+                    this.marquee = null;
+                    if (!m.active) { if (!m.additive) this.clearSelection(); return; }
+                    const left = Math.min(m.x0, m.x1), right = Math.max(m.x0, m.x1);
+                    const top = Math.min(m.y0, m.y1), bottom = Math.max(m.y0, m.y1);
+                    const hits = [];
+                    const seen = new Set(m.additive ? this.selectionPaths() : []);
+                    for (const el of document.querySelectorAll('.element-overlay')) {
+                        const r = el.getBoundingClientRect();
+                        const intersects = r.right >= left && r.left <= right && r.bottom >= top && r.top <= bottom;
+                        if (intersects && !seen.has(el.dataset.path)) { seen.add(el.dataset.path); hits.push(el); }
+                    }
+                    const base = m.additive ? this.selection.map(s => this.overlayFor(s.path)).filter(Boolean) : [];
+                    this.setSelection([...base, ...hits]);
+                    return;
+                }
                 if (this.creating) {
                     await this.finishCreate(evt);
                     return;
@@ -1311,10 +1862,17 @@
                     r.el.classList.remove('resizing');
                     if (!r.pendingBounds) return;
 
-                    const { x, y, w, h } = r.pendingBounds;
+                    const nb = r.pendingBounds;
                     // Skip si no hubo cambio real
-                    if (Math.abs(x - r.origX) < 0.5 && Math.abs(y - r.origY) < 0.5 &&
-                        Math.abs(w - r.origW) < 0.5 && Math.abs(h - r.origH) < 0.5) return;
+                    if (Math.abs(nb.x - r.origX) < 0.5 && Math.abs(nb.y - r.origY) < 0.5 &&
+                        Math.abs(nb.w - r.origW) < 0.5 && Math.abs(nb.h - r.origH) < 0.5) return;
+                    // El resize se calcula sobre el bbox renderizado (coordenadas de página); al YAML se
+                    // envían los mismos deltas aplicados a sus bounds relativos a la banda.
+                    const yb = this.yamlBounds(r.el.dataset);
+                    const x = +(yb.x + (nb.x - r.origX)).toFixed(2);
+                    const y = +(yb.y + (nb.y - r.origY)).toFixed(2);
+                    const w = +Math.max(this.MIN_SIZE, yb.w + (nb.w - r.origW)).toFixed(2);
+                    const h = +Math.max(0, yb.h + (nb.h - r.origH)).toFixed(2);
 
                     this.pushUndo();
                     this.saving = true;
@@ -1347,25 +1905,15 @@
                 if (!drag) return;
                 this.dragging = null;
                 if (!drag.moved) return;
-                drag.el.classList.remove('dragging');
+                drag.items.forEach(i => i.el.classList.remove('dragging'));
 
-                this.pushUndo();
-                this.moving = true;
-                try {
-                    const form = this.buildFormData();
-                    form.append('Path', drag.path);
-                    form.append('DeltaX', drag.dx.toString());
-                    form.append('DeltaY', drag.dy.toString());
-                    const res = await fetch('/Home/Move', { method: 'POST', body: form });
-                    const data = await res.json();
-                    if (data.error) {
-                        drag.el.style.left = drag.origLeft + 'px';
-                        drag.el.style.top  = drag.origTop  + 'px';
-                        console.error('Move:', data.error);
-                    } else {
-                        this.applyServerResponse(data);
+                const ok = await this.sendMoves(drag.paths.map(path => ({ path, dx: +drag.dx.toFixed(2), dy: +drag.dy.toFixed(2) })));
+                if (!ok) {
+                    for (const i of drag.items) {
+                        i.el.style.left = i.origLeft + 'px';
+                        i.el.style.top  = i.origTop  + 'px';
                     }
-                } finally { this.moving = false; }
+                }
             },
 
             async applyPatch(patch) {
@@ -1402,23 +1950,78 @@
                 document.getElementById('yaml-editor').value = data.yaml;
                 document.getElementById('preview').innerHTML = data.previewHtml;
                 this.selected = null;
+                this.selection = [];
                 this.isDirty = true;
                 this.refreshBandsFromPreview();
+                // El partial llega con --zoom: 1; sin esto el preview vuelve a 100% tras cada edición.
+                this.applyZoomToDom();
+            },
+
+            overlayFor(path) {
+                return document.querySelector(`.element-overlay[data-path="${path}"]`);
+            },
+
+            // Pinta las clases: con un solo elemento → 'selected' (handles de resize);
+            // con varios → 'multi-selected' en todos (sin handles). Cubre overlays repetidos por página.
+            renderSelectionClasses() {
+                document.querySelectorAll('.element-overlay.selected, .element-overlay.multi-selected')
+                    .forEach(e => e.classList.remove('selected', 'multi-selected'));
+                const cls = this.selection.length > 1 ? 'multi-selected' : 'selected';
+                for (const s of this.selection)
+                    document.querySelectorAll(`.element-overlay[data-path="${s.path}"]`).forEach(e => e.classList.add(cls));
+            },
+
+            setSelection(elements, primaryEl = null) {
+                const unique = [];
+                const seen = new Set();
+                for (const el of elements) {
+                    if (!el || seen.has(el.dataset.path)) continue;
+                    seen.add(el.dataset.path);
+                    unique.push(el);
+                }
+                this.selection = unique.map(el => ({ path: el.dataset.path, kind: el.dataset.kind }));
+                const primary = primaryEl ?? unique[unique.length - 1] ?? null;
+                this.selected = primary ? { path: primary.dataset.path, kind: primary.dataset.kind, el: primary } : null;
+                if (primary) this.syncFormFromDataset(primary.dataset);
+                this.renderSelectionClasses();
+            },
+
+            setPrimary(el) {
+                this.selected = { path: el.dataset.path, kind: el.dataset.kind, el };
+                this.syncFormFromDataset(el.dataset);
+            },
+
+            toggleInSelection(el) {
+                const path = el.dataset.path;
+                const current = this.selection.map(s => this.overlayFor(s.path)).filter(Boolean);
+                const next = this.selection.some(s => s.path === path)
+                    ? current.filter(e => e.dataset.path !== path)
+                    : [...current, el];
+                this.setSelection(next);
             },
 
             reselectByPath(path, preserveFormState = false) {
-                const el = document.querySelector(`.element-overlay[data-path="${path}"]`);
+                const el = this.overlayFor(path);
                 if (!el) return;
-                el.classList.add('selected');
+                this.selection = [{ path: el.dataset.path, kind: el.dataset.kind }];
                 this.selected = { path: el.dataset.path, kind: el.dataset.kind, el };
                 if (!preserveFormState) {
                     this.syncFormFromDataset(el.dataset);
                 }
+                this.renderSelectionClasses();
+            },
+
+            reselectByPaths(paths, primaryPath = null) {
+                const els = paths.map(p => this.overlayFor(p)).filter(Boolean);
+                const primary = primaryPath ? this.overlayFor(primaryPath) : null;
+                this.setSelection(els, primary);
             },
 
             clearSelection() {
-                document.querySelectorAll('.element-overlay.selected').forEach(e => e.classList.remove('selected'));
+                document.querySelectorAll('.element-overlay.selected, .element-overlay.multi-selected')
+                    .forEach(e => e.classList.remove('selected', 'multi-selected'));
                 this.selected = null;
+                this.selection = [];
             },
 
             // === Template persistence ===
@@ -1458,6 +2061,7 @@
             async applyLoadedContent(yaml, json) {
                 document.getElementById('yaml-editor').value = yaml;
                 document.getElementById('json-editor').value = json;
+                this.refreshJsonPaths();
                 this.isDirty = false;
                 this.undoStack = [];
                 this.redoStack = [];

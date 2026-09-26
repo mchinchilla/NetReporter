@@ -1,0 +1,256 @@
+# Dashboard de ventas — demuestra los CHARTS (v1.1) y las EXPRESIONES DSL.
+#   · KPIs calculados con sum()/max()/count() sobre arrays ($.meses[*].ventas)
+#   · estilo dinámico: el KPI de crecimiento se pinta verde o rojo según su signo
+#   · bar (agrupado), line, donut, pie y horizontalBar a partir de filas JSON
+#   · página 2: tabla con columnas calculadas (= expr) y fila de resumen
+
+name: SalesDashboard
+title: "Dashboard de ventas {{ $.anio }}"
+fileName: "dashboard-ventas-{{ $.anio }}"
+
+page:
+  size: Letter
+  margins: { all: 1.5cm }
+
+culture: es-HN
+
+styles:
+  Default:
+    fontFamily: Helvetica
+    fontSize: 9
+    foreground: "#0F172A"
+  Title:
+    basedOn: Default
+    fontSize: 18
+    bold: true
+  Caption:
+    basedOn: Default
+    fontSize: 8
+    foreground: "#64748B"
+  KpiLabel:
+    basedOn: Default
+    fontSize: 7.5
+    foreground: "#64748B"
+    padding: { horizontal: 10, vertical: 0 }
+  KpiValue:
+    basedOn: Default
+    fontSize: 16
+    bold: true
+    padding: { horizontal: 10, vertical: 0 }
+  KpiPositive:
+    basedOn: KpiValue
+    foreground: "#16A34A"
+  KpiNegative:
+    basedOn: KpiValue
+    foreground: "#DC2626"
+  ChartText:
+    basedOn: Default
+    fontSize: 8
+  Section:
+    basedOn: Default
+    fontSize: 11
+    bold: true
+  TableHeader:
+    basedOn: Default
+    bold: true
+    background: "#0F172A"
+    foreground: "#FFFFFF"
+    padding: { horizontal: 5, vertical: 4 }
+  TableRow:
+    basedOn: Default
+    padding: { horizontal: 5, vertical: 3 }
+  TableRowAlt:
+    basedOn: TableRow
+    background: "#F8FAFC"
+  TableSummary:
+    basedOn: TableRow
+    bold: true
+    background: "#E2E8F0"
+    border:
+      top: { thickness: 1, color: "#0F172A" }
+  BelowTarget:
+    basedOn: TableRow
+    background: "#FEF2F2"
+    foreground: "#B91C1C"
+  CaptionCenter:
+    basedOn: Caption
+    align: center
+
+bands:
+  - kind: PageHeader
+    height: 18
+    elements:
+      - type: text
+        bounds: { x: 0, y: 0, width: 527, height: 12 }
+        content: "{{ upper($.empresa) }} · Dashboard {{ $.anio }}"
+        style: Caption
+        # En la página 1 el título grande ya lo dice: el encabezado solo aparece desde la 2.
+        visible: "pageNumber > 1"
+
+  - kind: ReportHeader
+    height: 56
+    elements:
+      - type: text
+        bounds: { x: 0, y: 0, width: 527, height: 24 }
+        content: "Dashboard de ventas {{ $.anio }}"
+        style: Title
+      - type: text
+        bounds: { x: 0, y: 28, width: 527, height: 12 }
+        content: "{{ $.empresa }} · {{ count($.meses[*]) }} meses · {{ count($.regiones[*]) }} regiones · corte al {{ $.corte : dd/MM/yyyy }}"
+        style: Caption
+
+  # === KPIs: tarjetas redondeadas con valores calculados por expresiones ===
+  - kind: Detail
+    height: 64
+    elements:
+      - { type: rectangle, bounds: { x: 0, y: 0, width: 124, height: 52 }, fill: "#F1F5F9", cornerRadius: 8 }
+      - { type: text, bounds: { x: 0, y: 8, width: 124, height: 10 }, content: "VENTAS {{ $.anio }}", style: KpiLabel }
+      - { type: text, bounds: { x: 0, y: 22, width: 124, height: 20 }, content: "L {{ sum($.meses[*].ventas) / 1000 : N0 }}k", style: KpiValue }
+
+      - { type: rectangle, bounds: { x: 134, y: 0, width: 124, height: 52 }, fill: "#F1F5F9", cornerRadius: 8 }
+      - { type: text, bounds: { x: 134, y: 8, width: 124, height: 10 }, content: "VS. {{ $.anio - 1 }}", style: KpiLabel }
+      - type: text
+        bounds: { x: 134, y: 22, width: 124, height: 20 }
+        content: "{{ (sum($.meses[*].ventas) / sum($.meses[*].anterior) - 1) * 100 : +0.0;-0.0 }} %"
+        style: "{{ sum($.meses[*].ventas) >= sum($.meses[*].anterior) ? 'KpiPositive' : 'KpiNegative' }}"
+
+      - { type: rectangle, bounds: { x: 268, y: 0, width: 124, height: 52 }, fill: "#F1F5F9", cornerRadius: 8 }
+      - { type: text, bounds: { x: 268, y: 8, width: 124, height: 10 }, content: "MEJOR MES", style: KpiLabel }
+      - { type: text, bounds: { x: 268, y: 22, width: 124, height: 20 }, content: "L {{ max($.meses[*].ventas) / 1000 : N0 }}k", style: KpiValue }
+
+      - { type: rectangle, bounds: { x: 402, y: 0, width: 125, height: 52 }, fill: "#F1F5F9", cornerRadius: 8 }
+      - { type: text, bounds: { x: 402, y: 8, width: 125, height: 10 }, content: "CUMPLIMIENTO DE META", style: KpiLabel }
+      - type: text
+        bounds: { x: 402, y: 22, width: 125, height: 20 }
+        content: "{{ sum($.meses[*].ventas) / sum($.meses[*].meta) * 100 : N1 }} %"
+        style: "{{ sum($.meses[*].ventas) >= sum($.meses[*].meta) ? 'KpiPositive' : 'KpiNegative' }}"
+
+  # === Barras agrupadas: año actual vs anterior ===
+  - kind: Detail
+    height: 180
+    elements:
+      - type: chart
+        chartType: bar
+        bounds: { x: 0, y: 0, width: 527, height: 176 }
+        style: ChartText
+        rows: "$.meses"
+        category: "$.mes"
+        title: "Ventas mensuales (miles de L)"
+        legend: top
+        valueFormat: "N0"
+        fill: "#FFFFFF"
+        borderLine: { thickness: 0.5, color: "#E2E8F0" }
+        series:
+          - { name: "{{ $.anio }}", value: "= $.ventas / 1000", color: "#2563EB" }
+          - { name: "{{ $.anio - 1 }}", value: "= $.anterior / 1000", color: "#CBD5E1" }
+
+  # === Línea (ventas vs meta) + dona (canales) ===
+  - kind: Detail
+    height: 180
+    elements:
+      - type: chart
+        chartType: line
+        bounds: { x: 0, y: 0, width: 318, height: 176 }
+        style: ChartText
+        rows: "$.meses"
+        category: "$.mes"
+        title: "Ventas vs meta (miles de L)"
+        legend: bottom
+        valueFormat: "N0"
+        fill: "#FFFFFF"
+        borderLine: { thickness: 0.5, color: "#E2E8F0" }
+        series:
+          - { name: "Ventas", value: "= $.ventas / 1000", color: "#2563EB" }
+          - { name: "Meta", value: "= $.meta / 1000", color: "#F59E0B" }
+      - type: chart
+        chartType: donut
+        bounds: { x: 328, y: 0, width: 199, height: 176 }
+        style: ChartText
+        rows: "$.canales"
+        category: "$.canal"
+        title: "Ventas por canal"
+        showPercent: true
+        showValues: true
+        valueFormat: "N0"
+        legend: bottom
+        fill: "#FFFFFF"
+        borderLine: { thickness: 0.5, color: "#E2E8F0" }
+        series:
+          - { name: "Monto", value: "= $.monto / 1000" }
+
+  # === Pastel (categorías) + barras horizontales (regiones) ===
+  - kind: Detail
+    height: 180
+    elements:
+      - type: chart
+        chartType: pie
+        bounds: { x: 0, y: 0, width: 220, height: 176 }
+        style: ChartText
+        rows: "$.categorias"
+        category: "$.nombre"
+        title: "Mezcla por categoría"
+        showPercent: true
+        legend: right
+        fill: "#FFFFFF"
+        borderLine: { thickness: 0.5, color: "#E2E8F0" }
+        series:
+          - { name: "Ventas", value: "$.ventas" }
+      - type: chart
+        chartType: horizontalBar
+        bounds: { x: 230, y: 0, width: 297, height: 176 }
+        style: ChartText
+        rows: "$.regiones"
+        category: "$.region"
+        title: "Ventas por región (miles de L)"
+        showValues: true
+        valueFormat: "N0"
+        legend: none
+        fill: "#FFFFFF"
+        borderLine: { thickness: 0.5, color: "#E2E8F0" }
+        palette: ["#10B981"]
+        series:
+          - { name: "Ventas", value: "= $.ventas / 1000" }
+
+  # === Página 2: detalle mensual con columnas calculadas ===
+  - kind: Detail
+    height: 0
+    autoHeight: true
+    keepTogether: true
+    elements:
+      - { type: text, bounds: { x: 0, y: 4, width: 527, height: 16 }, content: "Detalle mensual", style: Section }
+      - type: table
+        bounds: { x: 0, y: 24, width: 527, height: 0 }
+        rows: "$.meses"
+        headerStyle: TableHeader
+        rowStyle: TableRow
+        alternateRowStyle: TableRowAlt
+        # Filas bajo la meta resaltadas en rojo: la clave del estilo es una expresión.
+        rowStyleBinding: "= $.ventas < $.meta ? 'bajo' : 'ok'"
+        rowStyleMap: { bajo: BelowTarget }
+        headerHeight: 20
+        rowHeight: 16
+        columns:
+          - { header: "Mes",         binding: "$.mes",                                  width: 60 }
+          - { header: "Ventas",      binding: "$.ventas",                               width: 85, format: "N0", align: right }
+          - { header: "Año ant.",    binding: "$.anterior",                             width: 85, format: "N0", align: right }
+          - { header: "Crec. %",     binding: "= ($.ventas / $.anterior - 1) * 100",    width: 70, format: "N1", align: right }
+          - { header: "Meta",        binding: "$.meta",                                 width: 85, format: "N0", align: right }
+          - { header: "Cumpl. %",    binding: "= $.ventas / $.meta * 100",              width: 70, format: "N1", align: right }
+          - { header: "Estado",      binding: "= $.ventas >= $.meta ? 'en meta' : 'bajo meta'", width: 72, align: center }
+        summary:
+          height: 18
+          style: TableSummary
+          cells:
+            - { content: "Total" }
+            - { aggregate: sum, format: "N0", align: right }
+            - { aggregate: sum, format: "N0", align: right }
+            - { aggregate: avg, format: "N1", align: right }
+            - { aggregate: sum, format: "N0", align: right }
+            - { aggregate: avg, format: "N1", align: right }
+            - { content: "{{ count($.meses[*]) }} meses", align: center }
+
+  - kind: PageFooter
+    height: 18
+    elements:
+      - { type: line, bounds: { x: 0, y: 0, width: 527, height: 0 }, color: "#E2E8F0", thickness: 0.5 }
+      - { type: text, bounds: { x: 0, y: 5, width: 527, height: 10 }, content: "Página {{ pageNumber }} de {{ totalPages }}", style: CaptionCenter }

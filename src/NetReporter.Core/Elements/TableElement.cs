@@ -5,6 +5,21 @@ namespace NetReporter.Core.Elements;
 
 public enum TableHeaderMode { PrintOnce, RepeatOnPageBreak }
 
+/// <summary>
+/// Visitor sobre tablas: permite a un consumidor (layout, XLSX) recuperar el tipo de fila
+/// <typeparamref name="TResult"/>-genérico sin reflection — la tabla se "despacha" a sí misma.
+/// </summary>
+public interface ITableVisitor<out TResult>
+{
+    TResult Visit<TRow>(TableElement<TRow> table);
+}
+
+/// <summary>Vista no genérica de una tabla: hints de layout + punto de entrada del visitor.</summary>
+public interface ITableElement : ITableLayoutHints
+{
+    TResult Accept<TResult>(ITableVisitor<TResult> visitor);
+}
+
 /// <summary>Non-generic layout hints the band layout reads without knowing the row type.</summary>
 public interface ITableLayoutHints
 {
@@ -16,7 +31,7 @@ public interface ITableLayoutHints
 /// Tabla con columnas tipadas. Las filas provienen del DataSource del DetailBand que la contiene,
 /// O se pueden suministrar inline aquí (para el prototipo usamos inline).
 /// </summary>
-public sealed record TableElement<TRow> : ReportElement, ITableLayoutHints
+public sealed record TableElement<TRow> : ReportElement, ITableElement
 {
     public required IReadOnlyList<TRow> Rows { get; init; }
     public required IReadOnlyList<TableColumn<TRow>> Columns { get; init; }
@@ -75,6 +90,28 @@ public sealed record TableElement<TRow> : ReportElement, ITableLayoutHints
 
     public GroupHeader? GroupHeader { get; init; }
     public GroupFooter? GroupFooter { get; init; }
+
+    /// <summary>
+    /// Agrupación multinivel: cada nivel agrupa las filas consecutivas con la misma clave DENTRO del
+    /// grupo del nivel anterior (índice 0 = el más externo). Si está presente tiene prioridad sobre
+    /// <see cref="GroupBy"/>/<see cref="GroupHeader"/>/<see cref="GroupFooter"/>, que siguen funcionando
+    /// como atajo de un solo nivel. Las filas deben venir ordenadas por las claves de todos los niveles.
+    /// </summary>
+    public IReadOnlyList<TableGroupLevel<TRow>>? Groups { get; init; }
+
+    /// <summary>
+    /// Fila de resumen al final de la tabla (total general): mismas celdas que un
+    /// <see cref="Elements.GroupFooter"/>, pero los agregados se calculan sobre TODAS las filas.
+    /// </summary>
+    public GroupFooter? Summary { get; init; }
+
+    /// <summary>Niveles de agrupación efectivos: <see cref="Groups"/> o el atajo de un nivel.</summary>
+    public IReadOnlyList<TableGroupLevel<TRow>> EffectiveGroups =>
+        Groups is { Count: > 0 } groups ? groups
+        : GroupBy is not null ? [new TableGroupLevel<TRow> { By = GroupBy, Header = GroupHeader, Footer = GroupFooter }]
+        : [];
+
+    public TResult Accept<TResult>(ITableVisitor<TResult> visitor) => visitor.Visit(this);
 }
 
 public sealed record TableColumn<TRow>(

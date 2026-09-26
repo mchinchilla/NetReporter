@@ -22,7 +22,11 @@ public sealed class SampleStore
             ["barcodes-demo"]    = ("Samples.barcodes-demo.yaml",    "Samples.barcodes-demo.json"),
             ["keep-together"]    = ("Samples.keep-together.yaml",    "Samples.keep-together.json"),
             ["invoice-complete"] = ("Samples.invoice-complete.yaml", "Samples.invoice-complete.json"),
-            ["invoice-complete-pastel"] = ("Samples.invoice-complete-pastel.yaml", "Samples.invoice-complete.json")
+            ["invoice-complete-pastel"] = ("Samples.invoice-complete-pastel.yaml", "Samples.invoice-complete.json"),
+            ["sales-dashboard"]  = ("Samples.sales-dashboard.yaml",  "Samples.sales-dashboard.json"),
+            ["nested-groups"]    = ("Samples.nested-groups.yaml",    "Samples.nested-groups.json"),
+            ["account-statement"] = ("Samples.account-statement.yaml", "Samples.account-statement.json"),
+            ["contracts-keep-together"] = ("Samples.contracts-keep-together.yaml", "Samples.contracts-keep-together.json")
         };
 
     public IReadOnlyList<string> List() => Catalog.Keys.ToArray();

@@ -1,0 +1,98 @@
+{
+  "banco": "Banco Ejemplo de Honduras",
+  "corte": "2025-11-30",
+  "saldoAnterior": 18250.4,
+  "cliente": {
+    "nombre": "María Fernanda López Castillo",
+    "numero": "48213",
+    "limite": 120000
+  },
+  "diasMora": 0,
+  "movimientos": [
+    {
+      "fecha": "2025-11-02",
+      "tipo": "abono",
+      "monto": 15000,
+      "descripcion": "Pago recibido — gracias",
+      "ref": 10231
+    },
+    {
+      "fecha": "2025-11-04",
+      "tipo": "cargo",
+      "monto": 1850.75,
+      "descripcion": "Supermercado La Colonia",
+      "ref": 10244
+    },
+    {
+      "fecha": "2025-11-06",
+      "tipo": "cargo",
+      "monto": 620.0,
+      "descripcion": "Gasolinera Puma",
+      "ref": 10251
+    },
+    {
+      "fecha": "2025-11-09",
+      "tipo": "cargo",
+      "monto": 12499.0,
+      "descripcion": "Tienda de electrónica — laptop",
+      "ref": 10262
+    },
+    {
+      "fecha": "2025-11-12",
+      "tipo": "cargo",
+      "monto": 345.5,
+      "descripcion": "Farmacia Kielsa",
+      "ref": 10270
+    },
+    {
+      "fecha": "2025-11-15",
+      "tipo": "cargo",
+      "monto": 2100.0,
+      "descripcion": "Restaurante Hacienda Real",
+      "ref": 10281
+    },
+    {
+      "fecha": "2025-11-18",
+      "tipo": "abono",
+      "monto": 5000,
+      "descripcion": "Pago parcial en agencia",
+      "ref": 10290
+    },
+    {
+      "fecha": "2025-11-20",
+      "tipo": "cargo",
+      "monto": 899.99,
+      "descripcion": "Suscripción streaming anual",
+      "ref": 10302
+    },
+    {
+      "fecha": "2025-11-22",
+      "tipo": "cargo",
+      "monto": 4320.4,
+      "descripcion": "Ferretería Central",
+      "ref": 10315
+    },
+    {
+      "fecha": "2025-11-25",
+      "tipo": "cargo",
+      "monto": 780.25,
+      "descripcion": "Supermercado Paiz",
+      "ref": 10322
+    },
+    {
+      "fecha": "2025-11-27",
+      "tipo": "cargo",
+      "monto": 16500.0,
+      "descripcion": "Agencia de viajes — boletos",
+      "ref": 10330
+    },
+    {
+      "fecha": "2025-11-29",
+      "tipo": "cargo",
+      "monto": 455.0,
+      "descripcion": "Cine y comida",
+      "ref": 10341
+    }
+  ],
+  "saldoActual": 38621.29
+}

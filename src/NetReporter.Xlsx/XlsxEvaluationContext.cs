@@ -16,6 +16,8 @@ internal sealed class XlsxEvaluationContext : IEvaluationContext
     public object? CurrentRow { get; set; }
     public object? GroupKey { get; set; }
     public int GroupRowCount { get; set; }
+    public List<object?> GroupKeyStack { get; } = new();
+    public IReadOnlyList<object?> GroupKeys => GroupKeyStack;
     public CultureInfo Culture { get; set; } = CultureInfo.InvariantCulture;
 
     public object? GetParameter(string name) => null;

@@ -260,4 +260,31 @@ public sealed class HtmlRendererTests
         }
         return count;
     }
+
+    [Fact]
+    public void Render_ClosedPath_EmitsInlineSvgPolygon()
+    {
+        var points = new[] { new Point(10, 10), new Point(60, 10), new Point(35, 50) };
+        var list = BuildList(DrawPathCommand.Create(points, closed: true, Color.FromHex("#2563EB"), null));
+
+        var html = new HtmlRenderer().Render(list);
+
+        Assert.Contains("<svg class=\"nr-el\"", html);
+        Assert.Contains("d=\"M10 10L60 10L35 50Z\"", html);
+        Assert.Contains("fill=\"rgb(37,99,235)\"", html);
+    }
+
+    [Fact]
+    public void Render_OpenPath_HasNoFill_AndHasStroke()
+    {
+        var points = new[] { new Point(0, 0), new Point(20, 30) };
+        var list = BuildList(DrawPathCommand.Create(points, closed: false, Color.Black,
+            new BorderLine(1.5, Color.FromHex("#F59E0B"))));
+
+        var html = new HtmlRenderer().Render(list);
+
+        Assert.Contains("fill=\"none\"", html);
+        Assert.Contains("stroke=\"rgb(245,158,11)\"", html);
+        Assert.Contains("stroke-width=\"1.5\"", html);
+    }
 }

@@ -1,0 +1,179 @@
+# Estado de cuenta — demuestra las EXPRESIONES DSL (v1.1) en todos sus puntos de uso.
+#   · template strings: {{ upper(...) }}, {{ padLeft(...) }}, {{ $.fecha : dd/MM/yyyy }}, ternarios
+#   · columnas calculadas con "= expr" (cargo / abono separados de un solo monto)
+#   · rowStyleBinding con expresión: resalta movimientos grandes
+#   · visible: bloques que solo aparecen si hay mora o si hay promoción
+#   · style dinámico: el saldo se pinta rojo si hay deuda y verde si está al día
+#   · agregados sobre arrays: sum($.movimientos[*].monto), count(...), max(...)
+
+name: AccountStatement
+title: "Estado de cuenta {{ $.cliente.numero }}"
+fileName: "estado-cuenta-{{ $.cliente.numero }}-{{ $.corte }}"
+
+page:
+  size: Letter
+  margins: { all: 1.5cm }
+
+culture: es-HN
+
+styles:
+  Default:
+    fontFamily: Helvetica
+    fontSize: 9
+    foreground: "#0F172A"
+  Title:
+    basedOn: Default
+    fontSize: 18
+    bold: true
+  Label:
+    basedOn: Default
+    fontSize: 7.5
+    foreground: "#64748B"
+  Value:
+    basedOn: Default
+    fontSize: 10
+    bold: true
+  Amount:
+    basedOn: Default
+    fontSize: 16
+    bold: true
+    align: right
+  AmountDue:
+    basedOn: Amount
+    foreground: "#DC2626"
+  AmountOk:
+    basedOn: Amount
+    foreground: "#16A34A"
+  Alert:
+    basedOn: Default
+    bold: true
+    foreground: "#991B1B"
+    padding: { horizontal: 10, vertical: 0 }
+  Promo:
+    basedOn: Default
+    foreground: "#065F46"
+    padding: { horizontal: 10, vertical: 0 }
+  TableHeader:
+    basedOn: Default
+    bold: true
+    foreground: "#334155"
+    padding: { horizontal: 5, vertical: 4 }
+  TableRow:
+    basedOn: Default
+    padding: { horizontal: 5, vertical: 3 }
+  BigMove:
+    basedOn: TableRow
+    bold: true
+    background: "#FEF9C3"
+  TableSummary:
+    basedOn: TableRow
+    bold: true
+    border:
+      top: { thickness: 1, color: "#0F172A" }
+  Caption:
+    basedOn: Default
+    fontSize: 7.5
+    foreground: "#64748B"
+  CaptionCenter:
+    basedOn: Caption
+    align: center
+
+bands:
+  - kind: ReportHeader
+    height: 150
+    elements:
+      - { type: text, bounds: { x: 0, y: 0, width: 330, height: 24 }, content: "Estado de cuenta", style: Title }
+      - { type: text, bounds: { x: 0, y: 26, width: 330, height: 12 }, content: "{{ $.banco }} · corte al {{ $.corte : dd 'de' MMMM 'de' yyyy }}", style: Label }
+
+      # Tarjeta del cliente
+      - { type: rectangle, bounds: { x: 0, y: 50, width: 330, height: 88 }, fill: "#F8FAFC", borderLine: { thickness: 0.5, color: "#E2E8F0" }, cornerRadius: 8 }
+      - { type: text, bounds: { x: 12, y: 60, width: 300, height: 10 }, content: "CLIENTE", style: Label }
+      - { type: text, bounds: { x: 12, y: 72, width: 310, height: 14 }, content: "{{ upper($.cliente.nombre) }}", style: Value }
+      - { type: text, bounds: { x: 12, y: 92, width: 150, height: 10 }, content: "CUENTA", style: Label }
+      - { type: text, bounds: { x: 12, y: 104, width: 150, height: 14 }, content: "{{ padLeft($.cliente.numero, 10, '0') }}", style: Value }
+      - { type: text, bounds: { x: 170, y: 92, width: 150, height: 10 }, content: "CATEGORÍA", style: Label }
+      - type: text
+        bounds: { x: 170, y: 104, width: 150, height: 14 }
+        content: "{{ $.cliente.limite >= 100000 ? 'Premium' : ($.cliente.limite >= 50000 ? 'Plus' : 'Clásica') }}"
+        style: Value
+      - { type: text, bounds: { x: 12, y: 122, width: 310, height: 10 }, content: "Límite L {{ $.cliente.limite : N2 }} · disponible L {{ $.cliente.limite - $.saldoActual : N2 }}", style: Label }
+
+      # Saldo con estilo dinámico
+      - { type: rectangle, bounds: { x: 342, y: 50, width: 185, height: 88 }, fill: "#FFFFFF", borderLine: { thickness: 0.5, color: "#E2E8F0" }, cornerRadius: 8 }
+      - { type: text, bounds: { x: 354, y: 60, width: 161, height: 10 }, content: "SALDO AL CORTE", style: Label }
+      - type: text
+        bounds: { x: 354, y: 76, width: 161, height: 22 }
+        content: "L {{ $.saldoActual : N2 }}"
+        style: "{{ $.saldoActual > 0 ? 'AmountDue' : 'AmountOk' }}"
+      - type: text
+        bounds: { x: 354, y: 104, width: 161, height: 10 }
+        content: "{{ $.saldoActual > 0 ? 'Pago mínimo L ' + format(max($.saldoActual * 0.05, 250), 'N2') : 'Sin saldo pendiente' }}"
+        style: Label
+      - type: text
+        bounds: { x: 354, y: 118, width: 161, height: 10 }
+        content: "Fecha límite: {{ format(addDays($.corte, 20), 'dd/MM/yyyy') }}"
+        style: Label
+        visible: "$.saldoActual > 0"
+
+  # Aviso de mora: solo aparece si hay días de atraso.
+  - kind: Detail
+    height: 34
+    visible: "$.diasMora > 0"
+    elements:
+      - { type: rectangle, bounds: { x: 0, y: 4, width: 527, height: 24 }, fill: "#FEE2E2", cornerRadius: 6 }
+      - type: text
+        bounds: { x: 0, y: 11, width: 527, height: 12 }
+        content: "Aviso: cuenta con {{ $.diasMora }} días de mora{{ $.diasMora > 30 ? ' — se aplicará recargo por atraso' : '' }}."
+        style: Alert
+
+  # Promoción: solo si el cliente califica.
+  - kind: Detail
+    height: 30
+    visible: "$.cliente.limite >= 100000 and $.diasMora == 0"
+    elements:
+      - { type: rectangle, bounds: { x: 0, y: 4, width: 527, height: 20 }, fill: "#D1FAE5", cornerRadius: 6 }
+      - { type: text, bounds: { x: 0, y: 9, width: 527, height: 12 }, content: "Promo: califica para 0% de interés en compras a 12 meses.", style: Promo }
+
+  - kind: Detail
+    height: 0
+    elements:
+      - type: table
+        bounds: { x: 0, y: 8, width: 527, height: 0 }
+        rows: "$.movimientos"
+        headerStyle: TableHeader
+        rowStyle: TableRow
+        headerRule: { thickness: 1, color: "#0F172A" }
+        rowSeparator: { thickness: 0.25, color: "#E2E8F0" }
+        rowStyleBinding: "= $.monto >= 10000 ? 'grande' : 'normal'"
+        rowStyleMap: { grande: BigMove }
+        fullRowBackground: true
+        headerHeight: 20
+        rowHeight: 16
+        columns:
+          - { header: "Fecha",        binding: "= format($.fecha, 'dd MMM')",                       width: 55 }
+          - { header: "Referencia",   binding: "= upper(left($.tipo, 3)) + '-' + padLeft($.ref, 6, '0')", width: 80 }
+          - { header: "Descripción",  binding: "$.descripcion",                                     width: 212 }
+          - { header: "Cargos",       binding: "= $.tipo == 'cargo' ? $.monto : null",              width: 90, format: "N2", align: right }
+          - { header: "Abonos",       binding: "= $.tipo == 'abono' ? $.monto : null",              width: 90, format: "N2", align: right }
+        summary:
+          height: 18
+          style: TableSummary
+          cells:
+            - { content: "{{ #count }} mov." }
+            - null
+            - { content: "Saldo: L {{ $$.saldoAnterior : N2 }} a L {{ $$.saldoActual : N2 }}" }
+            - { aggregate: sum, format: "N2", align: right }
+            - { aggregate: sum, format: "N2", align: right }
+
+  - kind: ReportFooter
+    height: 40
+    elements:
+      - type: text
+        bounds: { x: 0, y: 12, width: 527, height: 10 }
+        content: "Mayor movimiento del período: L {{ max($.movimientos[*].monto) : N2 }} · promedio por movimiento: L {{ avg($.movimientos[*].monto) : N2 }}"
+        style: Caption
+
+  - kind: PageFooter
+    height: 16
+    elements:
+      - { type: text, bounds: { x: 0, y: 4, width: 527, height: 10 }, content: "Página {{ pageNumber }} de {{ totalPages }} · documento generado con NetReporter", style: CaptionCenter }

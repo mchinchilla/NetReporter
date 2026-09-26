@@ -106,13 +106,66 @@ public static class YamlReportRewriter
 
             if (patch.Fill is not null)
             {
-                if (kind != "rectangle")
+                if (kind is not ("rectangle" or "chart"))
                     throw new InvalidOperationException($"'fill' no aplica al kind '{kind}'.");
                 e.Fill = NormalizeHexOrNull(patch.Fill);
             }
 
+            if (patch.Visible is not null)
+                e.Visible = string.IsNullOrWhiteSpace(patch.Visible) ? null : patch.Visible.Trim();
+
+            if (patch.CornerRadius is double cr)
+            {
+                if (kind is not ("rectangle" or "table"))
+                    throw new InvalidOperationException($"'cornerRadius' no aplica al kind '{kind}'.");
+                e.CornerRadius = cr <= 0 ? null : Math.Round(cr, 2);
+            }
+
+            if (patch.Source is not null || patch.Fit is not null)
+            {
+                if (kind != "image")
+                    throw new InvalidOperationException($"'source'/'fit' no aplican al kind '{kind}'.");
+                if (!string.IsNullOrWhiteSpace(patch.Source)) e.Source = patch.Source.Trim();
+                if (!string.IsNullOrWhiteSpace(patch.Fit)) e.Fit = patch.Fit.Trim().ToLowerInvariant();
+            }
+
+            if (patch.Value is not null || patch.BarcodeFormat is not null ||
+                patch.BarcodeForeground is not null || patch.BarcodeBackground is not null)
+            {
+                if (kind != "barcode")
+                    throw new InvalidOperationException($"Campos de barcode no aplican al kind '{kind}'.");
+                if (!string.IsNullOrWhiteSpace(patch.Value)) e.Value = patch.Value;
+                if (!string.IsNullOrWhiteSpace(patch.BarcodeFormat)) e.Format = patch.BarcodeFormat.Trim().ToLowerInvariant();
+                if (patch.BarcodeForeground is not null) e.BarcodeForeground = NormalizeHexOrNull(patch.BarcodeForeground);
+                if (patch.BarcodeBackground is not null) e.BarcodeBackground = NormalizeHexOrNull(patch.BarcodeBackground);
+            }
+
+            if (patch.ChartType is not null || patch.Category is not null || patch.Title is not null ||
+                patch.Legend is not null || patch.ShowValues is not null || patch.ShowPercent is not null ||
+                patch.Stacked is not null || patch.ValueFormat is not null)
+            {
+                if (kind != "chart")
+                    throw new InvalidOperationException($"Campos de chart no aplican al kind '{kind}'.");
+                if (!string.IsNullOrWhiteSpace(patch.ChartType)) e.ChartType = patch.ChartType.Trim();
+                if (!string.IsNullOrWhiteSpace(patch.Category)) e.Category = patch.Category.Trim();
+                if (patch.Title is not null) e.Title = string.IsNullOrWhiteSpace(patch.Title) ? null : patch.Title;
+                if (patch.Legend is not null) e.Legend = string.IsNullOrWhiteSpace(patch.Legend) || patch.Legend == "auto" ? null : patch.Legend;
+                if (patch.ShowValues is bool sv) e.ShowValues = sv ? true : null;
+                if (patch.ShowPercent is bool sp) e.ShowPercent = sp ? true : null;
+                if (patch.Stacked is bool st) e.Stacked = st ? true : null;
+                if (patch.ValueFormat is not null) e.ValueFormat = string.IsNullOrWhiteSpace(patch.ValueFormat) ? null : patch.ValueFormat.Trim();
+            }
+
+            // Rows: aplica a tablas y charts.
+            var tableRows = patch.Rows;
+            if (patch.Rows is not null && kind == "chart")
+            {
+                e.Rows = patch.Rows;
+                tableRows = null;
+            }
+
             // Campos específicos de tabla
-            if (patch.Rows is not null ||
+            if (tableRows is not null ||
                 patch.HeaderMode is not null ||
                 patch.HeaderHeight is not null ||
                 patch.RowHeight is not null ||
@@ -124,7 +177,7 @@ public static class YamlReportRewriter
                     throw new InvalidOperationException(
                         $"Campos de tabla no aplican al kind '{kind}'.");
 
-                if (patch.Rows is not null)              e.Rows = patch.Rows;
+                if (tableRows is not null)               e.Rows = tableRows;
                 if (patch.HeaderMode is not null)        e.HeaderMode = patch.HeaderMode;
                 if (patch.HeaderHeight is double hh)     e.HeaderHeight = hh;
                 if (patch.RowHeight is double rh)        e.RowHeight = rh;
@@ -147,6 +200,135 @@ public static class YamlReportRewriter
                 }
             }
         });
+    }
+
+    /// <summary>Reemplaza la lista de series del chart en <paramref name="path"/>.</summary>
+    public static string UpdateSeries(string yaml, string path, IReadOnlyList<ChartSeriesYaml> series)
+    {
+        ArgumentNullException.ThrowIfNull(series);
+        return UpdateElement(yaml, path, e =>
+        {
+            if ((e.Type ?? "text").ToLowerInvariant() != "chart")
+                throw new InvalidOperationException($"UpdateSeries solo aplica a charts (kind='{e.Type}').");
+            if (series.Count == 0)
+                throw new ArgumentException("Un chart requiere al menos una serie.");
+            foreach (var s in series)
+                if (string.IsNullOrWhiteSpace(s.Value))
+                    throw new ArgumentException($"La serie '{s.Name}' requiere 'value'.");
+            e.Series = series.Select(s => new ChartSeriesYaml
+            {
+                Name = string.IsNullOrWhiteSpace(s.Name) ? null : s.Name,
+                Value = s.Value,
+                Color = string.IsNullOrWhiteSpace(s.Color) ? null : s.Color
+            }).ToList();
+        });
+    }
+
+    // === Operaciones multi-elemento (multi-selección del Designer) ===
+
+    /// <summary>Mueve varios elementos, cada uno con su propio delta (mover en grupo o alinear).</summary>
+    public static string MoveElements(string yaml, IEnumerable<(string Path, double DeltaX, double DeltaY)> moves)
+    {
+        ArgumentNullException.ThrowIfNull(moves);
+        var model = Deserialize(yaml);
+        foreach (var (path, dx, dy) in moves)
+        {
+            var element = FindElement(model, path);
+            element.Bounds ??= new BoundsYaml();
+            element.Bounds.X = Math.Round(element.Bounds.X + dx, 2);
+            element.Bounds.Y = Math.Round(element.Bounds.Y + dy, 2);
+        }
+        return s_serializer.Serialize(model);
+    }
+
+    /// <summary>Elimina varios elementos. El orden de los paths no importa (se borran de atrás hacia adelante).</summary>
+    public static string DeleteElements(string yaml, IEnumerable<string> paths)
+    {
+        ArgumentNullException.ThrowIfNull(paths);
+        var model = Deserialize(yaml);
+        var targets = paths.Distinct(StringComparer.Ordinal).Select(ParsePath)
+            .OrderByDescending(t => t.bandIndex).ThenByDescending(t => t.elementIndex).ToList();
+        foreach (var (bandIndex, elementIndex) in targets)
+        {
+            var band = model.Bands?.ElementAtOrDefault(bandIndex)
+                       ?? throw new InvalidOperationException($"Banda {bandIndex} no existe.");
+            if (band.Elements is null || elementIndex >= band.Elements.Count)
+                throw new InvalidOperationException($"Elemento {elementIndex} no existe en banda {bandIndex}.");
+            band.Elements.RemoveAt(elementIndex);
+        }
+        return s_serializer.Serialize(model);
+    }
+
+    /// <summary>
+    /// Serializa los elementos indicados a un "clipboard" YAML autocontenido (lista de
+    /// <c>{ band, element }</c>) que luego acepta <see cref="PasteElements"/> — también en otro template.
+    /// </summary>
+    public static string CopyElements(string yaml, IEnumerable<string> paths)
+    {
+        ArgumentNullException.ThrowIfNull(paths);
+        var model = Deserialize(yaml);
+        var items = paths.Distinct(StringComparer.Ordinal)
+            .Select(p => (Pos: ParsePath(p), Element: FindElement(model, p)))
+            .OrderBy(x => x.Pos.bandIndex).ThenBy(x => x.Pos.elementIndex)
+            .Select(x => new ClipboardItemYaml { Band = x.Pos.bandIndex, Element = CloneElement(x.Element) })
+            .ToList();
+        if (items.Count == 0) throw new InvalidOperationException("No hay elementos para copiar.");
+        return s_serializer.Serialize(new ClipboardYaml { NetReporterClipboard = 1, Items = items });
+    }
+
+    /// <summary>
+    /// Pega un clipboard de <see cref="CopyElements"/>. Con <paramref name="targetBand"/> todos los
+    /// elementos van a esa banda; sin ella, cada uno vuelve a su banda original (si ya no existe, a la
+    /// última). Los bounds se desplazan (<paramref name="offsetX"/>, <paramref name="offsetY"/>) para que
+    /// la copia sea visible. Devuelve el YAML y los paths de los elementos creados.
+    /// </summary>
+    public static (string Yaml, IReadOnlyList<string> NewPaths) PasteElements(
+        string yaml, string clipboard, int? targetBand, double offsetX = 10, double offsetY = 10)
+    {
+        ArgumentNullException.ThrowIfNull(clipboard);
+        var model = Deserialize(yaml);
+        if (model.Bands is not { Count: > 0 })
+            throw new InvalidOperationException("El template no tiene bandas donde pegar.");
+
+        ClipboardYaml? data;
+        try { data = s_deserializer.Deserialize<ClipboardYaml>(clipboard); }
+        catch (Exception ex) { throw new FormatException($"Clipboard inválido: {ex.Message}", ex); }
+        if (data?.Items is not { Count: > 0 } items || data.NetReporterClipboard != 1)
+            throw new FormatException("El clipboard no contiene elementos de NetReporter.");
+
+        var newPaths = new List<string>();
+        foreach (var item in items)
+        {
+            if (item.Element is null) continue;
+            var bandIndex = Math.Clamp(targetBand ?? item.Band, 0, model.Bands.Count - 1);
+            var band = model.Bands[bandIndex];
+            band.Elements ??= new List<ElementYaml>();
+
+            var clone = CloneElement(item.Element);
+            clone.Bounds ??= new BoundsYaml();
+            clone.Bounds.X = Math.Round(Math.Max(0, clone.Bounds.X + offsetX), 2);
+            clone.Bounds.Y = Math.Round(Math.Max(0, clone.Bounds.Y + offsetY), 2);
+            band.Elements.Add(clone);
+            newPaths.Add($"bands.{bandIndex}.elements.{band.Elements.Count - 1}");
+        }
+
+        return (s_serializer.Serialize(model), newPaths);
+    }
+
+    private static ReportYaml Deserialize(string yaml)
+    {
+        ArgumentNullException.ThrowIfNull(yaml);
+        return s_deserializer.Deserialize<ReportYaml>(yaml)
+               ?? throw new FormatException("Template YAML vacío o inválido.");
+    }
+
+    private static ElementYaml FindElement(ReportYaml model, string path)
+    {
+        var (bandIndex, elementIndex) = ParsePath(path);
+        var band = model.Bands?.ElementAtOrDefault(bandIndex)
+                   ?? throw new InvalidOperationException($"Banda {bandIndex} no existe.");
+        return band.Elements?.ElementAtOrDefault(elementIndex)
+               ?? throw new InvalidOperationException($"Elemento {elementIndex} no existe en banda {bandIndex}.");
     }
 
     /// <summary>Reemplaza la lista de columnas completa del TableElement en <paramref name="path"/>.</summary>
@@ -382,8 +564,33 @@ public static class YamlReportRewriter
                     new() { Header = "Columna 2", Binding = "$.col2", Width = 150, Align = "left" }
                 }
             },
+            "image" => new ElementYaml
+            {
+                Type = "image",
+                Bounds = new BoundsYaml { X = Math.Round(x, 2), Y = Math.Round(y, 2), Width = 96, Height = 64 },
+                Source = PlaceholderImage.DataUri,
+                Fit = "contain"
+            },
+            "barcode" => new ElementYaml
+            {
+                Type = "barcode",
+                Bounds = new BoundsYaml { X = Math.Round(x, 2), Y = Math.Round(y, 2), Width = 72, Height = 72 },
+                Value = "NetReporter",
+                Format = "qr",
+                BarcodeForeground = "#000000"
+            },
+            "chart" => new ElementYaml
+            {
+                Type = "chart",
+                Bounds = new BoundsYaml { X = Math.Round(x, 2), Y = Math.Round(y, 2), Width = 280, Height = 170 },
+                ChartType = "bar",
+                Rows = "$.items",
+                Category = "$.nombre",
+                Title = "Nuevo gráfico",
+                Series = new List<ChartSeriesYaml> { new() { Name = "Valor", Value = "$.valor" } }
+            },
             _ => throw new FormatException(
-                $"Kind desconocido: '{kind}'. Usa text/line/rectangle/table.")
+                $"Kind desconocido: '{kind}'. Usa text/line/rectangle/table/image/barcode/chart.")
         };
 
     private static (int bandIndex, int elementIndex) ParsePath(string path)

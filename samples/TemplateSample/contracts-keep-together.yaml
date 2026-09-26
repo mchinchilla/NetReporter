@@ -1,0 +1,151 @@
+# Contratos por cliente — demuestra KEEPTOGETHER EN DETAILBAND (v1.1).
+# Cada cliente es una banda Detail con una "tarjeta" (rectángulos redondeados) y una tabla con
+# sus servicios. Con keepTogether: true, si el bloque completo no cabe en lo que queda de la
+# página, se mueve entero a la siguiente en vez de partirse a la mitad.
+# (Las bandas sin tablas nunca se parten: se mueven enteras aunque no tengan keepTogether.)
+# La banda del 5.º cliente usa visible: solo aparece si el JSON trae al menos 5 clientes.
+
+name: ContractsKeepTogether
+title: "Contratos vigentes"
+fileName: "contratos-{{ $.fecha }}"
+
+page:
+  size: Letter
+  margins: { all: 1.5cm }
+
+culture: es-HN
+
+styles:
+  Default:
+    fontFamily: Helvetica
+    fontSize: 9
+    foreground: "#0F172A"
+  Title:
+    basedOn: Default
+    fontSize: 18
+    bold: true
+  Caption:
+    basedOn: Default
+    fontSize: 8
+    foreground: "#64748B"
+  CaptionCenter:
+    basedOn: Caption
+    align: center
+  CardTitle:
+    basedOn: Default
+    fontSize: 12
+    bold: true
+    foreground: "#FFFFFF"
+    padding: { horizontal: 10, vertical: 0 }
+  CardMeta:
+    basedOn: Default
+    fontSize: 8
+    foreground: "#E0E7FF"
+    align: right
+    padding: { horizontal: 10, vertical: 0 }
+  TableHeader:
+    basedOn: Default
+    bold: true
+    foreground: "#4338CA"
+    padding: { horizontal: 8, vertical: 4 }
+  TableRow:
+    basedOn: Default
+    padding: { horizontal: 8, vertical: 3 }
+  TableSummary:
+    basedOn: TableRow
+    bold: true
+    border:
+      top: { thickness: 0.75, color: "#4338CA" }
+
+bands:
+  - kind: ReportHeader
+    height: 50
+    elements:
+      - { type: text, bounds: { x: 0, y: 0, width: 527, height: 24 }, content: "Contratos vigentes", style: Title }
+      - { type: text, bounds: { x: 0, y: 28, width: 527, height: 12 }, content: "{{ count($.clientes[*]) }} clientes · {{ count($.clientes[*].servicios[*]) }} servicios · al {{ $.fecha : dd/MM/yyyy }}", style: Caption }
+
+  - kind: Detail
+    height: 0
+    autoHeight: true
+    keepTogether: true
+    elements:
+      - { type: rectangle, bounds: { x: 0, y: 0, width: 527, height: 30 }, fill: "#4338CA", cornerRadius: 8, roundedCorners: top }
+      - { type: text, bounds: { x: 0, y: 9, width: 360, height: 14 }, content: "{{ $.clientes[0].nombre }}", style: CardTitle }
+      - { type: text, bounds: { x: 300, y: 11, width: 227, height: 12 }, content: "Contrato {{ $.clientes[0].contrato }} · vence {{ $.clientes[0].vence : dd/MM/yyyy }}", style: CardMeta }
+      - type: table
+        bounds: { x: 0, y: 30, width: 527, height: 0 }
+        rows: "$.clientes[0].servicios"
+        headerStyle: TableHeader
+        rowStyle: TableRow
+        headerRule: { thickness: 0.5, color: "#C7D2FE" }
+        rowSeparator: { thickness: 0.25, color: "#E0E7FF" }
+        outerBorder: { thickness: 0.75, color: "#C7D2FE" }
+        headerHeight: 18
+        rowHeight: 16
+        columns: &cols
+          - { header: "Servicio",  binding: "$.servicio", width: 287 }
+          - { header: "Cantidad",  binding: "$.cantidad", width: 70, format: "N0", align: right }
+          - { header: "Mensual",   binding: "$.mensual",  width: 80, format: "N2", align: right }
+          - { header: "Anual",     binding: "= $.mensual * 12", width: 90, format: "N2", align: right }
+        summary: &sum
+          height: 18
+          style: TableSummary
+          cells: [ { content: "Total contrato" }, { aggregate: sum, format: "N0", align: right }, { aggregate: sum, format: "N2", align: right }, { aggregate: sum, format: "N2", align: right } ]
+
+  - kind: Detail
+    height: 16
+
+  - kind: Detail
+    height: 0
+    autoHeight: true
+    keepTogether: true
+    elements:
+      - { type: rectangle, bounds: { x: 0, y: 0, width: 527, height: 30 }, fill: "#4338CA", cornerRadius: 8, roundedCorners: top }
+      - { type: text, bounds: { x: 0, y: 9, width: 360, height: 14 }, content: "{{ $.clientes[1].nombre }}", style: CardTitle }
+      - { type: text, bounds: { x: 300, y: 11, width: 227, height: 12 }, content: "Contrato {{ $.clientes[1].contrato }} · vence {{ $.clientes[1].vence : dd/MM/yyyy }}", style: CardMeta }
+      - { type: table, bounds: { x: 0, y: 30, width: 527, height: 0 }, rows: "$.clientes[1].servicios", headerStyle: TableHeader, rowStyle: TableRow, headerRule: { thickness: 0.5, color: "#C7D2FE" }, rowSeparator: { thickness: 0.25, color: "#E0E7FF" }, outerBorder: { thickness: 0.75, color: "#C7D2FE" }, headerHeight: 18, rowHeight: 16, columns: *cols, summary: *sum }
+
+  - kind: Detail
+    height: 16
+
+  - kind: Detail
+    height: 0
+    autoHeight: true
+    keepTogether: true
+    elements:
+      - { type: rectangle, bounds: { x: 0, y: 0, width: 527, height: 30 }, fill: "#4338CA", cornerRadius: 8, roundedCorners: top }
+      - { type: text, bounds: { x: 0, y: 9, width: 360, height: 14 }, content: "{{ $.clientes[2].nombre }}", style: CardTitle }
+      - { type: text, bounds: { x: 300, y: 11, width: 227, height: 12 }, content: "Contrato {{ $.clientes[2].contrato }} · vence {{ $.clientes[2].vence : dd/MM/yyyy }}", style: CardMeta }
+      - { type: table, bounds: { x: 0, y: 30, width: 527, height: 0 }, rows: "$.clientes[2].servicios", headerStyle: TableHeader, rowStyle: TableRow, headerRule: { thickness: 0.5, color: "#C7D2FE" }, rowSeparator: { thickness: 0.25, color: "#E0E7FF" }, outerBorder: { thickness: 0.75, color: "#C7D2FE" }, headerHeight: 18, rowHeight: 16, columns: *cols, summary: *sum }
+
+  - kind: Detail
+    height: 16
+
+  - kind: Detail
+    height: 0
+    autoHeight: true
+    keepTogether: true
+    elements:
+      - { type: rectangle, bounds: { x: 0, y: 0, width: 527, height: 30 }, fill: "#4338CA", cornerRadius: 8, roundedCorners: top }
+      - { type: text, bounds: { x: 0, y: 9, width: 360, height: 14 }, content: "{{ $.clientes[3].nombre }}", style: CardTitle }
+      - { type: text, bounds: { x: 300, y: 11, width: 227, height: 12 }, content: "Contrato {{ $.clientes[3].contrato }} · vence {{ $.clientes[3].vence : dd/MM/yyyy }}", style: CardMeta }
+      - { type: table, bounds: { x: 0, y: 30, width: 527, height: 0 }, rows: "$.clientes[3].servicios", headerStyle: TableHeader, rowStyle: TableRow, headerRule: { thickness: 0.5, color: "#C7D2FE" }, rowSeparator: { thickness: 0.25, color: "#E0E7FF" }, outerBorder: { thickness: 0.75, color: "#C7D2FE" }, headerHeight: 18, rowHeight: 16, columns: *cols, summary: *sum }
+
+  - kind: Detail
+    height: 16
+
+  - kind: Detail
+    height: 0
+    autoHeight: true
+    keepTogether: true
+    visible: "count($.clientes[*]) >= 5"
+    elements:
+      - { type: rectangle, bounds: { x: 0, y: 0, width: 527, height: 30 }, fill: "#4338CA", cornerRadius: 8, roundedCorners: top }
+      - { type: text, bounds: { x: 0, y: 9, width: 360, height: 14 }, content: "{{ $.clientes[4].nombre }}", style: CardTitle }
+      - { type: text, bounds: { x: 300, y: 11, width: 227, height: 12 }, content: "Contrato {{ $.clientes[4].contrato }} · vence {{ $.clientes[4].vence : dd/MM/yyyy }}", style: CardMeta }
+      - { type: table, bounds: { x: 0, y: 30, width: 527, height: 0 }, rows: "$.clientes[4].servicios", headerStyle: TableHeader, rowStyle: TableRow, headerRule: { thickness: 0.5, color: "#C7D2FE" }, rowSeparator: { thickness: 0.25, color: "#E0E7FF" }, outerBorder: { thickness: 0.75, color: "#C7D2FE" }, headerHeight: 18, rowHeight: 16, columns: *cols, summary: *sum }
+
+  - kind: PageFooter
+    height: 16
+    elements:
+      - { type: text, bounds: { x: 0, y: 4, width: 527, height: 10 }, content: "Página {{ pageNumber }} de {{ totalPages }}", style: CaptionCenter }

@@ -71,6 +71,30 @@ RenderToPdf(
     Path.Combine(baseDir, "invoice-complete-data.json"),
     "invoice-complete.pdf");
 
+// === v1.1: charts (bar/line/donut/pie/horizontalBar) + KPIs con expresiones ===
+RenderToPdf(
+    Path.Combine(baseDir, "sales-dashboard.yaml"),
+    Path.Combine(baseDir, "sales-dashboard-data.json"),
+    "sales-dashboard.pdf");
+
+// === v1.1: grupos multinivel (región → categoría) + total general ===
+RenderToPdf(
+    Path.Combine(baseDir, "nested-groups.yaml"),
+    Path.Combine(baseDir, "nested-groups-data.json"),
+    "nested-groups.pdf");
+
+// === v1.1: expresiones DSL, visible y estilo dinámico ===
+RenderToPdf(
+    Path.Combine(baseDir, "account-statement.yaml"),
+    Path.Combine(baseDir, "account-statement-data.json"),
+    "account-statement.pdf");
+
+// === v1.1: KeepTogether en DetailBand ===
+RenderToPdf(
+    Path.Combine(baseDir, "contracts-keep-together.yaml"),
+    Path.Combine(baseDir, "contracts-data.json"),
+    "contracts-keep-together.pdf");
+
 
 void RenderToPdf(string templatePath, string dataPath, string outputName)
 {
