@@ -28,7 +28,7 @@ Or reference only the pieces you need. All packages share the same version numbe
 |---|---|
 | `NetReporter.Core` | Report IR (bands, elements, styles, charts), typed data bindings, layout engine, `RenderList` |
 | `NetReporter.Templates` | YAML templates, JSON Path bindings (`$.client.name`), template strings (`{{ pageNumber }}`), expression DSL |
-| `NetReporter.Pdf` | PDF renderer (vector, selectable text; hosted by QuestPDF) |
+| `NetReporter.Pdf` | PDF renderer (vector, selectable text, subset-embedded fonts) via SkiaSharp's PDF backend |
 | `NetReporter.Svg` | SVG renderer via SkiaSharp, one document per page |
 | `NetReporter.Html` | Paginated, self-contained HTML/CSS `@page` renderer |
 | `NetReporter.Xlsx` | Semantic XLSX renderer via ClosedXML: text becomes cells, tables become native Excel Tables |
@@ -52,8 +52,6 @@ using NetReporter.Core.Layout;
 using NetReporter.Core.Primitives;
 using NetReporter.Core.Styles;
 using NetReporter.Pdf;
-
-QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
 
 var styles = new StyleSheetBuilder()
     .Add("Default", s => s.FontFamily("Helvetica").FontSize(12))
@@ -122,8 +120,6 @@ using NetReporter.Core.Layout;
 using NetReporter.Pdf;
 using NetReporter.Templates;
 
-QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
-
 var template = YamlReportLoader.Load("report.yaml");
 var report   = template.Bind(File.ReadAllText("data.json"));   // JSON data bound via JSON Path
 
@@ -157,13 +153,14 @@ byte[]                xlsx = new XlsxRenderer().Render(report);         // seman
 ## Requirements and notes
 
 - .NET 10.
-- The PDF renderer is hosted by QuestPDF; set `QuestPDF.Settings.License` before rendering
-  (the Community license covers personal use and companies under 1M USD/year revenue).
-- On Linux, SkiaSharp and QuestPDF need `libfontconfig1` installed on the host
-  (`apt-get install libfontconfig1`). The Linux native binaries themselves ship with the packages.
+- The PDF renderer uses SkiaSharp's own PDF backend: no third-party license is required.
+  (Up to 1.1 it was hosted by QuestPDF; remove any `QuestPDF.Settings.License` line when upgrading.)
+- On Linux, SkiaSharp needs `libfontconfig1` installed on the host, and `fonts-liberation` keeps templates that use
+  Helvetica / Arial / Courier / Times on their metrics (`apt-get install libfontconfig1 fonts-liberation`).
+  The Linux native binaries themselves ship with the packages.
 
 ## License
 
 NetReporter is released under the MIT license. Third-party components keep their own licenses:
-QuestPDF (Community / Professional), SkiaSharp (MIT), YamlDotNet (MIT), ClosedXML (MIT) and
+SkiaSharp (MIT), YamlDotNet (MIT), ClosedXML (MIT) and
 ZXing.Net (Apache 2.0, only when `NetReporter.Barcodes` is referenced).

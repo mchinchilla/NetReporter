@@ -12,7 +12,7 @@
     <PackageProjectUrl>https://github.com/mchinchilla/NetReporter</PackageProjectUrl>
     <RepositoryUrl>https://github.com/mchinchilla/NetReporter</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
-    <PackageTags>reporting;report;reports;pdf;html;svg;xlsx;excel;yaml;template;invoice;questpdf;skiasharp;dotnet</PackageTags>
+    <PackageTags>reporting;report;reports;pdf;html;svg;xlsx;excel;yaml;template;invoice;skiasharp;dotnet</PackageTags>
     <!-- nuget.org strips raw HTML and only shows images from trusted domains, so the packages ship
          docs/nuget-readme.md (plain Markdown, absolute URLs) instead of the GitHub README -->
     <PackageReadmeFile>nuget-readme.md</PackageReadmeFile>

@@ -8,7 +8,7 @@
 
 [![.NET 10](https://img.shields.io/badge/.NET-10.0-512BD4?style=flat-square&logo=dotnet)](https://dotnet.microsoft.com/)
 [![NuGet](https://img.shields.io/nuget/v/NetReporter?style=flat-square&logo=nuget&label=NuGet)](https://www.nuget.org/packages/NetReporter)
-[![Tests](https://img.shields.io/badge/tests-365%20passing-22c55e?style=flat-square&logo=xunit)](#-tests)
+[![Tests](https://img.shields.io/badge/tests-383%20passing-22c55e?style=flat-square&logo=xunit)](#-tests)
 [![License](https://img.shields.io/badge/license-MIT-22c55e?style=flat-square)](#-licenses)
 [![Status](https://img.shields.io/badge/status-production-22c55e?style=flat-square)](#status)
 
@@ -28,24 +28,49 @@
 
 ## 📚 Table of contents
 
-1. [What's new in 1.1](#-whats-new-in-11)
-2. [Philosophy and architecture](#-philosophy-and-architecture)
-3. [Features](#-features)
-4. [Visual pipeline](#-visual-pipeline)
-5. [Tech stack](#-tech-stack)
-6. [Repository layout](#-repository-layout)
-7. [Quick start](#-quick-start)
-8. [Visual designer](#-visual-designer)
-9. [YAML template syntax](#-yaml-template-syntax)
-10. [Expressions (DSL)](#-expressions-dsl)
-11. [Charts](#-charts)
-12. [Available renderers](#-available-renderers)
-13. [Page sizes](#-page-sizes)
-14. [Tests](#-tests)
-15. [Known limitations](#-known-limitations)
-16. [Completed](#-completed)
-17. [Roadmap](#-roadmap)
-18. [Licenses](#-licenses)
+1. [What's new in 1.2](#-whats-new-in-12)
+2. [What's new in 1.1](#-whats-new-in-11)
+3. [Philosophy and architecture](#-philosophy-and-architecture)
+4. [Features](#-features)
+5. [Visual pipeline](#-visual-pipeline)
+6. [Tech stack](#-tech-stack)
+7. [Repository layout](#-repository-layout)
+8. [Quick start](#-quick-start)
+9. [Visual designer](#-visual-designer)
+10. [YAML template syntax](#-yaml-template-syntax)
+11. [Expressions (DSL)](#-expressions-dsl)
+12. [Charts](#-charts)
+13. [Available renderers](#-available-renderers)
+14. [Page sizes](#-page-sizes)
+15. [Tests](#-tests)
+16. [Known limitations](#-known-limitations)
+17. [Completed](#-completed)
+18. [Roadmap](#-roadmap)
+19. [Licenses](#-licenses)
+
+---
+
+## 🆕 What's new in 1.2
+
+**The PDF renderer no longer depends on QuestPDF: rendering PDFs needs no third-party license.** `PdfRenderer` writes the
+document with SkiaSharp's own PDF backend (`SKDocument`) and draws each page with `SkiaPagePainter`, the same painter as
+the SVG renderer. The public API is unchanged: `new PdfRenderer().Render(layout)`.
+
+| Change | Detail |
+|---|---|
+| 📉 **Subset fonts** | Each font is embedded with only the glyphs the document uses. The SkiaSharp NuGet natives can't subset (they embed ~200 KB per font variant), so NetReporter ships its own TrueType subsetter. A typical invoice weighs 35–70 KB |
+| 🔤 **Fallback fonts** | A character missing from the requested font (e.g. `▸` in Helvetica) is measured and drawn with a system font that has it, instead of disappearing |
+| 🐧 **Linux fonts** | Font resolution keeps bold/italic for families the host doesn't have, and text is measured with linear (unhinted) metrics |
+
+### ⚠️ Behavior changes in 1.2
+
+PDF output changes. Review these before upgrading a production deployment:
+
+1. **Remove `QuestPDF.Settings.License = …` from your code.** `NetReporter.Pdf` no longer references QuestPDF, so that line stops compiling unless your project references QuestPDF itself.
+2. **PDF text uses the font the layout measured.** Up to 1.1, QuestPDF re-parsed the page SVG and drew the text with its bundled Lato, positioned with the measured font's metrics: uneven letter spacing ("Dis tribuidora") and semibold instead of bold. PDFs now show the real `fontFamily` (Helvetica, Arial…), so glyph shapes and weights change.
+3. **Characters missing from a font fall back to a system font** in the PDF, the SVG and `SkiaTextMeasurer`. They used to disappear from the PDF; now they take space, so text containing them may wrap differently.
+4. **Linux: fonts keep the requested weight and are measured with linear metrics.** A family the host doesn't have (Helvetica, Courier and Times usually don't exist on Linux) used to resolve to the default font *in regular*, with advances rounded to whole points (~5% wider at 7 pt). Resolution now tries: the exact family → its metric equivalent (Helvetica → Arial, Courier → Courier New, Times → Times New Roman) → generic `sans-serif` / `serif` / `monospace` → the default family, always with the requested weight/slant. **Install `fonts-liberation` on Linux hosts**: it is metric-compatible with Arial/Helvetica, Courier New and Times New Roman and gives the same line breaks as macOS/Windows. With only DejaVu (the fontconfig default) text is wider and may wrap or clip differently.
+5. PDF metadata: `Producer` and `Creator` are `NetReporter`.
 
 ---
 
@@ -127,7 +152,7 @@ NetReporter splits the report into four layers with clear interfaces. **The temp
 |---|---|
 | 🚫 **No reflection** in hot paths | Data binding with typed `Func<TRow,TValue>`; expressions with `Func<IEvaluationContext,T>`; tables dispatch their row type through a visitor (`ITableVisitor<T>`) |
 | 🎨 **No CSS / Tailwind for reports** | Native styling via `StyleSheet` + `StyleRef` (zero-alloc struct) and inheritance through `BasedOn` |
-| 🧪 **QuestPDF only as a host** | All PDF drawing flows through SkiaSharp → SVG → `container.Svg(...)` |
+| 🧪 **One painter for SVG and PDF** | `SkiaPagePainter` draws every page on any `SKCanvas`: `SKSvgCanvas` for SVG, `SKDocument` (Skia's PDF backend) for PDF. No third-party PDF library |
 | 🔄 **Single IR, multiple outputs** | The `RenderList` is computed once; N renderers consume it |
 | 📦 **Editable templates without recompiling** | YAML + JSON wired with JSON Path — and, since 1.1, logic too (expression DSL compiled once to delegates) |
 
@@ -175,7 +200,7 @@ NetReporter splits the report into four layers with clear interfaces. **The temp
 - 📥 **One-click export** to PDF, HTML and XLSX
 
 ### Renderers
-- 📄 **PDF** via QuestPDF + SkiaSharp (Letter, A4, Legal, custom)
+- 📄 **PDF** via SkiaSharp's PDF backend, fonts embedded as subsets (Letter, A4, Legal, custom)
 - 🌐 **HTML** paginated with CSS `@page` — natively printable, charts as inline SVG, optional floating zoom bar
 - 🖼️ **SVG** vector — one per page
 - 📊 **XLSX** semantic via ClosedXML — text → cells, tables → native Excel tables (filters, sort, banded rows), grouped tables → Excel outline, charts → data tables
@@ -244,7 +269,7 @@ flowchart TB
 | Layout & IR | Pure C# | No external dependencies |
 | Expressions | Pure C# | Hand-written lexer + recursive-descent parser → delegate chain (no Roslyn, no `eval`) |
 | YAML parser | **YamlDotNet** 18.1 | CamelCase naming, ignore unmatched, default values handling |
-| PDF backend | **QuestPDF** 2026.9 | Used only as a container; drawing goes through SkiaSharp |
+| PDF backend | **SkiaSharp** `SKDocument` | Skia's PDF backend + NetReporter's own TrueType subsetter; no third-party PDF library |
 | 2D drawing | **SkiaSharp** 4.152 | `SKSvgCanvas` to emit SVG; Linux natives included via `SkiaSharp.NativeAssets.Linux` |
 | Web UI | **ASP.NET Core MVC** (.NET 10) | Interactive designer |
 | Frontend reactivity | **Alpine.js** 3.14 (CDN) | State + reactivity, no build pipeline |
@@ -252,7 +277,7 @@ flowchart TB
 | CSS | **Tailwind CSS** (CDN play) | Utility-first |
 | Barcodes (opt-in) | **ZXing.Net** 0.16.11 | Apache 2.0 · QR / Code128 / Code39 / EAN-13 |
 | XLSX backend | **ClosedXML** 0.105 | MIT · OpenXML, native Excel tables |
-| Tests | **xUnit** 2.9 | 365 tests across 6 projects |
+| Tests | **xUnit** 2.9 | 383 tests across 7 projects |
 | JSON | `System.Text.Json` (BCL) | No Newtonsoft |
 
 ---
@@ -264,8 +289,8 @@ NetReporter/
 ├── 📦 src/
 │   ├── NetReporter.Core/        🧠 IR, Primitives, Styles, Layout (+ ChartLayout), RenderList
 │   ├── NetReporter.Templates/   📝 YAML loader/rewriter, JSON Path, template strings, expression DSL
-│   ├── NetReporter.Pdf/         📄 PdfRenderer (delegates to Svg)
-│   ├── NetReporter.Svg/         🖼️ SvgRenderer (SkiaSharp.SKSvgCanvas)
+│   ├── NetReporter.Pdf/         📄 PdfRenderer (SKDocument) + TrueType font subsetter
+│   ├── NetReporter.Svg/         🖼️ SvgRenderer (SKSvgCanvas), SkiaPagePainter (shared with PDF), SkiaFonts, SkiaTextMeasurer
 │   ├── NetReporter.Html/        🌐 HtmlRenderer (paginated HTML/CSS)
 │   ├── NetReporter.Xlsx/        📊 XlsxRenderer semantic (ClosedXML, native tables)
 │   ├── NetReporter.Barcodes/    ▦ ZXing-based barcode/QR generator (opt-in)
@@ -275,9 +300,11 @@ NetReporter/
 │   ├── NetReporter.Core.Tests/        Primitives, styles, word wrap, auto-height, KeepTogether (report + detail bands), grouped/nested/multi-page tables, table styling, charts, visibility
 │   ├── NetReporter.Templates.Tests/   JSON Path, template strings, expression DSL, YAML loader (v1.1 schema), rewriter (single + multi-element + clipboard), file names
 │   ├── NetReporter.Html.Tests/        HtmlRendererTests
-│   ├── NetReporter.Svg.Tests/         SvgRendererTests
+│   ├── NetReporter.Svg.Tests/         SvgRendererTests, SkiaFontsTests
+│   ├── NetReporter.Pdf.Tests/         PdfRendererTests, TrueTypeSubsetterTests
 │   ├── NetReporter.Xlsx.Tests/        XlsxRendererTests
-│   └── NetReporter.Barcodes.Tests/    ZXingBarcodeGeneratorTests
+│   ├── NetReporter.Barcodes.Tests/    ZXingBarcodeGeneratorTests
+│   └── TestAssets/Fonts/              Lato-Regular.ttf (SIL OFL) so font tests don't depend on system fonts
 │
 ├── 🛠️ tools/
 │   └── NetReporter.Designer/    🎨 ASP.NET Core MVC + Alpine + HTMX + Tailwind
@@ -310,8 +337,7 @@ NetReporter/
 
 - ✅ .NET 10 SDK (tested with `10.0.103`)
 - ✅ macOS / Linux / Windows
-- 🐧 On Linux, SkiaSharp and QuestPDF need `libfontconfig1` on the host (`apt-get install libfontconfig1`)
-- ⚠️ QuestPDF Community license for personal use / companies <1M USD/year
+- 🐧 On Linux, SkiaSharp needs `libfontconfig1` on the host, and `fonts-liberation` keeps Helvetica/Arial/Courier/Times templates on their metrics (`apt-get install libfontconfig1 fonts-liberation`)
 
 ### Install from NuGet
 
@@ -325,7 +351,7 @@ Or reference only the pieces you need:
 |---|---|
 | `NetReporter.Core` | IR, styles, layout engine, charts, RenderList |
 | `NetReporter.Templates` | YAML templates, JSON Path bindings, template strings, expression DSL |
-| `NetReporter.Pdf` | PDF renderer (QuestPDF host) |
+| `NetReporter.Pdf` | PDF renderer (SkiaSharp PDF backend, subset fonts) |
 | `NetReporter.Svg` | SVG renderer (SkiaSharp) |
 | `NetReporter.Html` | Paginated HTML/CSS renderer |
 | `NetReporter.Xlsx` | Semantic XLSX renderer (ClosedXML) |
@@ -355,8 +381,6 @@ using NetReporter.Core.Layout;
 using NetReporter.Core.Primitives;
 using NetReporter.Core.Styles;
 using NetReporter.Pdf;
-
-QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
 
 var styles = new StyleSheetBuilder()
     .Add("Default", s => s.FontFamily("Helvetica").FontSize(12))
@@ -398,8 +422,6 @@ File.WriteAllBytes("hello.pdf", pdf);
 using NetReporter.Core.Layout;
 using NetReporter.Pdf;
 using NetReporter.Templates;
-
-QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
 
 var template = YamlReportLoader.Load("invoice-laser.yaml");
 var json = File.ReadAllText("invoice-data.json");
@@ -903,11 +925,16 @@ var chart = new ChartElement
 
 ### 📄 PDF — `NetReporter.Pdf`
 
-Generates vector PDF via **QuestPDF** (host) + **SkiaSharp** (drawing). Selectable text, native print quality.
+Generates vector PDF with **SkiaSharp**'s PDF backend (`SKDocument`), drawing each page with the same `SkiaPagePainter` as the SVG renderer. Selectable text, native print quality, fonts embedded as subsets of the glyphs used. No third-party license required.
 
 ```csharp
 byte[] pdf = new PdfRenderer().Render(renderList);
+
+// Escape hatch: embed whole fonts (same look, ~200 KB more per font variant)
+byte[] full = new PdfRenderer(new PdfRendererOptions { SubsetFonts = false }).Render(renderList);
 ```
+
+TrueType fonts (`.ttf` / `.ttc`) are subset; CFF (`.otf`), variable and color fonts, and fonts whose license forbids subsetting, are embedded whole.
 
 ### 🌐 HTML — `NetReporter.Html`
 
@@ -930,7 +957,7 @@ string html = new HtmlRenderer().Render(renderList, new HtmlRenderOptions
 
 ### 🖼️ SVG — `NetReporter.Svg`
 
-One SVG string per page. Used internally by the PDF renderer and the designer's live preview.
+One SVG string per page, drawn by the same `SkiaPagePainter` as the PDF. Used by the designer's live preview.
 
 ```csharp
 IReadOnlyList<string> svgs = new SvgRenderer().Render(renderList);
@@ -1001,11 +1028,12 @@ dotnet test
 │ NetReporter.Core.Tests              │  114  │
 │ NetReporter.Templates.Tests         │  204  │
 │ NetReporter.Html.Tests              │   20  │
-│ NetReporter.Svg.Tests               │    5  │
+│ NetReporter.Svg.Tests               │   11  │
+│ NetReporter.Pdf.Tests               │   12  │
 │ NetReporter.Xlsx.Tests              │   15  │
 │ NetReporter.Barcodes.Tests          │    7  │
 ├─────────────────────────────────────┼───────┤
-│ Total                               │  365  │
+│ Total                               │  383  │
 └─────────────────────────────────────┴───────┘
 ```
 
@@ -1014,7 +1042,8 @@ dotnet test
 - 🧠 **Core**: hex color parsing, PageSetup transformations, StyleSheet (inheritance + cycles + cache), BorderSet factories, **word-wrap algorithm**, **band auto-height**, **KeepTogether on report and detail bands (dry-run measurement)**, **nested groups + summary + min/max**, **group-header keep-with-next**, **multi-page tables with repeating PageHeader**, **table outer border / header rule / row separators / typed row styles**, **table `bounds.y` offset**, **rounded rectangles**, **charts (bar/line/area/pie/donut/horizontal, legend, labels inside bounds)**, **visible / dynamic style**, **page chrome with `totalPages`**.
 - 📝 **Templates**: JSON Path, TemplateString (placeholders + literals + escape + `:format`), **expression DSL (operators, functions, errors with position, format splitting)**, **v1.1 YAML schema (charts, groups, visible, dynamic style, text flags, band flags)**, YamlReportRewriter (every mutation method, **multi-element moves/deletes, clipboard copy/paste, image/barcode/chart patches, series editor**), FileName resolution, `cornerRadius` / `roundedCorners` parsing.
 - 🌐 **Html**: valid HTML, special-char escaping, fonts, alignments, lines, rectangles (incl. rounded corners), **paths as inline SVG**, multi-page, print CSS, fragment mode, opt-in zoom bar.
-- 🖼️ **Svg**: rounded and square rectangles, **filled and stroked paths**.
+- 🖼️ **Svg**: rounded and square rectangles, **filled and stroked paths**, **font resolution that keeps the requested weight**, **per-character fallback runs**, **linear (unhinted) metrics**.
+- 📄 **Pdf**: one PDF page per `RenderPage` with the page size, **lossless image embedding**, **TrueType subsetter** (glyph IDs and advances kept, composite glyphs, checksums, `.ttc` collections, CFF / license / truncated-font rejection), subset-font mapping.
 - 📊 **Xlsx**: text → cells, tables → ranges, native Excel Tables, **nested groups with outline + summary**, **charts as data tables**, **dynamic styles**, page setup mapping, sheet-name sanitation, image embedding, per-culture formatting.
 - ▦ **Barcodes**: QR finder patterns, Code 128 bar density, EAN-13 strict validation, edge cases (empty/null/throwing fallback).
 
@@ -1035,6 +1064,7 @@ The Designer (UI) has no automated tests; its 1.1 features were verified manuall
 | **Side-by-side tables across pages** | ⚠️ | A `suppressAdvance` table doesn't drive pagination — keep it to one page |
 | **XLSX: lines / rectangles / barcodes** | ⚠️ | Decorative elements skipped on purpose — XLSX is semantic, not pixel-perfect |
 | **XLSX: charts** | ⚠️ | Exported as data tables (ClosedXML has no chart API); insert an Excel chart over the table if needed |
+| **PDF: CFF (`.otf`), variable and color fonts** | ⚠️ | Embedded whole instead of subset (larger PDFs); prefer TrueType (`.ttf`) fonts |
 
 ### Documented technical debt
 
@@ -1079,7 +1109,8 @@ The Designer (UI) has no automated tests; its 1.1 features were verified manuall
 - [x] **Phase 5.5 (v1.1)** — Designer multi-selection (Shift+click, marquee, Ctrl+A), group move/nudge/align, copy/cut/paste/duplicate
 - [x] **Phase 5.6 (v1.1)** — Designer toolbox + pickers for image (upload), barcode and chart (series editor), `visible:` field, binding suggestions from `data.json`
 - [x] **Samples (v1.1)** — `sales-dashboard`, `nested-groups`, `account-statement`, `contracts-keep-together`
-- [x] **Tests** — 365 passing tests across 6 projects
+- [x] **Phase 6.1 (v1.2)** — PDF renderer on SkiaSharp's PDF backend (QuestPDF removed), own TrueType subsetter, fallback fonts, style-preserving font resolution and linear metrics on Linux
+- [x] **Tests** — 383 passing tests across 7 projects
 
 ---
 
@@ -1100,14 +1131,14 @@ Every item of the 1.0 roadmap shipped in **1.1.0**. Candidates for the next iter
 | Component | License |
 |---|---|
 | **NetReporter** | MIT |
-| **QuestPDF** | MIT for non-commercial use and companies under 1M USD/year revenue. Commercial: Professional ($699 one-time). [Pricing](https://www.questpdf.com/pricing.html) |
-| **SkiaSharp** | MIT |
+| **SkiaSharp** | MIT (Skia: BSD-3-Clause) |
 | **YamlDotNet** | MIT |
 | **ZXing.Net** | Apache 2.0 (only if `NetReporter.Barcodes` is referenced) |
 | **ClosedXML** | MIT (only if `NetReporter.Xlsx` is referenced) |
 | **HTMX** | BSD-2-Clause |
 | **Alpine.js** | MIT |
 | **Tailwind CSS** | MIT |
+| **Lato** (test fixture only) | SIL OFL 1.1 — `tests/TestAssets/Fonts`, not shipped in any package |
 
 ---
 
@@ -1121,6 +1152,6 @@ Every item of the 1.0 roadmap shipped in **1.1.0**. Candidates for the next iter
 
 <div align="center">
 
-**Built with .NET 10 · QuestPDF · SkiaSharp · YamlDotNet · ZXing.Net · ClosedXML · HTMX · Alpine.js · Tailwind**
+**Built with .NET 10 · SkiaSharp · YamlDotNet · ZXing.Net · ClosedXML · HTMX · Alpine.js · Tailwind**
 
 </div>

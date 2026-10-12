@@ -6,7 +6,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="QuestPDF" Version="2026.9.1" />
+    <InternalsVisibleTo Include="NetReporter.Pdf.Tests" />
   </ItemGroup>
 
   <PropertyGroup>
@@ -15,7 +15,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <Description>PDF renderer for NetReporter: vector output with selectable text, hosted by QuestPDF (a QuestPDF license setting is required).</Description>
+    <Description>PDF renderer for NetReporter: vector output with selectable text and subset-embedded fonts, written with SkiaSharp's PDF backend. No third-party license required.</Description>
   </PropertyGroup>
 
 </Project>

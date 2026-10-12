@@ -3,9 +3,8 @@ using NetReporter.Core.Styles;
 namespace NetReporter.Core.Layout;
 
 /// <summary>
-/// Medición ultra-simple de texto. En producción medimos con SkiaSharp o System.Drawing
-/// para obtener métricas reales. Para el prototipo, una aproximación lineal es suficiente
-/// porque QuestPDF hará el text layout real al pintar.
+/// Medición ultra-simple de texto: una aproximación lineal. Para métricas reales se pasa
+/// SkiaTextMeasurer al LayoutEngine (los renderers SVG/PDF dibujan con esas mismas fuentes).
 /// </summary>
 public static class TextMeasurer
 {

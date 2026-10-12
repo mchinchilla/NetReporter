@@ -3,8 +3,6 @@ using InvoiceSample.Reports;
 using NetReporter.Core.Layout;
 using NetReporter.Pdf;
 
-QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
-
 var factura = new Factura(
     Numero: "000-001-01-00001234",
     Fecha: new DateOnly(2026, 4, 22),

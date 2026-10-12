@@ -14,15 +14,16 @@ The README is the most up-to-date reference (`README.md` / `README.es.md`). `Net
 src/
   NetReporter.Core/        IR, Primitives, Styles, Layout (LayoutEngine + ChartLayout), RenderList, ITextMeasurer
   NetReporter.Templates/   YAML loader/rewriter, JSON Path, template strings, expression DSL, fileName
-  NetReporter.Pdf/         PdfRenderer (delegates to Svg)
-  NetReporter.Svg/         SvgRenderer (SkiaSharp.SKSvgCanvas)
+  NetReporter.Pdf/         PdfRenderer (SKDocument), FontSubsetPlan + TrueTypeSubsetter
+  NetReporter.Svg/         SvgRenderer (SKSvgCanvas), SkiaPagePainter (shared with PDF), SkiaFonts, SkiaTextMeasurer
   NetReporter.Html/        HtmlRenderer (paginated HTML/CSS @page)
   NetReporter.Xlsx/        XlsxRenderer — semantic, consumes ReportDefinition directly
   NetReporter.Barcodes/    ZXing-based QR/Code128/Code39/EAN-13 (opt-in)
   NetReporter/             Meta-package (no code) that references all of the above
 tests/
-  NetReporter.Core.Tests/  NetReporter.Templates.Tests/  NetReporter.Html.Tests/
-  NetReporter.Svg.Tests/   NetReporter.Xlsx.Tests/       NetReporter.Barcodes.Tests/   — 365 tests total
+  NetReporter.Core.Tests/  NetReporter.Templates.Tests/  NetReporter.Html.Tests/  NetReporter.Svg.Tests/
+  NetReporter.Pdf.Tests/   NetReporter.Xlsx.Tests/       NetReporter.Barcodes.Tests/   — 383 tests total
+  TestAssets/Fonts/        Lato-Regular.ttf (SIL OFL) — font tests use it instead of system fonts (CI has almost none)
 tools/
   NetReporter.Designer/    ASP.NET Core MVC + Alpine.js + HTMX + Tailwind (CDN)
 samples/
@@ -36,13 +37,13 @@ Solution file is `NetReporter.slnx` (the newer XML format — not classic `.sln`
 
 - **.NET 10** (`dotnet --version` → 10.0.103). Do not downgrade `<TargetFramework>`.
 - All csproj files include: `<LangVersion>latest</LangVersion>`, `<Nullable>enable</Nullable>`, `<ImplicitUsings>enable</ImplicitUsings>`, `<TreatWarningsAsErrors>true</TreatWarningsAsErrors>`. Don't relax these to make a warning go away.
-- QuestPDF license must be activated wherever the Pdf renderer is invoked: `QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;`.
+- There is no QuestPDF anymore (removed in 1.2 for licensing reasons). Don't add it back, and don't add another third-party PDF library: the PDF is written by SkiaSharp's own backend.
 
 ## Build / run / test
 
 ```bash
 dotnet build
-dotnet test                                                # 365 tests
+dotnet test                                                # 383 tests
 dotnet run --project samples/InvoiceSample                 # → factura.pdf
 dotnet run --project samples/TemplateSample                # → 13 PDF + 13 XLSX
 dotnet run --project tools/NetReporter.Designer            # → http://localhost:5296
@@ -52,7 +53,7 @@ dotnet run --project tools/NetReporter.Designer            # → http://localhos
 
 The pipeline is **IR → LayoutEngine → RenderList → Renderer** (PDF/HTML/SVG). XLSX is the **semantic** exception: it consumes `ReportDefinition` directly, bypassing `LayoutEngine`/`RenderList`, because spreadsheet cells map to elements, not pixels.
 
-1. **QuestPDF is used only as a host**, never as a layout engine. All positioning is done by `LayoutEngine`, which emits absolute `DrawText/DrawLine/DrawRectangle` commands. `PdfRenderer` delegates to `SvgRenderer` and embeds the SVG via `container.Svg(...)`. If you find yourself calling `container.Row` / `container.Table` / `container.Column` in the Pdf renderer, you are doing it wrong.
+1. **One painter for SVG and PDF.** All positioning is done by `LayoutEngine`, which emits absolute `DrawText/DrawLine/DrawRectangle/…` commands. `SkiaPagePainter.Draw(SKCanvas, RenderPage)` paints them on any canvas: `SvgRenderer` passes an `SKSvgCanvas`, `PdfRenderer` passes the page canvas of an `SKDocument.CreatePdf` document. Renderers never lay anything out.
 
 2. **No reflection in hot paths.** Data binding is `IDataBinding<TRow,TValue>` wrapping a typed `Func<TRow,TValue>`. Expressions are `IExpression<T>` with `Func<IEvaluationContext,T>`. Never do `row.GetType()` or `PropertyInfo.GetValue`. Code that needs a table's row type dispatches through `ITableElement.Accept(ITableVisitor<T>)` (layout engine and XLSX emitter both do) — never `MakeGenericMethod`. The YAML expression DSL (`NetReporter.Templates/Expressions`) compiles text → delegate chain once at load; don't add runtime parsing or reflection to it.
 
@@ -60,7 +61,7 @@ The pipeline is **IR → LayoutEngine → RenderList → Renderer** (PDF/HTML/SV
 
 4. **`TableElement<TRow>` is generic on purpose** so `IDataBinding<TRow,…>` stays typed and JIT-inlinable. Do not propose an `object`-typed version.
 
-5. **`RenderCommand` is an `abstract record` with sealed subclasses** (`DrawTextCommand`, `DrawLineCommand`, `DrawRectangleCommand`, `DrawImageCommand`, `DrawPathCommand`). C# discriminated unions aren't a thing yet; use exhaustive pattern matching — a new command must be handled in `SvgRenderer` and `HtmlRenderer` (PDF goes through SVG). Arcs/curves are discretized in the layout (e.g. `ChartLayout`), so renderers only need move/line/close.
+5. **`RenderCommand` is an `abstract record` with sealed subclasses** (`DrawTextCommand`, `DrawLineCommand`, `DrawRectangleCommand`, `DrawImageCommand`, `DrawPathCommand`). C# discriminated unions aren't a thing yet; use exhaustive pattern matching — a new command must be handled in `SkiaPagePainter` (covers SVG and PDF) and `HtmlRenderer`. Arcs/curves are discretized in the layout (e.g. `ChartLayout`), so renderers only need move/line/close.
 
 6. **Multiple outputs from one IR.** A new renderer should consume `RenderList` (or `ReportDefinition` for semantic outputs). Never embed format-specific concepts (CSS classes, Excel cell refs, PDF objects) in the IR itself.
 
@@ -75,10 +76,19 @@ The pipeline is **IR → LayoutEngine → RenderList → Renderer** (PDF/HTML/SV
 
 | Renderer | Input | Drawing primitive | Notes |
 |---|---|---|---|
-| `PdfRenderer` | `RenderList` | SkiaSharp via SvgRenderer + QuestPDF host | Vector, selectable text |
+| `PdfRenderer` | `RenderList` | `SkiaPagePainter` on `SKDocument` (Skia's PDF backend) | Vector, selectable text, fonts embedded as subsets |
 | `HtmlRenderer` | `RenderList` | HTML/CSS `@page` | Self-contained, printable |
-| `SvgRenderer` | `RenderList` | `SKSvgCanvas` | One SVG string per page; reused by PDF and Designer preview |
+| `SvgRenderer` | `RenderList` | `SkiaPagePainter` on `SKSvgCanvas` | One SVG string per page; used by the Designer preview |
 | `XlsxRenderer` | `ReportDefinition` (not RenderList) | ClosedXML | Semantic — text → cells, tables → native Excel Tables (grouped tables → outline), charts → data tables. Lines/rectangles/barcodes are intentionally skipped |
+
+### Fonts (SVG / PDF / measurer) — keep these in sync
+
+- `SkiaFonts` is the single source of truth: `Resolve(style)` picks the typeface and `SplitRuns` splits text into per-typeface runs when the font lacks a character (fallback font). `SkiaTextMeasurer`, `SkiaPagePainter` and `FontSubsetPlan` all go through it, so what is measured is what is drawn and embedded. Don't call `SKTypeface.FromFamilyName` directly elsewhere.
+- Every `SKFont` that measures or draws must come from `SkiaFonts.CreateFont` (no hinting, linear metrics). Default `SKFont`s on Linux round advances to whole points (~5% wider text at small sizes); macOS is unaffected, so this only shows up in CI/Linux.
+- `Resolve` uses `SKFontManager.MatchFamily` first because `FromFamilyName` on Linux returns the default font *in regular* for unknown families (bold lost). `MatchCharacter` returns null on Linux, hence the manual family scan in `FindFallback`.
+- The SkiaSharp NuGet natives can't subset fonts (~200 KB embedded per variant). `TrueTypeSubsetter` zeroes unused glyphs while keeping glyph IDs, `cmap` and `hmtx`, so advances are identical; `FontSubsetPlan` verifies advances and falls back to the full font on any doubt. CFF/variable/color fonts and fonts whose `fsType` forbids subsetting are embedded whole.
+- `PdfRenderer` must start from `SKDocumentPdfMetadata.Default`: a `new SKDocumentPdfMetadata()` leaves `EncodingQuality = 0` and Skia re-encodes images as minimum-quality JPEG (a test guards this).
+- Linux hosts should have `fonts-liberation` (metric-compatible with Arial/Helvetica, Courier New, Times New Roman). Docker (`mcr.microsoft.com/dotnet/sdk:10.0` + `libfontconfig1`) is the quickest way to check Linux output.
 
 When the user asks for a feature that "should also work in XLSX", remember XLSX is semantic: ask whether it has a meaningful cell-level analog before adding logic to the Xlsx renderer.
 

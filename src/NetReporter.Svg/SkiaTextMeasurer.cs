@@ -6,8 +6,9 @@ using SkiaSharp;
 namespace NetReporter.Svg;
 
 /// <summary>
-/// <see cref="ITextMeasurer"/> implementado con SkiaSharp — usa el mismo motor de tipografía
-/// que el SvgRenderer / PdfRenderer, así que los anchos son consistentes con lo que se pinta.
+/// <see cref="ITextMeasurer"/> implementado con SkiaSharp — resuelve las fuentes con
+/// <see cref="SkiaFonts"/>, igual que el SvgRenderer / PdfRenderer, así que los anchos (incluidos
+/// los tramos con fuente de respaldo) son consistentes con lo que se pinta.
 /// </summary>
 public sealed class SkiaTextMeasurer : ITextMeasurer
 {
@@ -23,7 +24,7 @@ public sealed class SkiaTextMeasurer : ITextMeasurer
     {
         if (string.IsNullOrEmpty(text)) return 0;
         var font = GetFont(style);
-        return font.MeasureText(text);
+        return SkiaFonts.MeasureText(text, font);
     }
 
     public double LineHeight(ResolvedStyle style)
@@ -55,11 +56,11 @@ public sealed class SkiaTextMeasurer : ITextMeasurer
         var words = line.Split(' ');
         var current = new System.Text.StringBuilder();
         double currentWidth = 0;
-        var spaceWidth = font.MeasureText(" ");
+        var spaceWidth = SkiaFonts.MeasureText(" ", font);
 
         foreach (var word in words)
         {
-            var wordWidth = font.MeasureText(word);
+            var wordWidth = SkiaFonts.MeasureText(word, font);
             var addSpace = current.Length > 0;
             var widthIfAdded = currentWidth + (addSpace ? spaceWidth : 0) + wordWidth;
 
@@ -98,7 +99,7 @@ public sealed class SkiaTextMeasurer : ITextMeasurer
     {
         foreach (var ch in word)
         {
-            var chWidth = font.MeasureText(ch.ToString());
+            var chWidth = SkiaFonts.MeasureText(ch.ToString(), font);
             if (currentWidth + chWidth > maxWidth && current.Length > 0)
             {
                 output.Add(current.ToString());
@@ -113,13 +114,7 @@ public sealed class SkiaTextMeasurer : ITextMeasurer
     private SKFont GetFont(ResolvedStyle style)
     {
         var key = (style.FontFamily, style.FontSize, style.Weight, style.Italic);
-        return _fontCache.GetOrAdd(key, k =>
-        {
-            var slant = k.Italic == FontStyleKind.Italic ? SKFontStyleSlant.Italic : SKFontStyleSlant.Upright;
-            var weight = k.Weight == FontWeight.Bold ? SKFontStyleWeight.Bold : SKFontStyleWeight.Normal;
-            var typeface = SKTypeface.FromFamilyName(k.Family, weight, SKFontStyleWidth.Normal, slant)
-                           ?? SKTypeface.Default;
-            return new SKFont(typeface, (float)k.Size);
-        });
+        return _fontCache.GetOrAdd(key, static k =>
+            SkiaFonts.CreateFont(SkiaFonts.Resolve(k.Family, k.Weight, k.Italic), (float)k.Size));
     }
 }

@@ -5,8 +5,6 @@ using NetReporter.Svg;
 using NetReporter.Templates;
 using NetReporter.Xlsx;
 
-QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
-
 var baseDir = AppContext.BaseDirectory;
 // Paths relativos en YAML (ej. logo.png) se resuelven contra el cwd; lo apuntamos
 // al directorio donde están los assets copiados por CopyToOutputDirectory.
