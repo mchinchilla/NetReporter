@@ -1146,7 +1146,6 @@ Every item of the 1.0 roadmap shipped in **1.1.0**. Candidates for the next iter
 
 - [`NetReporter-Prototype-Invoice.md`](NetReporter-Prototype-Invoice.md) — original prototype spec (~2000 lines, in Spanish). Historical only; the shipped engine has grown well past it.
 - [`CLAUDE.md`](CLAUDE.md) — guide for Claude Code assistants working in this repo.
-- [`PLAN.md`](PLAN.md) — step-by-step plan in case work is resumed after interruption.
 
 ---
 
