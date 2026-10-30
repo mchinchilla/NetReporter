@@ -26,6 +26,8 @@ public static class SkiaFonts
 
     private static readonly ConcurrentDictionary<(SKTypeface Primary, int CodePoint), SKTypeface?> Fallbacks = new();
 
+    private static readonly ConcurrentDictionary<(SKTypeface Typeface, float Size), GlyphAdvances> AdvanceTables = new();
+
     public static SKTypeface Resolve(ResolvedStyle style)
     {
         ArgumentNullException.ThrowIfNull(style);
@@ -40,6 +42,19 @@ public static class SkiaFonts
     /// </summary>
     public static SKFont CreateFont(SKTypeface typeface, float size) =>
         new(typeface, size) { Hinting = SKFontHinting.None, LinearMetrics = true, Subpixel = true };
+
+    /// <summary>
+    /// Tabla de avances de glifo de esa tipografía a ese tamaño, compartida por todo el proceso.
+    /// Se identifica por la instancia de <see cref="SKTypeface"/>: las que devuelve <see cref="Resolve(ResolvedStyle)"/>
+    /// (y las de respaldo) son canónicas y viven lo que el proceso.
+    /// </summary>
+    public static GlyphAdvances Advances(SKTypeface typeface, float size)
+    {
+        ArgumentNullException.ThrowIfNull(typeface);
+        return AdvanceTables.TryGetValue((typeface, size), out var table)
+            ? table
+            : AdvanceTables.GetOrAdd((typeface, size), static (key, tf) => new GlyphAdvances(tf, key.Size), typeface);
+    }
 
     public static SKTypeface Resolve(string family, FontWeight weight, FontStyleKind italic) =>
         Typefaces.GetOrAdd((family, weight, italic), static k => Canonicalize(Load(k.Family, k.Weight, k.Italic)));
@@ -93,10 +108,18 @@ public static class SkiaFonts
         return SplitRuns(text, primary, font);
     }
 
-    // La tipografía se pasa aparte de su SKFont: SKFont.Typeface puede devolver otro envoltorio
-    // administrado de la misma fuente, y el PdfRenderer identifica las fuentes por referencia.
-    private static IReadOnlyList<SkiaTextRun> SplitRuns(string text, SKTypeface primary, SKFont primaryFont)
+    /// <summary>
+    /// Igual que <see cref="SplitRuns(string, SKTypeface)"/> pero con un <see cref="SKFont"/> de la
+    /// tipografía principal ya creado: el painter y el PdfRenderer reutilizan uno por documento en
+    /// vez de crear uno por texto. La tipografía se pasa aparte de su SKFont porque
+    /// <see cref="SKFont.Typeface"/> puede devolver otro envoltorio administrado de la misma fuente,
+    /// y el PdfRenderer identifica las fuentes por referencia.
+    /// </summary>
+    public static IReadOnlyList<SkiaTextRun> SplitRuns(string text, SKTypeface primary, SKFont primaryFont)
     {
+        ArgumentNullException.ThrowIfNull(text);
+        ArgumentNullException.ThrowIfNull(primary);
+        ArgumentNullException.ThrowIfNull(primaryFont);
         if (text.Length == 0 || primaryFont.ContainsGlyphs(text))
             return [new SkiaTextRun(text, primary)];
 
@@ -125,21 +148,26 @@ public static class SkiaFonts
     {
         ArgumentNullException.ThrowIfNull(text);
         ArgumentNullException.ThrowIfNull(font);
-        if (text.Length == 0) return 0;
-        if (font.ContainsGlyphs(text)) return font.MeasureText(text);
+        return text.Length == 0 ? 0 : MeasureText(text, font.Typeface, font);
+    }
 
-        var primary = font.Typeface;
+    /// <summary>
+    /// Igual que <see cref="MeasureText(string, SKFont)"/> con la tipografía de la fuente ya a mano
+    /// (<see cref="SKFont.Typeface"/> cuesta una búsqueda en el registro de objetos de SkiaSharp).
+    /// Los anchos salen de <see cref="Advances"/> y no de <c>SKFont.MeasureText</c>:
+    /// mismo resultado sin pasar por el lock global del strike cache de Skia.
+    /// </summary>
+    public static float MeasureText(string text, SKTypeface typeface, SKFont font)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+        ArgumentNullException.ThrowIfNull(typeface);
+        ArgumentNullException.ThrowIfNull(font);
+        if (text.Length == 0) return 0;
+        if (font.ContainsGlyphs(text)) return Advances(typeface, font.Size).Width(text);
+
         float width = 0;
-        foreach (var run in SplitRuns(text, primary, font))
-        {
-            if (ReferenceEquals(run.Typeface, primary))
-            {
-                width += font.MeasureText(run.Text);
-                continue;
-            }
-            using var fallback = CreateFont(run.Typeface, font.Size);
-            width += fallback.MeasureText(run.Text);
-        }
+        foreach (var run in SplitRuns(text, typeface, font))
+            width += Advances(run.Typeface, font.Size).Width(run.Text);
         return width;
     }
 

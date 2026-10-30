@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using System.Text;
 using NetReporter.Core.RenderList;
 using NetReporter.Svg;
 using SkiaSharp;
@@ -20,23 +21,58 @@ internal sealed class FontSubsetPlan : IDisposable
 
     public static FontSubsetPlan Build(RlRenderList renderList)
     {
-        var used = new Dictionary<SKTypeface, HashSet<ushort>>(ReferenceEqualityComparer.Instance);
-        foreach (var page in renderList.Pages)
+        // Un SKFont por tipografía (no dos por texto) y cada texto distinto se procesa una sola vez:
+        // en un listado de 300 páginas los encabezados de tabla se repiten en todas. Esta pasada
+        // llegaba a costar tanto como pintar el documento entero.
+        var fonts = new Dictionary<SKTypeface, SKFont>(ReferenceEqualityComparer.Instance);
+        var seen = new Dictionary<SKTypeface, HashSet<string>>(ReferenceEqualityComparer.Instance);
+        var codePoints = new Dictionary<SKTypeface, HashSet<int>>(ReferenceEqualityComparer.Instance);
+        try
         {
-            foreach (var cmd in page.Commands)
+            foreach (var page in renderList.Pages)
             {
-                if (cmd is not DrawTextCommand { Text.Length: > 0 } text) continue;
-                foreach (var run in SkiaFonts.SplitRuns(text.Text, SkiaFonts.Resolve(text.Style)))
+                foreach (var cmd in page.Commands)
                 {
-                    if (!used.TryGetValue(run.Typeface, out var glyphs))
-                        used[run.Typeface] = glyphs = [];
-                    using var font = new SKFont(run.Typeface);
-                    glyphs.UnionWith(font.GetGlyphs(run.Text));
+                    if (cmd is not DrawTextCommand { Text.Length: > 0 } text) continue;
+                    var primary = SkiaFonts.Resolve(text.Style);
+                    if (!seen.TryGetValue(primary, out var texts))
+                        seen[primary] = texts = [];
+                    if (!texts.Add(text.Text)) continue;
+
+                    foreach (var run in SkiaFonts.SplitRuns(text.Text, primary, FontFor(primary)))
+                    {
+                        if (!codePoints.TryGetValue(run.Typeface, out var set))
+                            codePoints[run.Typeface] = set = [];
+                        foreach (var rune in run.Text.EnumerateRunes()) set.Add(rune.Value);
+                    }
                 }
             }
+
+            // El cmap mapea punto de código → glifo sin shaping, así que un GetGlyphs sobre los
+            // caracteres únicos de cada tipografía da los mismos glifos que mapear texto por texto.
+            var used = new Dictionary<SKTypeface, HashSet<ushort>>(ReferenceEqualityComparer.Instance);
+            var buffer = new StringBuilder();
+            Span<char> utf16 = stackalloc char[2];
+            foreach (var (typeface, set) in codePoints)
+            {
+                buffer.Clear();
+                foreach (var codePoint in set)
+                    buffer.Append(utf16[..new Rune(codePoint).EncodeToUtf16(utf16)]);
+                used[typeface] = [.. FontFor(typeface).GetGlyphs(buffer.ToString())];
+            }
+            return FromGlyphUsage(used);
+        }
+        finally
+        {
+            foreach (var font in fonts.Values) font.Dispose();
         }
 
-        return FromGlyphUsage(used);
+        SKFont FontFor(SKTypeface typeface)
+        {
+            if (!fonts.TryGetValue(typeface, out var font))
+                fonts[typeface] = font = SkiaFonts.CreateFont(typeface, 12);
+            return font;
+        }
     }
 
     /// <summary>Crea las fuentes recortadas a partir de los glifos que usa cada tipografía.</summary>

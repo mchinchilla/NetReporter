@@ -64,6 +64,60 @@ public sealed class PdfRendererTests
     }
 
     [Fact]
+    public void Render_SameImageOnEveryPage_IsEmbeddedOnce()
+    {
+        // El LayoutEngine emite el mismo byte[] del elemento en cada página (un logo en el PageHeader).
+        // Skia deduplica imágenes por instancia de SKImage, así que el painter decodifica cada arreglo
+        // una vez por documento; antes cada página embebía su propia copia y un listado de 300 páginas
+        // con un membrete de 400 KB pesaba más de 100 MB.
+        var logo = OpaquePng();
+        var other = OpaquePng(seed: 90);
+        DrawImageCommand Logo() => new(new Rect(36, 36, 120, 60), logo, "image/png");
+        var list = new RlRenderList(PageSetup.Letter, new RenderPage[]
+        {
+            new(1, [Logo()]),
+            new(2, [Logo()]),
+            new(3, [Logo(), new DrawImageCommand(new Rect(36, 200, 120, 60), other, "image/png")])
+        });
+
+        var pdf = Raw(new PdfRenderer().Render(list));
+
+        Assert.Equal(3, Regex.Matches(pdf, @"/Type /Page\b").Count);
+        Assert.Equal(2, Regex.Matches(pdf, "/Subtype /Image").Count);
+    }
+
+    [Fact]
+    public void FontSubsetPlan_Build_KeepsEveryGlyphOfRepeatedAndFallbackTexts()
+    {
+        // Build deduplica textos y junta los caracteres por tipografía antes de mapear a glifos. El
+        // recorte tiene que conservar el contorno de cada glifo usado, incluidos los de los tramos
+        // con fuente de respaldo (▸ no existe en Helvetica/Arial).
+        string[] texts = ["Código", "Nombre", "Crédito", "▸ Región Norte", "Distribuidora Ejemplo S. de R.L.", "ÁÉÍÓÚÑ áéíóúñ"];
+        var pages = Enumerable.Range(1, 3).Select(n => new RenderPage(n, texts.Select(Text).ToArray())).ToArray();
+        var list = new RlRenderList(PageSetup.Letter, pages);
+
+        using var plan = FontSubsetPlan.Build(list);
+
+        var primary = SkiaFonts.Resolve(DefaultStyle);
+        foreach (var text in texts)
+        foreach (var run in SkiaFonts.SplitRuns(text, primary))
+        {
+            var mapped = plan.Map(run.Typeface);
+            if (ReferenceEquals(mapped, run.Typeface)) continue;   // fuente no recortable en este host (CFF, variable…)
+            using var expectedFont = new SKFont(run.Typeface, 100);
+            using var actualFont = new SKFont(mapped, 100);
+            foreach (var glyph in expectedFont.GetGlyphs(run.Text))
+            {
+                using var expected = expectedFont.GetGlyphPath(glyph);
+                using var actual = actualFont.GetGlyphPath(glyph);
+                if (expected is null || expected.IsEmpty) continue;   // espacio
+                Assert.NotNull(actual);
+                Assert.Equal(expected.Bounds, actual.Bounds);
+            }
+        }
+    }
+
+    [Fact]
     public void Render_SubsetFonts_ShrinksTheFile_WhenTheSystemFontIsTrueType()
     {
         var list = BuildList(Text("Factura 000-001-01-00001234 · Total: L 169,740.00"));
@@ -98,12 +152,12 @@ public sealed class PdfRendererTests
         Assert.Equal(expected.MeasureText(text), actual.MeasureText(text));
     }
 
-    private static byte[] OpaquePng()
+    private static byte[] OpaquePng(int seed = 0)
     {
         using var bitmap = new SKBitmap(64, 64, SKColorType.Rgba8888, SKAlphaType.Opaque);
         for (var y = 0; y < 64; y++)
         for (var x = 0; x < 64; x++)
-            bitmap.SetPixel(x, y, new SKColor((byte)(x * 4), (byte)(y * 4), (byte)((x ^ y) * 4)));
+            bitmap.SetPixel(x, y, new SKColor((byte)(x * 4 + seed), (byte)(y * 4), (byte)((x ^ y) * 4)));
         using var image = SKImage.FromBitmap(bitmap);
         using var png = image.Encode(SKEncodedImageFormat.Png, 100);
         return png.ToArray();

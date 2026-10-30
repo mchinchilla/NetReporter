@@ -14,23 +14,25 @@ public sealed class SkiaTextMeasurer : ITextMeasurer
 {
     public static readonly SkiaTextMeasurer Instance = new();
 
-    // Cache de SKFont por (family, size, weight, italic) — SKFont no es thread-safe pero
-    // las mediciones son rápidas y ConcurrentDictionary con SKFont thread-confined-de-facto
-    // es aceptable para escenarios single-thread del layout (uno por LayoutEngine.Layout()).
-    private readonly ConcurrentDictionary<(string Family, double Size, FontWeight Weight, FontStyleKind Italic), SKFont>
-        _fontCache = new();
+    // Una entrada por (family, size, weight, italic). El SKFont solo se usa en operaciones de
+    // lectura (ContainsGlyphs, GetGlyphs), que Skia admite desde varios hilos; los anchos salen de
+    // GlyphAdvances y las métricas se leen una sola vez, así que medir no pasa por el strike cache
+    // de Skia (un lock global) y el layout de varios documentos en paralelo escala.
+    private sealed record Entry(SKTypeface Typeface, SKFont Font, SKFontMetrics Metrics);
+
+    private readonly ConcurrentDictionary<(string Family, double Size, FontWeight Weight, FontStyleKind Italic), Entry>
+        _cache = new();
 
     public double MeasureWidth(string text, ResolvedStyle style)
     {
         if (string.IsNullOrEmpty(text)) return 0;
-        var font = GetFont(style);
-        return SkiaFonts.MeasureText(text, font);
+        var entry = GetEntry(style);
+        return SkiaFonts.MeasureText(text, entry.Typeface, entry.Font);
     }
 
     public double LineHeight(ResolvedStyle style)
     {
-        var font = GetFont(style);
-        var m = font.Metrics;
+        var m = GetEntry(style).Metrics;
         return -m.Ascent + m.Descent + m.Leading;
     }
 
@@ -40,27 +42,27 @@ public sealed class SkiaTextMeasurer : ITextMeasurer
         if (string.IsNullOrEmpty(text)) return new[] { string.Empty };
         if (maxWidth <= 0) return new[] { text };
 
-        var font = GetFont(style);
+        var entry = GetEntry(style);
         var result = new List<string>();
         foreach (var hardLine in text.Split('\n'))
         {
             var line = hardLine.TrimEnd('\r');
             if (line.Length == 0) { result.Add(string.Empty); continue; }
-            WrapSingle(line, font, maxWidth, result);
+            WrapSingle(line, entry, maxWidth, result);
         }
         return result;
     }
 
-    private static void WrapSingle(string line, SKFont font, double maxWidth, List<string> output)
+    private static void WrapSingle(string line, Entry font, double maxWidth, List<string> output)
     {
         var words = line.Split(' ');
         var current = new System.Text.StringBuilder();
         double currentWidth = 0;
-        var spaceWidth = SkiaFonts.MeasureText(" ", font);
+        var spaceWidth = Measure(" ", font);
 
         foreach (var word in words)
         {
-            var wordWidth = SkiaFonts.MeasureText(word, font);
+            var wordWidth = Measure(word, font);
             var addSpace = current.Length > 0;
             var widthIfAdded = currentWidth + (addSpace ? spaceWidth : 0) + wordWidth;
 
@@ -94,12 +96,12 @@ public sealed class SkiaTextMeasurer : ITextMeasurer
     }
 
     private static void BreakWordByChar(
-        string word, SKFont font, double maxWidth,
+        string word, Entry font, double maxWidth,
         List<string> output, System.Text.StringBuilder current, ref double currentWidth)
     {
         foreach (var ch in word)
         {
-            var chWidth = SkiaFonts.MeasureText(ch.ToString(), font);
+            var chWidth = Measure(ch.ToString(), font);
             if (currentWidth + chWidth > maxWidth && current.Length > 0)
             {
                 output.Add(current.ToString());
@@ -111,10 +113,16 @@ public sealed class SkiaTextMeasurer : ITextMeasurer
         }
     }
 
-    private SKFont GetFont(ResolvedStyle style)
+    private static float Measure(string text, Entry font) => SkiaFonts.MeasureText(text, font.Typeface, font.Font);
+
+    private Entry GetEntry(ResolvedStyle style)
     {
         var key = (style.FontFamily, style.FontSize, style.Weight, style.Italic);
-        return _fontCache.GetOrAdd(key, static k =>
-            SkiaFonts.CreateFont(SkiaFonts.Resolve(k.Family, k.Weight, k.Italic), (float)k.Size));
+        return _cache.GetOrAdd(key, static k =>
+        {
+            var typeface = SkiaFonts.Resolve(k.Family, k.Weight, k.Italic);
+            var font = SkiaFonts.CreateFont(typeface, (float)k.Size);
+            return new Entry(typeface, font, font.Metrics);
+        });
     }
 }

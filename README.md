@@ -61,6 +61,7 @@ the SVG renderer. The public API is unchanged: `new PdfRenderer().Render(layout)
 | 📉 **Subset fonts** | Each font is embedded with only the glyphs the document uses. The SkiaSharp NuGet natives can't subset (they embed ~200 KB per font variant), so NetReporter ships its own TrueType subsetter. A typical invoice weighs 35–70 KB |
 | 🔤 **Fallback fonts** | A character missing from the requested font (e.g. `▸` in Helvetica) is measured and drawn with a system font that has it, instead of disappearing |
 | 🐧 **Linux fonts** | Font resolution keeps bold/italic for families the host doesn't have, and text is measured with linear (unhinted) metrics |
+| ⚡ **Parallel rendering** (1.2.4) | Rendering several documents at once used to be *slower* than one at a time: measuring and placing every text took Skia's global strike-cache lock. Glyph advances now come from a process-wide table (`GlyphAdvances`), text is drawn as positioned glyph runs, and fonts, decoded images and paints are cached per document (`SkiaPaintCache`). Output is identical byte for byte. In a Linux container with 14 vCPUs, 4 concurrent renders went from 105 to 293 documents/s and 8 from 64 to 348 (on a 10-core Mac: 66 → 235 and 56 → 179); a single render is 25–50% faster too |
 
 ### ⚠️ Behavior changes in 1.2
 
@@ -71,6 +72,7 @@ PDF output changes. Review these before upgrading a production deployment:
 3. **Characters missing from a font fall back to a system font** in the PDF, the SVG and `SkiaTextMeasurer`. They used to disappear from the PDF; now they take space, so text containing them may wrap differently.
 4. **Linux: fonts keep the requested weight and are measured with linear metrics.** A family the host doesn't have (Helvetica, Courier and Times usually don't exist on Linux) used to resolve to the default font *in regular*, with advances rounded to whole points (~5% wider at 7 pt). Resolution now tries: the exact family → its metric equivalent (Helvetica → Arial, Courier → Courier New, Times → Times New Roman) → generic `sans-serif` / `serif` / `monospace` → the default family, always with the requested weight/slant. **Install `fonts-liberation` on Linux hosts**: it is metric-compatible with Arial/Helvetica, Courier New and Times New Roman and gives the same line breaks as macOS/Windows. With only DejaVu (the fontconfig default) text is wider and may wrap or clip differently.
 5. PDF metadata: `Producer` and `Creator` are `NetReporter`.
+6. **(1.2.4) An image that appears on several pages is embedded in the PDF once**, not once per page. Skia deduplicates images by `SKImage` instance, and the painter used to decode the bytes again on every page. What you see is identical; the file shrinks dramatically when a page header carries a logo (a 323-page listing with a 465 KB PNG header went from 264 MB to 1.7 MB).
 
 ---
 
@@ -934,7 +936,9 @@ byte[] pdf = new PdfRenderer().Render(renderList);
 byte[] full = new PdfRenderer(new PdfRendererOptions { SubsetFonts = false }).Render(renderList);
 ```
 
-TrueType fonts (`.ttf` / `.ttc`) are subset; CFF (`.otf`), variable and color fonts, and fonts whose license forbids subsetting, are embedded whole.
+TrueType fonts (`.ttf` / `.ttc`) are subset; CFF (`.otf`), variable and color fonts, and fonts whose license forbids subsetting, are embedded whole. An image that appears on several pages (a logo in a page header) is embedded once.
+
+Rendering is safe to run from several threads at once, and it scales: fonts, decoded images and paints are cached per document (`SkiaPaintCache`), glyph advances come from a process-wide table (`GlyphAdvances`) and text is drawn as positioned glyph runs, so neither measuring nor placing text goes through Skia's global strike-cache lock.
 
 ### 🌐 HTML — `NetReporter.Html`
 

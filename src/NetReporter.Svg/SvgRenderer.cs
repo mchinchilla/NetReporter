@@ -19,14 +19,22 @@ public sealed class SvgRenderer
         var pageWidth = (float)renderList.Page.Size.Width;
         var pageHeight = (float)renderList.Page.Size.Height;
 
+        // Un cache para todo el documento: las fuentes e imágenes se crean una vez, no por página.
+        using var cache = new SkiaPaintCache();
         var result = new string[renderList.Pages.Count];
         for (int i = 0; i < renderList.Pages.Count; i++)
-            result[i] = RenderPage(renderList.Pages[i], pageWidth, pageHeight);
+            result[i] = RenderPage(renderList.Pages[i], pageWidth, pageHeight, cache);
 
         return result;
     }
 
     public string RenderPage(RenderPage page, float width, float height)
+    {
+        using var cache = new SkiaPaintCache();
+        return RenderPage(page, width, height, cache);
+    }
+
+    private static string RenderPage(RenderPage page, float width, float height, SkiaPaintCache cache)
     {
         ArgumentNullException.ThrowIfNull(page);
 
@@ -35,7 +43,7 @@ public sealed class SvgRenderer
 
         using (var canvas = SKSvgCanvas.Create(bounds, ms))
         {
-            SkiaPagePainter.Draw(canvas, page);
+            SkiaPagePainter.Draw(canvas, page, cache);
         }
 
         return Encoding.UTF8.GetString(ms.ToArray());

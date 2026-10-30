@@ -61,6 +61,7 @@ el mismo pintor del renderer SVG. La API pública no cambia: `new PdfRenderer().
 | 📉 **Fuentes recortadas** | Cada fuente se embebe solo con los glifos que usa el documento. Los nativos de SkiaSharp en NuGet no pueden recortar (embeben ~200 KB por variante), así que NetReporter incluye su propio recortador TrueType. Una factura típica pesa 35–70 KB |
 | 🔤 **Fuentes de respaldo** | Un carácter que no existe en la fuente pedida (p. ej. `▸` en Helvetica) se mide y se dibuja con una fuente del sistema que sí lo tiene, en lugar de desaparecer |
 | 🐧 **Fuentes en Linux** | La resolución de fuentes conserva negrita/cursiva para familias que el host no tiene, y el texto se mide con métricas lineales (sin hinting) |
+| ⚡ **Render en paralelo** (1.2.4) | Renderizar varios documentos a la vez era *más lento* que de uno en uno: medir y colocar cada texto tomaba el lock global del strike cache de Skia. Ahora los avances de los glifos salen de una tabla compartida por el proceso (`GlyphAdvances`), el texto se dibuja como glifos ya posicionados, y las fuentes, imágenes decodificadas y pinturas se cachean por documento (`SkiaPaintCache`). La salida es idéntica byte a byte. En un contenedor Linux con 14 vCPU, 4 renders concurrentes pasaron de 105 a 293 documentos/s y 8 de 64 a 348 (en un Mac de 10 núcleos: 66 → 235 y 56 → 179); un render solo también es un 25–50 % más rápido |
 
 ### ⚠️ Cambios de comportamiento en la 1.2
 
@@ -71,6 +72,7 @@ La salida PDF cambia. Revisa esto antes de actualizar un despliegue en producci�
 3. **Los caracteres que no existen en una fuente usan una fuente de respaldo del sistema** en el PDF, el SVG y `SkiaTextMeasurer`. Antes desaparecían del PDF; ahora ocupan espacio, así que un texto que los contenga puede partirse distinto.
 4. **Linux: las fuentes conservan el peso pedido y se miden con métricas lineales.** Una familia que el host no tiene (Helvetica, Courier y Times no suelen existir en Linux) se resolvía a la fuente por defecto *en regular*, con avances redondeados a puntos enteros (~5 % más ancho a 7 pt). Ahora se prueba: la familia exacta → su equivalente métrico (Helvetica → Arial, Courier → Courier New, Times → Times New Roman) → el genérico `sans-serif` / `serif` / `monospace` → la familia por defecto, siempre con el peso/inclinación pedidos. **Instala `fonts-liberation` en los hosts Linux**: es compatible en métricas con Arial/Helvetica, Courier New y Times New Roman y da los mismos saltos de línea que macOS/Windows. Solo con DejaVu (la fuente por defecto de fontconfig) el texto es más ancho y puede partirse o recortarse distinto.
 5. Metadata del PDF: `Producer` y `Creator` son `NetReporter`.
+6. **(1.2.4) Una imagen que aparece en varias páginas se embebe una sola vez en el PDF**, no una por página. Skia deduplica las imágenes por instancia de `SKImage`, y el painter volvía a decodificar los bytes en cada página. Lo que se ve es idéntico; el archivo se reduce muchísimo cuando un encabezado de página lleva un logo (un listado de 323 páginas con un PNG de 465 KB en el encabezado pasó de 264 MB a 1,7 MB).
 
 ---
 
@@ -934,7 +936,9 @@ byte[] pdf = new PdfRenderer().Render(renderList);
 byte[] full = new PdfRenderer(new PdfRendererOptions { SubsetFonts = false }).Render(renderList);
 ```
 
-Se recortan las fuentes TrueType (`.ttf` / `.ttc`); las CFF (`.otf`), variables o a color, y las que por licencia no permiten recorte, se embeben completas.
+Se recortan las fuentes TrueType (`.ttf` / `.ttc`); las CFF (`.otf`), variables o a color, y las que por licencia no permiten recorte, se embeben completas. Una imagen que aparece en varias páginas (un logo en el encabezado) se embebe una sola vez.
+
+Renderizar desde varios hilos a la vez es seguro y escala: las fuentes, las imágenes decodificadas y las pinturas se cachean por documento (`SkiaPaintCache`), los avances de los glifos salen de una tabla compartida por el proceso (`GlyphAdvances`) y el texto se dibuja como glifos ya posicionados, así que ni medir ni colocar texto pasa por el lock global del strike cache de Skia.
 
 ### 🌐 HTML — `NetReporter.Html`
 

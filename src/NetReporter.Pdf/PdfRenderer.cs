@@ -29,6 +29,9 @@ public sealed class PdfRenderer
         var pageHeight = (float)renderList.Page.Size.Height;
 
         using var fonts = _options.SubsetFonts ? FontSubsetPlan.Build(renderList) : FontSubsetPlan.Empty();
+        // Fuentes, imágenes y pinturas compartidas por todas las páginas del documento. Compartir el
+        // SKImage es lo que hace que Skia embeba una imagen repetida (logo del PageHeader) una vez.
+        using var cache = new SkiaPaintCache();
 
         // Partir de Default es obligatorio: trae EncodingQuality = 101 (imágenes sin pérdida) y
         // RasterDpi = 72. Un `new SKDocumentPdfMetadata()` los deja en 0 y Skia recomprime las
@@ -45,7 +48,7 @@ public sealed class PdfRenderer
             foreach (var page in renderList.Pages)
             {
                 var canvas = document.BeginPage(pageWidth, pageHeight);
-                SkiaPagePainter.Draw(canvas, page, fonts.Map);
+                SkiaPagePainter.Draw(canvas, page, cache, fonts.Map);
                 document.EndPage();
             }
             document.Close();
