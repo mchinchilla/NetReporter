@@ -934,7 +934,12 @@ byte[] pdf = new PdfRenderer().Render(renderList);
 
 // Escape hatch: embed whole fonts (same look, ~200 KB more per font variant)
 byte[] full = new PdfRenderer(new PdfRendererOptions { SubsetFonts = false }).Render(renderList);
+
+// Servers rendering many small documents at once: share one subset per font across the whole process
+byte[] fast = new PdfRenderer(new PdfRendererOptions { ShareFontSubsets = true }).Render(renderList);
 ```
+
+`ShareFontSubsets` keeps, per font, a single subset with every glyph the process has used so far, instead of subsetting and creating a fresh typeface for each document. The first documents grow it (each of those costs the same as today); after that it stops changing, the per-document fixed cost disappears and Skia's glyph cache stays warm across documents, which is what matters when many threads generate invoices concurrently. The trade-off: the PDF embeds the glyphs any earlier document used (still a small subset, not the ~200 KB font), and its bytes depend on what the process rendered before. Off by default.
 
 TrueType fonts (`.ttf` / `.ttc`) are subset; CFF (`.otf`), variable and color fonts, and fonts whose license forbids subsetting, are embedded whole. An image that appears on several pages (a logo in a page header) is embedded once.
 

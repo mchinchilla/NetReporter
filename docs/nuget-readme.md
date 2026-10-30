@@ -155,6 +155,9 @@ byte[]                xlsx = new XlsxRenderer().Render(report);         // seman
 - .NET 10.
 - The PDF renderer uses SkiaSharp's own PDF backend: no third-party license is required.
   (Up to 1.1 it was hosted by QuestPDF; remove any `QuestPDF.Settings.License` line when upgrading.)
+- Rendering is thread-safe and scales across cores. Servers that generate many small documents concurrently can
+  set `new PdfRendererOptions { ShareFontSubsets = true }` to reuse one font subset per typeface across the whole
+  process instead of building one per document.
 - On Linux, SkiaSharp needs `libfontconfig1` installed on the host, and `fonts-liberation` keeps templates that use
   Helvetica / Arial / Courier / Times on their metrics (`apt-get install libfontconfig1 fonts-liberation`).
   The Linux native binaries themselves ship with the packages.

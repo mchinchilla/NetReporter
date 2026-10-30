@@ -150,7 +150,7 @@ public sealed class TrueTypeSubsetterTests
         return result;
     }
 
-    private static int FindTable(byte[] font, string tag)
+    internal static int FindTable(byte[] font, string tag)
     {
         var wanted = BinaryPrimitives.ReadUInt32BigEndian(Encoding.ASCII.GetBytes(tag));
         int numTables = BinaryPrimitives.ReadUInt16BigEndian(font.AsSpan(4));

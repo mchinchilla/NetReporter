@@ -28,7 +28,9 @@ public sealed class PdfRenderer
         var pageWidth = (float)renderList.Page.Size.Width;
         var pageHeight = (float)renderList.Page.Size.Height;
 
-        using var fonts = _options.SubsetFonts ? FontSubsetPlan.Build(renderList) : FontSubsetPlan.Empty();
+        using var fonts = _options.SubsetFonts
+            ? FontSubsetPlan.Build(renderList, _options.ShareFontSubsets)
+            : FontSubsetPlan.Empty();
         // Fuentes, imágenes y pinturas compartidas por todas las páginas del documento. Compartir el
         // SKImage es lo que hace que Skia embeba una imagen repetida (logo del PageHeader) una vez.
         using var cache = new SkiaPaintCache();

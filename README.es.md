@@ -934,7 +934,12 @@ byte[] pdf = new PdfRenderer().Render(renderList);
 
 // Válvula de escape: embeber las fuentes completas (se ve igual, ~200 KB más por variante)
 byte[] full = new PdfRenderer(new PdfRendererOptions { SubsetFonts = false }).Render(renderList);
+
+// Servidores que generan muchos documentos pequeños a la vez: un recorte por fuente para todo el proceso
+byte[] fast = new PdfRenderer(new PdfRendererOptions { ShareFontSubsets = true }).Render(renderList);
 ```
+
+`ShareFontSubsets` mantiene, por fuente, un único recorte con todos los glifos que el proceso ha usado hasta ahora, en vez de recortar y crear una tipografía nueva por documento. Los primeros documentos lo hacen crecer (cada uno de esos cuesta lo mismo que hoy); después deja de cambiar, desaparece el costo fijo por documento y el cache de glifos de Skia se mantiene caliente entre documentos, que es lo que importa cuando muchos hilos generan facturas a la vez. A cambio, el PDF embebe los glifos que haya usado cualquier documento anterior (sigue siendo un recorte pequeño, no la fuente de ~200 KB) y sus bytes dependen de lo que el proceso haya renderizado antes. Desactivado por defecto.
 
 Se recortan las fuentes TrueType (`.ttf` / `.ttc`); las CFF (`.otf`), variables o a color, y las que por licencia no permiten recorte, se embeben completas. Una imagen que aparece en varias páginas (un logo en el encabezado) se embebe una sola vez.
 

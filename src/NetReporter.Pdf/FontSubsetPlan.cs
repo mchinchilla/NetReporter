@@ -19,7 +19,12 @@ internal sealed class FontSubsetPlan : IDisposable
 
     public static FontSubsetPlan Empty() => new();
 
-    public static FontSubsetPlan Build(RlRenderList renderList)
+    /// <param name="renderList">Documento maquetado.</param>
+    /// <param name="shared">
+    /// Usar los recortes compartidos del proceso (<see cref="SharedFontSubsets"/>) en vez de crear
+    /// uno para este documento.
+    /// </param>
+    public static FontSubsetPlan Build(RlRenderList renderList, bool shared = false)
     {
         // Un SKFont por tipografía (no dos por texto) y cada texto distinto se procesa una sola vez:
         // en un listado de 300 páginas los encabezados de tabla se repiten en todas. Esta pasada
@@ -60,7 +65,7 @@ internal sealed class FontSubsetPlan : IDisposable
                     buffer.Append(utf16[..new Rune(codePoint).EncodeToUtf16(utf16)]);
                 used[typeface] = [.. FontFor(typeface).GetGlyphs(buffer.ToString())];
             }
-            return FromGlyphUsage(used);
+            return shared ? FromSharedGlyphUsage(used) : FromGlyphUsage(used);
         }
         finally
         {
@@ -81,6 +86,19 @@ internal sealed class FontSubsetPlan : IDisposable
         var plan = new FontSubsetPlan();
         foreach (var (typeface, glyphs) in used)
             plan.TryAddSubset(typeface, glyphs);
+        return plan;
+    }
+
+    /// <summary>
+    /// Como <see cref="FromGlyphUsage"/>, pero con los recortes compartidos del proceso: el plan no es
+    /// dueño de esas tipografías y no las libera.
+    /// </summary>
+    public static FontSubsetPlan FromSharedGlyphUsage(IReadOnlyDictionary<SKTypeface, HashSet<ushort>> used)
+    {
+        var plan = new FontSubsetPlan();
+        foreach (var (typeface, glyphs) in used)
+            if (SharedFontSubsets.Get(typeface, glyphs) is { } subset)
+                plan._subsets[typeface] = subset;
         return plan;
     }
 
@@ -115,7 +133,7 @@ internal sealed class FontSubsetPlan : IDisposable
 
         var data = SKData.CreateCopy(bytes);
         var subset = SKTypeface.FromData(data);
-        if (subset is null || !SameAdvances(original, subset, glyphs))
+        if (subset is null || !SameAdvances(original, subset, [.. glyphs]))
         {
             subset?.Dispose();
             data.Dispose();
@@ -129,11 +147,11 @@ internal sealed class FontSubsetPlan : IDisposable
 
     // Red de seguridad: si la fuente recortada no reproduce exactamente los avances de los glifos
     // usados, se embebe la original. Un PDF más pesado es preferible a uno mal maquetado.
-    private static bool SameAdvances(SKTypeface original, SKTypeface subset, HashSet<ushort> glyphs)
+    internal static bool SameAdvances(SKTypeface original, SKTypeface subset, ReadOnlySpan<ushort> glyphs)
     {
         if (subset.GlyphCount != original.GlyphCount) return false;
 
-        var ids = MemoryMarshal.AsBytes(glyphs.ToArray().AsSpan());
+        var ids = MemoryMarshal.AsBytes(glyphs);
         using var originalFont = SkiaFonts.CreateFont(original, 1000);
         using var subsetFont = SkiaFonts.CreateFont(subset, 1000);
         var expected = originalFont.GetGlyphWidths(ids, SKTextEncoding.GlyphId, null);

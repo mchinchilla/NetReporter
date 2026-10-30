@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 using System.Text;
 using System.Text.RegularExpressions;
 using NetReporter.Core.Primitives;
@@ -131,6 +132,70 @@ public sealed class PdfRendererTests
         if (!ReferenceEquals(plan.Map(typeface), typeface))
             Assert.True(subset.Length < full.Length / 2, $"subset {subset.Length} b vs completo {full.Length} b");
         // Si no, la fuente del sistema no es recortable (CFF, variable…) y se embebe completa.
+    }
+
+    [Fact]
+    public void Render_ShareFontSubsets_EmbedsASubsetThatIsReusedAcrossDocuments()
+    {
+        var options = new PdfRendererOptions { ShareFontSubsets = true };
+        var list = BuildList(Text("Factura 000-001-01-00001234 · Total: L 169,740.00"));
+
+        var shared = new PdfRenderer(options).Render(list);
+        var full = new PdfRenderer(new PdfRendererOptions { SubsetFonts = false }).Render(list);
+
+        Assert.True(shared.Length <= full.Length, $"compartido {shared.Length} b > completo {full.Length} b");
+        using var first = FontSubsetPlan.Build(list, shared: true);
+        using var second = FontSubsetPlan.Build(BuildList(Text("Total: L 169,740.00 · Factura 000-001")), shared: true);   // sin glifos nuevos
+        var typeface = SkiaFonts.Resolve(DefaultStyle);
+        if (ReferenceEquals(first.Map(typeface), typeface)) return;   // fuente del sistema no recortable (CFF, variable…)
+        Assert.Same(first.Map(typeface), second.Map(typeface));
+        Assert.True(shared.Length < full.Length / 2, $"compartido {shared.Length} b vs completo {full.Length} b");
+    }
+
+    [Fact]
+    public void SharedFontSubsets_ReuseOneTypeface_AndGrowIntoASupersetWhenANewGlyphAppears()
+    {
+        using var lato = TrueTypeSubsetterTests.Load(TrueTypeSubsetterTests.Lato);
+        ushort[] Glyphs(string text) => TrueTypeSubsetterTests.GlyphsOf(lato, text);
+
+        var first = SharedFontSubsets.Get(lato, Glyphs("Factura 001"));
+        var second = SharedFontSubsets.Get(lato, Glyphs("Factura 100"));
+
+        Assert.NotNull(first);
+        Assert.Same(first, second);   // mismos glifos: no hay nada que añadir
+
+        // Un glifo nuevo hace crecer el recorte, que sigue cubriendo lo anterior.
+        var grown = SharedFontSubsets.Get(lato, Glyphs("Nómina ÁÉÍÓÚÑ áéíóúñ"));
+        Assert.NotNull(grown);
+        Assert.NotSame(first, grown);
+        Assert.Same(grown, SharedFontSubsets.Get(lato, Glyphs("Factura Ñ 100")));
+        // Un carácter que la fuente no tiene (▸) cae en .notdef, que siempre va en el recorte: no lo hace crecer.
+        Assert.Same(grown, SharedFontSubsets.Get(lato, Glyphs("▸ Factura")));
+
+        const string text = "Factura 001 Nómina ÁÉÍÓÚÑ áéíóúñ";
+        using var expectedFont = new SKFont(lato, 100);
+        using var actualFont = new SKFont(grown, 100);
+        foreach (var glyph in expectedFont.GetGlyphs(text))
+        {
+            using var expected = expectedFont.GetGlyphPath(glyph);
+            using var actual = actualFont.GetGlyphPath(glyph);
+            if (expected is null || expected.IsEmpty) continue;   // espacio
+            Assert.NotNull(actual);
+            Assert.Equal(expected.Bounds, actual.Bounds);
+        }
+        Assert.Equal(expectedFont.MeasureText(text), actualFont.MeasureText(text));
+    }
+
+    [Fact]
+    public void SharedFontSubsets_FontWhoseLicenseForbidsSubsetting_IsEmbeddedWhole()
+    {
+        var bytes = (byte[])TrueTypeSubsetterTests.Lato.Clone();
+        BinaryPrimitives.WriteUInt16BigEndian(bytes.AsSpan(TrueTypeSubsetterTests.FindTable(bytes, "OS/2") + 8), 0x0100);
+        using var restricted = TrueTypeSubsetterTests.Load(bytes);
+        var glyphs = TrueTypeSubsetterTests.GlyphsOf(restricted, "Factura");
+
+        Assert.Null(SharedFontSubsets.Get(restricted, glyphs));
+        Assert.Null(SharedFontSubsets.Get(restricted, glyphs));   // se recuerda: no se vuelve a intentar
     }
 
     [Fact]
