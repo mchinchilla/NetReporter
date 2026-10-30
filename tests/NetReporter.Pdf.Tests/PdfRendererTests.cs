@@ -34,6 +34,15 @@ public sealed class PdfRendererTests
     private static string Raw(byte[] pdf) => Encoding.Latin1.GetString(pdf);
 
     [Fact]
+    public void Render_WithACancelledToken_Throws()
+    {
+        var list = BuildList(Text("Factura"));
+
+        Assert.ThrowsAny<OperationCanceledException>(() =>
+            new PdfRenderer().Render(list, new CancellationToken(canceled: true)));
+    }
+
+    [Fact]
     public void Render_ProducesOnePdfPagePerRenderPage_WithPageSetupSize()
     {
         var list = new RlRenderList(PageSetup.Letter, new[]

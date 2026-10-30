@@ -24,7 +24,8 @@ internal sealed class FontSubsetPlan : IDisposable
     /// Usar los recortes compartidos del proceso (<see cref="SharedFontSubsets"/>) en vez de crear
     /// uno para este documento.
     /// </param>
-    public static FontSubsetPlan Build(RlRenderList renderList, bool shared = false)
+    /// <param name="cancellationToken">Se revisa por página.</param>
+    public static FontSubsetPlan Build(RlRenderList renderList, bool shared = false, CancellationToken cancellationToken = default)
     {
         // Un SKFont por tipografía (no dos por texto) y cada texto distinto se procesa una sola vez:
         // en un listado de 300 páginas los encabezados de tabla se repiten en todas. Esta pasada
@@ -36,6 +37,7 @@ internal sealed class FontSubsetPlan : IDisposable
         {
             foreach (var page in renderList.Pages)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 foreach (var cmd in page.Commands)
                 {
                     if (cmd is not DrawTextCommand { Text.Length: > 0 } text) continue;

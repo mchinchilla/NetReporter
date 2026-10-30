@@ -7,6 +7,7 @@
     <Project Path="src/NetReporter/NetReporter.csproj" />
     <Project Path="src/NetReporter.Barcodes/NetReporter.Barcodes.csproj" />
     <Project Path="src/NetReporter.Core/NetReporter.Core.csproj" />
+    <Project Path="src/NetReporter.Fonts.Liberation/NetReporter.Fonts.Liberation.csproj" />
     <Project Path="src/NetReporter.Html/NetReporter.Html.csproj" />
     <Project Path="src/NetReporter.Pdf/NetReporter.Pdf.csproj" />
     <Project Path="src/NetReporter.Svg/NetReporter.Svg.csproj" />

@@ -13,7 +13,14 @@ namespace NetReporter.Svg;
 public sealed class SvgRenderer
 {
     /// <summary>Renderiza cada página a SVG. Devuelve una lista paralela a <see cref="RlRenderList.Pages"/>.</summary>
-    public IReadOnlyList<string> Render(RlRenderList renderList)
+    public IReadOnlyList<string> Render(RlRenderList renderList) => Render(renderList, CancellationToken.None);
+
+    /// <summary>
+    /// Igual que <see cref="Render(RlRenderList)"/>, abortando con
+    /// <see cref="OperationCanceledException"/> cuando se cancela <paramref name="cancellationToken"/>
+    /// (se revisa por página).
+    /// </summary>
+    public IReadOnlyList<string> Render(RlRenderList renderList, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(renderList);
         var pageWidth = (float)renderList.Page.Size.Width;
@@ -23,7 +30,10 @@ public sealed class SvgRenderer
         using var cache = new SkiaPaintCache();
         var result = new string[renderList.Pages.Count];
         for (int i = 0; i < renderList.Pages.Count; i++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
             result[i] = RenderPage(renderList.Pages[i], pageWidth, pageHeight, cache);
+        }
 
         return result;
     }

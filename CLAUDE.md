@@ -19,10 +19,11 @@ src/
   NetReporter.Html/        HtmlRenderer (paginated HTML/CSS @page)
   NetReporter.Xlsx/        XlsxRenderer — semantic, consumes ReportDefinition directly
   NetReporter.Barcodes/    ZXing-based QR/Code128/Code39/EAN-13 (opt-in)
+  NetReporter.Fonts.Liberation/  Liberation Sans/Serif/Mono embedded (SIL OFL); LiberationFonts.Register() (opt-in, not in the meta-package)
   NetReporter/             Meta-package (no code) that references all of the above
 tests/
   NetReporter.Core.Tests/  NetReporter.Templates.Tests/  NetReporter.Html.Tests/  NetReporter.Svg.Tests/
-  NetReporter.Pdf.Tests/   NetReporter.Xlsx.Tests/       NetReporter.Barcodes.Tests/   — 383 tests total
+  NetReporter.Pdf.Tests/   NetReporter.Xlsx.Tests/       NetReporter.Barcodes.Tests/   — 414 tests total
   TestAssets/Fonts/        Lato-Regular.ttf (SIL OFL) — font tests use it instead of system fonts (CI has almost none)
 tools/
   NetReporter.Designer/    ASP.NET Core MVC + Alpine.js + HTMX + Tailwind (CDN)
@@ -43,7 +44,7 @@ Solution file is `NetReporter.slnx` (the newer XML format — not classic `.sln`
 
 ```bash
 dotnet build
-dotnet test                                                # 383 tests
+dotnet test                                                # 414 tests
 dotnet run --project samples/InvoiceSample                 # → factura.pdf
 dotnet run --project samples/TemplateSample                # → 13 PDF + 13 XLSX
 dotnet run --project tools/NetReporter.Designer            # → http://localhost:5296
@@ -92,6 +93,8 @@ The pipeline is **IR → LayoutEngine → RenderList → Renderer** (PDF/HTML/SV
 - The SkiaSharp NuGet natives can't subset fonts (~200 KB embedded per variant). `TrueTypeSubsetter` zeroes unused glyphs while keeping glyph IDs, `cmap` and `hmtx`, so advances are identical; `FontSubsetPlan` verifies advances and falls back to the full font on any doubt. CFF/variable/color fonts and fonts whose `fsType` forbids subsetting are embedded whole.
 - `PdfRenderer` must start from `SKDocumentPdfMetadata.Default`: a `new SKDocumentPdfMetadata()` leaves `EncodingQuality = 0` and Skia re-encodes images as minimum-quality JPEG (a test guards this).
 - Linux hosts should have `fonts-liberation` (metric-compatible with Arial/Helvetica, Courier New, Times New Roman). Docker (`mcr.microsoft.com/dotnet/sdk:10.0` + `libfontconfig1`) is the quickest way to check Linux output.
+- **Hosts without system fonts.** With `SkiaSharp.NativeAssets.Linux.NoDependencies` (no fontconfig) `SKFontManager.Default` is empty and returns typefaces with **0 glyphs instead of null** — that used to produce PDFs with no text and no error. Every system lookup in `SkiaFonts.Load` is wrapped in `Usable()` (null when `GlyphCount == 0`), and when nothing has glyphs `Load` throws `InvalidOperationException`; never return an empty typeface. Apps register fonts with `SkiaFonts.RegisterFont`/`RegisterFontDirectory` (or `LiberationFonts.Register()`); registered fonts are tried before the system at each level (family → metric equivalent → generic). Registering clears `Typefaces`/`Fallbacks` and bumps `SkiaFonts.Generation`, which `SkiaTextMeasurer` checks to drop its cache. fontconfig with **only** `fonts-liberation` also resolves no generics and no default font; `InstalledFamily` scans the installed families as a last resort. To reproduce, copy `runtimes/linux-x64/native/libSkiaSharp.so` from the NoDependencies package over the published one in Docker.
+- Registered fonts are process-wide statics: tests that register go in the `RegisteredFontsCollection` (parallelization disabled) and call `SkiaFonts.ResetRegisteredFonts()` (internal) on dispose.
 
 When the user asks for a feature that "should also work in XLSX", remember XLSX is semantic: ask whether it has a meaningful cell-level analog before adding logic to the Xlsx renderer.
 

@@ -22,14 +22,22 @@ public sealed class PdfRenderer
         _options = options;
     }
 
-    public byte[] Render(RlRenderList renderList)
+    public byte[] Render(RlRenderList renderList) => Render(renderList, CancellationToken.None);
+
+    /// <summary>
+    /// Igual que <see cref="Render(RlRenderList)"/>, abortando con
+    /// <see cref="OperationCanceledException"/> cuando se cancela <paramref name="cancellationToken"/>
+    /// (se revisa por página).
+    /// </summary>
+    public byte[] Render(RlRenderList renderList, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(renderList);
+        cancellationToken.ThrowIfCancellationRequested();
         var pageWidth = (float)renderList.Page.Size.Width;
         var pageHeight = (float)renderList.Page.Size.Height;
 
         using var fonts = _options.SubsetFonts
-            ? FontSubsetPlan.Build(renderList, _options.ShareFontSubsets)
+            ? FontSubsetPlan.Build(renderList, _options.ShareFontSubsets, cancellationToken)
             : FontSubsetPlan.Empty();
         // Fuentes, imágenes y pinturas compartidas por todas las páginas del documento. Compartir el
         // SKImage es lo que hace que Skia embeba una imagen repetida (logo del PageHeader) una vez.
@@ -49,6 +57,7 @@ public sealed class PdfRenderer
         {
             foreach (var page in renderList.Pages)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 var canvas = document.BeginPage(pageWidth, pageHeight);
                 SkiaPagePainter.Draw(canvas, page, cache, fonts.Map);
                 document.EndPage();

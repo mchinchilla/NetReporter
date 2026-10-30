@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\NetReporter.Svg\NetReporter.Svg.csproj" />
+  </ItemGroup>
+
+  <!-- Liberation 2.1.5 (Sans, Serif, Mono × regular/bold/italic/bold-italic), SIL OFL 1.1 -->
+  <ItemGroup>
+    <EmbeddedResource Include="Fonts\*.ttf" LogicalName="NetReporter.Fonts.Liberation.%(Filename)%(Extension)" />
+    <None Include="Fonts\LICENSE-Liberation.txt" Pack="true" PackagePath="/" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <!-- El código es MIT; las fuentes embebidas, SIL OFL 1.1 -->
+    <PackageLicenseExpression>MIT AND OFL-1.1</PackageLicenseExpression>
+    <Description>Liberation Sans, Serif and Mono fonts (SIL OFL 1.1) embedded for NetReporter, metric-compatible with Arial/Helvetica, Times New Roman and Courier New. Call LiberationFonts.Register() at startup on hosts where SkiaSharp sees no system fonts (e.g. SkiaSharp.NativeAssets.Linux.NoDependencies, containers without fontconfig).</Description>
+  </PropertyGroup>
+
+</Project>

@@ -28,6 +28,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\NetReporter.Core\NetReporter.Core.csproj" />
     <ProjectReference Include="..\..\src\NetReporter.Svg\NetReporter.Svg.csproj" />
+    <ProjectReference Include="..\..\src\NetReporter.Fonts.Liberation\NetReporter.Fonts.Liberation.csproj" />
   </ItemGroup>
 
   <!-- Lato (SIL OFL 1.1): fuente fija para que los tests no dependan de las fuentes del sistema -->

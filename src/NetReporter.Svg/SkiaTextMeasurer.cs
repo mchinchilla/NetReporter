@@ -115,8 +115,19 @@ public sealed class SkiaTextMeasurer : ITextMeasurer
 
     private static float Measure(string text, Entry font) => SkiaFonts.MeasureText(text, font.Typeface, font.Font);
 
+    // Generación de SkiaFonts con la que se llenó _cache: registrar una fuente puede cambiar qué
+    // tipografía corresponde a una familia.
+    private int _generation = SkiaFonts.Generation;
+
     private Entry GetEntry(ResolvedStyle style)
     {
+        var generation = SkiaFonts.Generation;
+        if (generation != _generation)
+        {
+            _cache.Clear();
+            _generation = generation;
+        }
+
         var key = (style.FontFamily, style.FontSize, style.Weight, style.Italic);
         return _cache.GetOrAdd(key, static k =>
         {

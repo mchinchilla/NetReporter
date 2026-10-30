@@ -17,7 +17,15 @@ public sealed class HtmlRenderer
 {
     private static readonly CultureInfo Inv = CultureInfo.InvariantCulture;
 
-    public string Render(RlRenderList renderList, HtmlRenderOptions? options = null)
+    public string Render(RlRenderList renderList, HtmlRenderOptions? options = null) =>
+        Render(renderList, options, CancellationToken.None);
+
+    /// <summary>
+    /// Igual que <see cref="Render(RlRenderList, HtmlRenderOptions?)"/>, abortando con
+    /// <see cref="OperationCanceledException"/> cuando se cancela <paramref name="cancellationToken"/>
+    /// (se revisa por página).
+    /// </summary>
+    public string Render(RlRenderList renderList, HtmlRenderOptions? options, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(renderList);
         var opts = options ?? new HtmlRenderOptions();
@@ -26,7 +34,10 @@ public sealed class HtmlRenderer
         if (opts.FullDocument) WriteDocumentStart(sb, renderList.Page, opts);
 
         foreach (var page in renderList.Pages)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
             WritePage(sb, page, renderList.Page);
+        }
 
         if (opts.FullDocument)
         {

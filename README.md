@@ -28,25 +28,56 @@
 
 ## 📚 Table of contents
 
-1. [What's new in 1.2](#-whats-new-in-12)
-2. [What's new in 1.1](#-whats-new-in-11)
-3. [Philosophy and architecture](#-philosophy-and-architecture)
-4. [Features](#-features)
-5. [Visual pipeline](#-visual-pipeline)
-6. [Tech stack](#-tech-stack)
-7. [Repository layout](#-repository-layout)
-8. [Quick start](#-quick-start)
-9. [Visual designer](#-visual-designer)
-10. [YAML template syntax](#-yaml-template-syntax)
-11. [Expressions (DSL)](#-expressions-dsl)
-12. [Charts](#-charts)
-13. [Available renderers](#-available-renderers)
-14. [Page sizes](#-page-sizes)
-15. [Tests](#-tests)
-16. [Known limitations](#-known-limitations)
-17. [Completed](#-completed)
-18. [Roadmap](#-roadmap)
-19. [Licenses](#-licenses)
+1. [What's new in 1.3](#-whats-new-in-13)
+2. [What's new in 1.2](#-whats-new-in-12)
+3. [What's new in 1.1](#-whats-new-in-11)
+4. [Philosophy and architecture](#-philosophy-and-architecture)
+5. [Features](#-features)
+6. [Visual pipeline](#-visual-pipeline)
+7. [Tech stack](#-tech-stack)
+8. [Repository layout](#-repository-layout)
+9. [Quick start](#-quick-start)
+10. [Visual designer](#-visual-designer)
+11. [YAML template syntax](#-yaml-template-syntax)
+12. [Expressions (DSL)](#-expressions-dsl)
+13. [Charts](#-charts)
+14. [Available renderers](#-available-renderers)
+15. [Page sizes](#-page-sizes)
+16. [Tests](#-tests)
+17. [Known limitations](#-known-limitations)
+18. [Completed](#-completed)
+19. [Roadmap](#-roadmap)
+20. [Licenses](#-licenses)
+
+---
+
+## 🆕 What's new in 1.3
+
+**Servers without system fonts.** With the `SkiaSharp.NativeAssets.Linux.NoDependencies` native (no fontconfig), or a
+container with no fonts installed, Skia sees no fonts at all: up to 1.2 the PDF came out **without any text and without
+an error**, and every text took a slow per-character path that serialized concurrent renders. Applications can now load
+fonts themselves:
+
+```csharp
+// At startup, before the first render
+LiberationFonts.Register();                              // package NetReporter.Fonts.Liberation
+// and/or your own fonts
+SkiaFonts.RegisterFontDirectory("/opt/myapp/fonts");     // every .ttf/.otf/.ttc in it
+SkiaFonts.RegisterFont("/opt/myapp/fonts/Brand-Bold.ttf");
+SkiaFonts.RegisterFont(stream, family: "Brand");         // optional alias used in fontFamily
+```
+
+| Change | Detail |
+|---|---|
+| 🔤 **`SkiaFonts.RegisterFont` / `RegisterFontDirectory`** | Load fonts from a file, stream, `byte[]` or directory without going through the system font manager. A registered family wins over a system font with the same name, and registered fonts also cover the generic fallbacks (`sans-serif` / `serif` / `monospace`) and the per-character fallback before the system ones. Register at startup: a document being rendered while a font is registered may measure with one font and draw with another |
+| 📦 **`NetReporter.Fonts.Liberation`** (new package, opt-in) | Liberation Sans, Serif and Mono 2.1.5 in all four styles, embedded in the assembly (SIL OFL 1.1, ~4.4 MB). Metric-compatible with Arial/Helvetica, Times New Roman and Courier New, so line breaks match Windows/macOS. `LiberationFonts.Register()` is idempotent. Not part of the `NetReporter` meta-package |
+| ⛔ **Cancellation** | `LayoutEngine.Layout(report, cancellationToken)`, `PdfRenderer.Render(list, cancellationToken)`, `SvgRenderer.Render(list, cancellationToken)` and `HtmlRenderer.Render(list, options, cancellationToken)` throw `OperationCanceledException` once the token is cancelled (checked per detail band, per table row and per page). Pass `HttpContext.RequestAborted` so a client that gives up frees its slot. The existing overloads are unchanged |
+
+### ⚠️ Behavior changes in 1.3
+
+1. **No usable font → `InvalidOperationException`** from `SkiaFonts.Resolve` (and so from `SkiaTextMeasurer`, `SvgRenderer` and `PdfRenderer`), instead of a PDF without text. It only happens when neither registered fonts nor the system provide a font with glyphs; the message says how to fix it.
+2. **Linux with fontconfig but only `fonts-liberation` installed** (no DejaVu): fontconfig resolves neither the generic families nor a default font there, so any `fontFamily` other than Helvetica/Arial/Courier/Times (and their Liberation names) used to get an empty font, which meant **no text**. Resolution now falls back to an installed family of the same kind (`sans-serif` / `serif` / `monospace`), then to any installed family. Hosts where text already rendered are unaffected.
+3. With fonts registered, a family the host doesn't have resolves to a registered font of the same generic kind before the system's generic fallback (e.g. "Helvetica" on a fontconfig host with DejaVu goes to Liberation Sans instead of DejaVu Sans once `LiberationFonts.Register()` was called). Nothing changes if you don't register fonts.
 
 ---
 
@@ -339,7 +370,7 @@ NetReporter/
 
 - ✅ .NET 10 SDK (tested with `10.0.103`)
 - ✅ macOS / Linux / Windows
-- 🐧 On Linux, SkiaSharp needs `libfontconfig1` on the host, and `fonts-liberation` keeps Helvetica/Arial/Courier/Times templates on their metrics (`apt-get install libfontconfig1 fonts-liberation`)
+- 🐧 On Linux, SkiaSharp needs `libfontconfig1` on the host, and `fonts-liberation` keeps Helvetica/Arial/Courier/Times templates on their metrics (`apt-get install libfontconfig1 fonts-liberation`). Without fontconfig (`SkiaSharp.NativeAssets.Linux.NoDependencies`) or without installed fonts, reference `NetReporter.Fonts.Liberation` and call `LiberationFonts.Register()` at startup, or register your own fonts with `SkiaFonts.RegisterFontDirectory` ([1.3](#-whats-new-in-13))
 
 ### Install from NuGet
 
@@ -358,6 +389,7 @@ Or reference only the pieces you need:
 | `NetReporter.Html` | Paginated HTML/CSS renderer |
 | `NetReporter.Xlsx` | Semantic XLSX renderer (ClosedXML) |
 | `NetReporter.Barcodes` | QR / Code 128 / Code 39 / EAN-13 (ZXing.Net) |
+| `NetReporter.Fonts.Liberation` | Liberation Sans/Serif/Mono embedded, for hosts without system fonts (not in the meta-package) |
 
 All packages share one version. Every push to `main` publishes a new **patch** version through
 [`.github/workflows/publish.yml`](.github/workflows/publish.yml); put `[minor]` or `[major]` in a commit
@@ -1147,6 +1179,7 @@ Every item of the 1.0 roadmap shipped in **1.1.0**. Candidates for the next iter
 | **HTMX** | BSD-2-Clause |
 | **Alpine.js** | MIT |
 | **Tailwind CSS** | MIT |
+| **Liberation Fonts 2.1.5** | SIL OFL 1.1 — embedded in `NetReporter.Fonts.Liberation` only (license shipped as `LICENSE-Liberation.txt`) |
 | **Lato** (test fixture only) | SIL OFL 1.1 — `tests/TestAssets/Fonts`, not shipped in any package |
 
 ---

@@ -33,6 +33,7 @@ Or reference only the pieces you need. All packages share the same version numbe
 | `NetReporter.Html` | Paginated, self-contained HTML/CSS `@page` renderer |
 | `NetReporter.Xlsx` | Semantic XLSX renderer via ClosedXML: text becomes cells, tables become native Excel Tables |
 | `NetReporter.Barcodes` | QR / Code 128 / Code 39 / EAN-13 via ZXing.Net (opt-in) |
+| `NetReporter.Fonts.Liberation` | Liberation Sans / Serif / Mono embedded (SIL OFL 1.1), for hosts where SkiaSharp sees no system fonts (opt-in, not in the meta-package) |
 
 ## How it works
 
@@ -161,9 +162,16 @@ byte[]                xlsx = new XlsxRenderer().Render(report);         // seman
 - On Linux, SkiaSharp needs `libfontconfig1` installed on the host, and `fonts-liberation` keeps templates that use
   Helvetica / Arial / Courier / Times on their metrics (`apt-get install libfontconfig1 fonts-liberation`).
   The Linux native binaries themselves ship with the packages.
+- Without fontconfig (`SkiaSharp.NativeAssets.Linux.NoDependencies`) or without installed fonts, SkiaSharp sees no
+  fonts: reference `NetReporter.Fonts.Liberation` and call `LiberationFonts.Register()` at startup, or load your own with
+  `SkiaFonts.RegisterFontDirectory(dir)` / `SkiaFonts.RegisterFont(path)`. With no usable font at all, rendering throws
+  `InvalidOperationException` instead of producing a PDF without text.
+- `LayoutEngine.Layout`, `PdfRenderer.Render`, `SvgRenderer.Render` and `HtmlRenderer.Render` accept a
+  `CancellationToken` (e.g. `HttpContext.RequestAborted`).
 
 ## License
 
 NetReporter is released under the MIT license. Third-party components keep their own licenses:
 SkiaSharp (MIT), YamlDotNet (MIT), ClosedXML (MIT) and
-ZXing.Net (Apache 2.0, only when `NetReporter.Barcodes` is referenced).
+ZXing.Net (Apache 2.0, only when `NetReporter.Barcodes` is referenced) and
+the Liberation fonts (SIL OFL 1.1, only in `NetReporter.Fonts.Liberation`).

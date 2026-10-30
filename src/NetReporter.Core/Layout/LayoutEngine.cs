@@ -29,10 +29,19 @@ public sealed class LayoutEngine
         _barcodeGenerator = barcodeGenerator ?? throw new ArgumentNullException(nameof(barcodeGenerator));
     }
 
-    public RlRenderList Layout(ReportDefinition report)
+    public RlRenderList Layout(ReportDefinition report) => Layout(report, CancellationToken.None);
+
+    /// <summary>
+    /// Igual que <see cref="Layout(ReportDefinition)"/>, abortando con
+    /// <see cref="OperationCanceledException"/> cuando se cancela <paramref name="cancellationToken"/>
+    /// (se revisa por banda, por fila de tabla y por página). Útil para cortar un render cuando el
+    /// cliente HTTP se desconecta (<c>HttpContext.RequestAborted</c>).
+    /// </summary>
+    public RlRenderList Layout(ReportDefinition report, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(report);
-        return new LayoutRun(report, _textMeasurer, _barcodeGenerator).Execute();
+        cancellationToken.ThrowIfCancellationRequested();
+        return new LayoutRun(report, _textMeasurer, _barcodeGenerator, cancellationToken).Execute();
     }
 
     /// <summary>
@@ -46,6 +55,7 @@ public sealed class LayoutEngine
         private readonly ReportDefinition _report;
         private readonly ITextMeasurer _measurer;
         private readonly IBarcodeMatrixGenerator _barcodes;
+        private readonly CancellationToken _cancellation;
         private readonly LayoutContext _ctx;
         private readonly List<RenderPage> _pages = new();
 
@@ -62,11 +72,13 @@ public sealed class LayoutEngine
         private double _maxY;
         private bool _measuring;
 
-        public LayoutRun(ReportDefinition report, ITextMeasurer measurer, IBarcodeMatrixGenerator barcodes)
+        public LayoutRun(ReportDefinition report, ITextMeasurer measurer, IBarcodeMatrixGenerator barcodes,
+            CancellationToken cancellation)
         {
             _report = report;
             _measurer = measurer;
             _barcodes = barcodes;
+            _cancellation = cancellation;
             _ctx = new LayoutContext { Culture = report.Culture, PageNumber = 1 };
 
             _pageHeader = report.Bands.OfType<PageHeaderBand>().FirstOrDefault();
@@ -123,6 +135,7 @@ public sealed class LayoutEngine
         private void NewPage()
         {
             if (_measuring) return;
+            _cancellation.ThrowIfCancellationRequested();
             _pages.Add(_page.Build());
             _page.Commands.Clear();
             _page.PageNumber = _pages.Count + 1;
@@ -168,6 +181,7 @@ public sealed class LayoutEngine
 
             foreach (var page in _pages)
             {
+                _cancellation.ThrowIfCancellationRequested();
                 ctx.PageNumber = page.PageNumber;
                 var isFirst = page.PageNumber == 1;
                 var isLast = page.PageNumber == total;
@@ -207,6 +221,7 @@ public sealed class LayoutEngine
 
         private void LayoutDetailBand(DetailBand band)
         {
+            _cancellation.ThrowIfCancellationRequested();
             if (!IsVisible(band)) return;
 
             // Una banda sin tablas no puede partirse (sus elementos se posicionan relativos a su tope),
@@ -371,6 +386,7 @@ public sealed class LayoutEngine
 
             void EmitRow(TRow row, int rowIndex)
             {
+                _cancellation.ThrowIfCancellationRequested();
                 var effectiveStyle = ResolveRowStyle(row, rowIndex);
                 var colX = tableX;
 
