@@ -50,7 +50,7 @@ jobs:
       skip: ${{ steps.next.outputs.skip }}
       version: ${{ steps.next.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0 # full history + tags
 
@@ -103,10 +103,10 @@ jobs:
     env:
       VERSION: ${{ needs.version.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v6
         with:
           dotnet-version: 10.0.x
 
@@ -123,7 +123,7 @@ jobs:
         run: dotnet pack NetReporter.slnx --configuration Release --no-build -p:Version=$VERSION --output artifacts/packages
 
       - name: Upload packages as workflow artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: nuget-packages-v${{ env.VERSION }}
           path: artifacts/packages/*.*nupkg
