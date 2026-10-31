@@ -1276,6 +1276,13 @@
                 const stored = parseFloat(localStorage.getItem(this.ZOOM_STORAGE_KEY));
                 if (Number.isFinite(stored)) this.zoom = this.clampZoom(stored);
 
+                // Refrescar lista de bandas + reaplicar zoom cada vez que HTMX actualiza el preview.
+                // Se registra antes de cualquier await: el render inicial (hx-trigger "load") llega pronto.
+                document.getElementById('preview')?.addEventListener('htmx:afterSwap', () => {
+                    this.refreshBandsFromPreview();
+                    this.applyZoomToDom();
+                    this.syncPreviewDecorations();
+                });
                 this.loadGuides();
                 this.initEditors();
                 // Se crean con el contenedor aún oculto (x-cloak): medir otra vez cuando ya es visible.
@@ -1296,12 +1303,12 @@
 
                 try { this.clipboard = localStorage.getItem(this.CLIPBOARD_STORAGE_KEY) || null; } catch {}
 
-                // Refrescar lista de bandas + reaplicar zoom cada vez que HTMX actualiza el preview.
-                document.getElementById('preview')?.addEventListener('htmx:afterSwap', () => {
+                // El primer render (hx-trigger "load") puede haber llegado antes de registrar el listener.
+                if (document.querySelector('#preview [data-preview-root], #preview [data-preview-error]')) {
                     this.refreshBandsFromPreview();
                     this.applyZoomToDom();
                     this.syncPreviewDecorations();
-                });
+                }
                 // Doble clic en un elemento → su bloque en el YAML, con el cursor ahí.
                 document.getElementById('preview')?.addEventListener('dblclick', evt => {
                     const el = evt.target.closest('.element-overlay');
