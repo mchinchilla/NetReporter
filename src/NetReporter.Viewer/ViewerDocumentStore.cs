@@ -8,13 +8,21 @@ using RlRenderList = NetReporter.Core.RenderList.RenderList;
 namespace NetReporter.Viewer;
 
 /// <summary>
-/// A report that was laid out once when the viewer opened it. Pages are rendered to SVG on first
-/// request and kept; exports reuse the same <see cref="RenderList"/>, so what is downloaded or printed
-/// is exactly what was shown.
+/// A report that was laid out once when the viewer opened it. Pages are rendered to SVG on request and
+/// exports reuse the same <see cref="RenderList"/>, so what is downloaded or printed is exactly what was shown.
+/// <para>
+/// One <see cref="SkiaPaintCache"/> per document, like <c>SvgRenderer.Render</c>: fonts, paints and decoded
+/// images are created once, not once per page. The cache isn't thread-safe and a browser asks for several
+/// pages at once, so page renders of one document are serialized (different documents still render in
+/// parallel). The SVG itself is not kept: the browser caches it, and a page with an embedded image weighs
+/// hundreds of KB.
+/// </para>
 /// </summary>
-internal sealed class ViewerDocument
+internal sealed class ViewerDocument : IDisposable
 {
-    private readonly string?[] _svgPages;
+    private readonly SkiaPaintCache _paintCache = new();
+    private readonly Lock _gate = new();
+    private bool _disposed;
 
     public ViewerDocument(string reportId, ReportDefinition report, RlRenderList renderList, string? owner)
     {
@@ -22,7 +30,6 @@ internal sealed class ViewerDocument
         Report = report;
         RenderList = renderList;
         Owner = owner;
-        _svgPages = new string?[renderList.Pages.Count];
     }
 
     public string ReportId { get; }
@@ -32,18 +39,30 @@ internal sealed class ViewerDocument
     /// <summary>User name of whoever opened the document (null when anonymous). Other users get 404.</summary>
     public string? Owner { get; }
 
-    public int PageCount => _svgPages.Length;
+    public int PageCount => RenderList.Pages.Count;
 
-    /// <summary>SVG of page <paramref name="index"/> (0-based). Rendering is idempotent, so a race only wastes work.</summary>
-    public string GetSvgPage(int index)
+    /// <summary>SVG of page <paramref name="index"/> (0-based).</summary>
+    public string RenderSvgPage(int index)
     {
-        var svg = Volatile.Read(ref _svgPages[index]);
-        if (svg is not null) return svg;
-
+        var page = RenderList.Pages[index];
         var size = RenderList.Page.Size;
-        svg = new SvgRenderer().RenderPage(RenderList.Pages[index], (float)size.Width, (float)size.Height);
-        Volatile.Write(ref _svgPages[index], svg);
-        return svg;
+        lock (_gate)
+        {
+            if (!_disposed)
+                return SvgRenderer.RenderPage(page, (float)size.Width, (float)size.Height, _paintCache);
+        }
+        // Evicted while this request held it: render with a throwaway cache.
+        return new SvgRenderer().RenderPage(page, (float)size.Width, (float)size.Height);
+    }
+
+    public void Dispose()
+    {
+        lock (_gate)
+        {
+            if (_disposed) return;
+            _disposed = true;
+            _paintCache.Dispose();
+        }
     }
 }
 
@@ -58,25 +77,24 @@ internal sealed class ViewerDocumentStore : IDisposable
     {
         _lifetime = options.DocumentLifetime;
         _maxDocuments = Math.Max(1, options.MaxCachedDocuments);
-        _cache = new MemoryCache(new MemoryCacheOptions { SizeLimit = _maxDocuments });
+        _cache = new MemoryCache(new MemoryCacheOptions());
     }
 
     public string Add(ViewerDocument document)
     {
         var token = Base64Url.EncodeToString(RandomNumberGenerator.GetBytes(18));
-        var entry = new MemoryCacheEntryOptions { Size = 1, SlidingExpiration = _lifetime };
+        var entry = new MemoryCacheEntryOptions { SlidingExpiration = _lifetime };
+        // Evicted (expired, compacted, disposed store) → free the document's Skia objects.
+        entry.RegisterPostEvictionCallback(static (_, value, _, _) => (value as ViewerDocument)?.Dispose());
 
-        // MemoryCache drops (does not store) an entry that would exceed SizeLimit and only compacts in
-        // the background, so make room synchronously: the document must exist when the viewer asks for pages.
-        for (int attempt = 0; attempt < 3; attempt++)
-        {
-            if (_cache.Count >= _maxDocuments) _cache.Compact(0.1);
-            _cache.Set(token, document, entry);
-            if (_cache.TryGetValue(token, out _)) return token;
-            _cache.Compact(0.25);
-        }
-
-        throw new InvalidOperationException("The viewer document cache is full.");
+        // No SizeLimit on purpose: MemoryCache rejects an entry that would exceed it — and runs its eviction
+        // callback, which would dispose the document being added. Make room first (least recently used go),
+        // then Set always stores. Concurrent opens may briefly overshoot the limit by a few documents.
+        var excess = _cache.Count - _maxDocuments + 1;
+        // Compact floors Count * percentage: the +0.5 keeps that from rounding down to one document less.
+        if (excess > 0) _cache.Compact(Math.Min(1.0, (excess + 0.5) / _cache.Count));
+        _cache.Set(token, document, entry);
+        return token;
     }
 
     public ViewerDocument? Get(string token, string? user)

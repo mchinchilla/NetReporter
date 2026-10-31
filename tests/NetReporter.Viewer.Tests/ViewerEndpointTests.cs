@@ -243,3 +243,49 @@ public sealed class ViewerEndpointTests : IAsyncLifetime
         }
     }
 }
+
+public sealed class ViewerDocumentStoreTests
+{
+    private static ViewerDocument Doc()
+    {
+        var yaml = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Assets", "report.yaml"));
+        var report = YamlReportLoader.Parse(yaml).Bind("""{"titulo":"t","generadoEn":"g","clientes":[]}""");
+        var layout = new NetReporter.Core.Layout.LayoutEngine(NetReporter.Svg.SkiaTextMeasurer.Instance).Layout(report);
+        return new ViewerDocument("r", report, layout, owner: null);
+    }
+
+    [Fact]
+    public void Add_OverTheLimit_EvictsTheLeastRecentlyUsedAndKeepsTheNewOne()
+    {
+        using var store = new ViewerDocumentStore(new ReportViewerOptions { MaxCachedDocuments = 2 });
+        var a = store.Add(Doc());
+        var b = store.Add(Doc());
+        Assert.NotNull(store.Get(a, null));     // a is now more recent than b
+        var c = store.Add(Doc());
+
+        Assert.NotNull(store.Get(c, null));
+        Assert.NotNull(store.Get(a, null));
+        Assert.Null(store.Get(b, null));
+    }
+
+    [Fact]
+    public void RenderSvgPage_StillWorksAfterTheDocumentIsDisposed()
+    {
+        var doc = Doc();
+        var before = doc.RenderSvgPage(0);
+        doc.Dispose();
+        Assert.Equal(Normalize(before), Normalize(doc.RenderSvgPage(0)));
+    }
+
+    [Fact]
+    public void RenderSvgPage_SharedCacheProducesTheSameSvgAsSvgRenderer()
+    {
+        using var doc = Doc();
+        var expected = new NetReporter.Svg.SvgRenderer().Render(doc.RenderList);
+        for (int i = 0; i < doc.PageCount; i++)
+            Assert.Equal(Normalize(expected[i]), Normalize(doc.RenderSvgPage(i)));
+    }
+
+    /// <summary>Skia numbers clip paths with a process-wide counter (cl_3, cl_11…): compare the drawing, not the ids.</summary>
+    private static string Normalize(string svg) => System.Text.RegularExpressions.Regex.Replace(svg, @"cl_\w+", "cl_N");
+}

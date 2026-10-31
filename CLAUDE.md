@@ -25,7 +25,7 @@ src/
 tests/
   NetReporter.Core.Tests/  NetReporter.Templates.Tests/  NetReporter.Html.Tests/  NetReporter.Svg.Tests/
   NetReporter.Pdf.Tests/   NetReporter.Xlsx.Tests/       NetReporter.Barcodes.Tests/
-  NetReporter.Viewer.Tests/ (TestServer)                                                 — 427 tests total
+  NetReporter.Viewer.Tests/ (TestServer)                                                 — 430 tests total
   TestAssets/Fonts/        Lato-Regular.ttf (SIL OFL) — font tests use it instead of system fonts (CI has almost none)
 tools/
   NetReporter.Designer/    ASP.NET Core MVC + Alpine.js + HTMX + Tailwind (CDN)
@@ -47,7 +47,7 @@ Solution file is `NetReporter.slnx` (the newer XML format — not classic `.sln`
 
 ```bash
 dotnet build
-dotnet test                                                # 427 tests
+dotnet test                                                # 430 tests
 dotnet run --project samples/InvoiceSample                 # → factura.pdf
 dotnet run --project samples/TemplateSample                # → 13 PDF + 13 XLSX
 dotnet run --project tools/NetReporter.Designer            # → http://localhost:5296
@@ -105,7 +105,8 @@ When the user asks for a feature that "should also work in XLSX", remember XLSX 
 ## Viewer (`NetReporter.Viewer`)
 
 - `/open` resolves the report through the app's `IReportSource` (or delegate) and runs `LayoutEngine` **once**; the result (`ViewerDocument`: `ReportDefinition` + `RenderList` + lazily rendered SVG pages) lives in a private `MemoryCache` under a random token, bound to `User.Identity.Name`. Pages and exports must reuse it — never re-resolve or re-layout per page.
-- `ViewerDocumentStore.Add` compacts synchronously before inserting: `MemoryCache` silently drops entries over `SizeLimit`, and the viewer requests pages right after `/open`.
+- `ViewerDocumentStore` has no `SizeLimit`: `MemoryCache` rejects entries over it *and* runs the eviction callback, which disposes the document. `Add` compacts to make room, then `Set` always stores; the eviction callback disposes the document's `SkiaPaintCache`.
+- Each `ViewerDocument` owns one `SkiaPaintCache` (the per-document rule above), guarded by a lock because the browser fetches pages in parallel; SVG strings are not retained (a page with an image is hundreds of KB, and the browser caches it). `SvgRenderer.RenderPage(page, w, h, cache)` is internal and visible to the viewer for this.
 - The client is one dependency-free ES module (`Assets/viewer.js`, shadow DOM, i18n es/en). It is a production UI inside the ERP: no CDN scripts, no Tailwind/Alpine. Pages load lazily via `IntersectionObserver`; a 404 on a page/export means the document expired and the component reopens it once.
 - Page images are SVG `<img>`s, so text uses the client's fonts (documented). Print/download fetch the PDF/XLSX/HTML export as a blob.
 - No browser tests: verify UI changes manually with `samples/ViewerSample`.

@@ -44,7 +44,8 @@ public sealed class SvgRenderer
         return RenderPage(page, width, height, cache);
     }
 
-    private static string RenderPage(RenderPage page, float width, float height, SkiaPaintCache cache)
+    /// <summary>Renderiza una página con un cache provisto por el llamador (uno por documento; no thread-safe).</summary>
+    internal static string RenderPage(RenderPage page, float width, float height, SkiaPaintCache cache)
     {
         ArgumentNullException.ThrowIfNull(page);
 

@@ -1150,9 +1150,9 @@ dotnet test
 │ NetReporter.Pdf.Tests               │   18  │
 │ NetReporter.Xlsx.Tests              │   15  │
 │ NetReporter.Barcodes.Tests          │    7  │
-│ NetReporter.Viewer.Tests            │   13  │
+│ NetReporter.Viewer.Tests            │   16  │
 ├─────────────────────────────────────┼───────┤
-│ Total                               │  427  │
+│ Total                               │  430  │
 └─────────────────────────────────────┴───────┘
 ```
 

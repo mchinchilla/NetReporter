@@ -202,7 +202,7 @@ public static class ViewerEndpointExtensions
                 return Task.CompletedTask;
             }
 
-            var svg = doc.GetSvgPage(page - 1);
+            var svg = doc.RenderSvgPage(page - 1);
             ctx.Response.ContentType = "image/svg+xml; charset=utf-8";
             ctx.Response.Headers.CacheControl = "private, max-age=3600";
             ctx.Response.Headers.XContentTypeOptions = "nosniff";
