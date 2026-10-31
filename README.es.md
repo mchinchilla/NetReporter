@@ -512,7 +512,7 @@ Abre `http://localhost:5296`.
 
 El designer es una app web de tres paneles (visible en la captura de arriba):
 
-- **Izquierda** — editor con tabs para `report.yaml` y `data.json`. Las ediciones hacen debounce y re-renderizan el preview.
+- **Izquierda** — editor con tabs para `report.yaml` y `data.json`. Las ediciones hacen debounce y re-renderizan el preview. Arrastra el divisor para cambiar su ancho (se recuerda) u ocúltalo con `⇤` / `Ctrl+B`.
 - **Centro** — el **Toolbox** (arrastra `Text` / `Line` / `Rect` / `Table` / `Image` / `Code` / `Chart` a una banda) y la lista de **Bandas** con controles para reordenar/eliminar.
 - **Derecha** — **preview SVG** en vivo de la página renderizada, con controles de zoom (`−` / `+` / `1:1` / `↔`) y paginación. Click en cualquier elemento para seleccionarlo; un drawer de propiedades se desliza desde el borde derecho. Con varios elementos seleccionados, el drawer cambia a **selección múltiple** (lista, alinear, copiar, duplicar, borrar).
 
@@ -554,6 +554,9 @@ Los campos de path sugieren bindings descubiertos en `data.json`: paths de array
 | Zoom in | `Ctrl/Cmd + +` (o `=`) |
 | Zoom out | `Ctrl/Cmd + -` |
 | Zoom 100% | `Ctrl/Cmd + 0` |
+| Guardar plantilla | `Ctrl/Cmd + S` |
+| Mostrar / ocultar el editor YAML | `Ctrl/Cmd + B` (o `⇤` / `⇥`); arrastra el divisor para cambiar su ancho, doble clic para restablecerlo |
+| Lista de atajos | `?` (o el botón `?` del encabezado) |
 
 ### Samples builtin (dropdown 📦 Samples)
 

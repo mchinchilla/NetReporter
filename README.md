@@ -512,7 +512,7 @@ Open `http://localhost:5296`.
 
 The designer is a three-pane web app (visible in the screenshot above):
 
-- **Left** — tabbed editor for `report.yaml` and `data.json`. Edits debounce and re-render the preview.
+- **Left** — tabbed editor for `report.yaml` and `data.json`. Edits debounce and re-render the preview. Drag the divider to resize it (the width is remembered) or hide it with `⇤` / `Ctrl+B`.
 - **Middle** — the **Toolbox** (drag `Text` / `Line` / `Rect` / `Table` / `Image` / `Code` / `Chart` onto a band) and the **Bands** list with reorder/delete controls.
 - **Right** — live **SVG preview** of the rendered page, with zoom controls (`−` / `+` / `1:1` / `↔`) and pagination. Click any element to select it; a properties drawer slides in on the right edge. With several elements selected, the drawer switches to **multi-selection** (list, align, copy, duplicate, delete).
 
@@ -554,6 +554,9 @@ Path inputs suggest bindings discovered in `data.json`: array paths for `rows`, 
 | Zoom in | `Ctrl/Cmd + +` (or `=`) |
 | Zoom out | `Ctrl/Cmd + -` |
 | Reset zoom (100%) | `Ctrl/Cmd + 0` |
+| Save template | `Ctrl/Cmd + S` |
+| Show / hide the YAML editor | `Ctrl/Cmd + B` (or `⇤` / `⇥`); drag the divider to resize it, double-click to reset |
+| Shortcut list | `?` (or the `?` button in the header) |
 
 ### Built-in samples (📦 Samples dropdown)
 

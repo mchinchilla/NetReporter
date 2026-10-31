@@ -15,7 +15,7 @@
             <div class="w-8 h-8 rounded bg-sky-600 flex items-center justify-center text-white font-bold">N</div>
             <div>
                 <h1 class="text-sm font-semibold text-slate-900 leading-tight">NetReporter Designer</h1>
-                <p class="text-xs text-slate-500 leading-tight">YAML template editor · drag-and-drop · save / load</p>
+                <p class="text-xs text-slate-500 leading-tight">Editor de plantillas YAML · arrastrar y soltar · vista previa en vivo</p>
             </div>
         </div>
 
@@ -24,13 +24,13 @@
             <select x-model="currentSelection"
                     @@change="onSelectionChange()"
                     class="border border-slate-300 rounded px-2 py-1 bg-white text-slate-800 min-w-[180px]">
-                <option value="">(nuevo)</option>
-                <optgroup label="📦 Samples" x-show="availableSamples.length > 0">
+                <option value="">(sin guardar)</option>
+                <optgroup label="📦 Ejemplos" x-show="availableSamples.length > 0">
                     <template x-for="s in availableSamples" :key="s">
                         <option :value="'sample:' + s" x-text="s"></option>
                     </template>
                 </optgroup>
-                <optgroup label="Mis templates" x-show="availableTemplates.length > 0">
+                <optgroup label="Mis plantillas" x-show="availableTemplates.length > 0">
                     <template x-for="t in availableTemplates" :key="t">
                         <option :value="'user:' + t" x-text="t"></option>
                     </template>
@@ -49,20 +49,22 @@
                    class="hidden" @@change="onImportFiles($event)">
             <button type="button"
                     @@click="saveTemplate()"
-                    class="px-2 py-1 border border-slate-300 rounded bg-white text-slate-700 hover:bg-sky-50 hover:border-sky-500">
-                Save
+                    title="Guardar (Ctrl/Cmd+S)"
+                class="px-2 py-1 border border-slate-300 rounded bg-white text-slate-700 hover:bg-sky-50 hover:border-sky-500">
+                Guardar
             </button>
             <button type="button"
                     @@click="saveAsTemplate()"
                     class="px-2 py-1 border border-slate-300 rounded bg-white text-slate-700 hover:bg-sky-50 hover:border-sky-500">
-                Save as…
+                Guardar como…
             </button>
             <button type="button"
                     @@click="deleteTemplate()"
                     :disabled="!isUserTemplate"
                     :class="!isUserTemplate ? 'opacity-40 cursor-not-allowed' : 'hover:bg-red-50 hover:border-red-400'"
+                    title="Eliminar la plantilla guardada"
                     class="px-2 py-1 border border-slate-300 rounded bg-white text-slate-700">
-                Delete
+                Eliminar
             </button>
             <button type="button"
                     @@click="exportPdf()"
@@ -88,7 +90,7 @@
                         :class="undoStack.length === 0 ? 'opacity-40 cursor-not-allowed' : 'hover:bg-slate-200'"
                         class="px-2 py-1 border border-slate-300 rounded text-xs bg-white text-slate-700"
                         title="Deshacer (Ctrl/Cmd+Z)">
-                    ↶ <span class="hidden sm:inline">Undo</span>
+                    ↶ <span class="hidden sm:inline">Deshacer</span>
                     <span class="text-[9px] text-slate-400" x-text="undoStack.length > 0 ? '(' + undoStack.length + ')' : ''"></span>
                 </button>
                 <button type="button"
@@ -97,7 +99,7 @@
                         :class="redoStack.length === 0 ? 'opacity-40 cursor-not-allowed' : 'hover:bg-slate-200'"
                         class="px-2 py-1 border border-slate-300 rounded text-xs bg-white text-slate-700"
                         title="Rehacer (Ctrl/Cmd+Shift+Z)">
-                    ↷ <span class="hidden sm:inline">Redo</span>
+                    ↷ <span class="hidden sm:inline">Rehacer</span>
                     <span class="text-[9px] text-slate-400" x-text="redoStack.length > 0 ? '(' + redoStack.length + ')' : ''"></span>
                 </button>
             </div>
@@ -109,6 +111,23 @@
                   x-text="selection.length + ' elementos seleccionados'"></span>
             <span x-show="clipboard" x-cloak class="text-slate-400" title="Hay elementos en el portapapeles (Ctrl/Cmd+V para pegar)">📋</span>
             <span x-show="!selected" class="text-slate-400">Ningún elemento seleccionado</span>
+            <div class="relative" @@click.outside="showHelp = false">
+                <button type="button" @@click="showHelp = !showHelp"
+                        class="w-6 h-6 rounded-full border border-slate-300 bg-white text-slate-600 hover:bg-sky-50 hover:border-sky-500"
+                        title="Atajos de teclado (?)">?</button>
+                <div x-show="showHelp" x-cloak x-transition.opacity
+                     class="absolute right-0 top-8 z-50 w-72 bg-white border border-slate-200 rounded-lg shadow-xl p-3 text-[11px] text-slate-700">
+                    <div class="font-semibold text-slate-900 mb-2">Atajos de teclado</div>
+                    <dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
+                        <template x-for="h in shortcuts" :key="h[0]">
+                            <div class="contents">
+                                <dt><kbd class="px-1 bg-slate-100 border border-slate-200 rounded font-mono text-[10px]" x-text="h[0]"></kbd></dt>
+                                <dd x-text="h[1]"></dd>
+                            </div>
+                        </template>
+                    </dl>
+                </div>
+            </div>
         </div>
     </header>
 
@@ -145,16 +164,16 @@
          class="fixed pointer-events-none bg-slate-900 text-white text-[11px] rounded-md shadow-xl z-50 min-w-[220px] max-w-[260px]"
          :style="`left: ${hoveredBand?.anchorLeft}px; top: ${hoveredBand?.anchorTop}px`">
         <div class="px-3 py-2 border-b border-slate-700 flex items-center justify-between">
-            <span class="font-semibold" x-text="hoveredBand?.kind"></span>
+            <span class="font-semibold" x-text="bandLabel(hoveredBand?.kind) + ' · ' + hoveredBand?.kind"></span>
             <span class="text-slate-400 text-[10px]" x-text="'#' + hoveredBand?.index"></span>
         </div>
         <dl class="px-3 py-2 space-y-1 text-slate-200">
             <div class="flex justify-between gap-2">
-                <dt class="text-slate-400">Height declarado</dt>
+                <dt class="text-slate-400">Alto declarado</dt>
                 <dd class="font-mono" x-text="(hoveredBand?.declaredHeight || 0).toFixed(2) + ' pt'"></dd>
             </div>
             <div class="flex justify-between gap-2">
-                <dt class="text-slate-400">Height real</dt>
+                <dt class="text-slate-400">Alto real</dt>
                 <dd class="font-mono" x-text="(hoveredBand?.height || 0).toFixed(2) + ' pt'"></dd>
             </div>
             <div class="flex justify-between gap-2">
@@ -179,7 +198,9 @@
     <!-- Main: 3 columnas (editor | toolbox | preview) -->
     <div class="flex-1 flex overflow-hidden">
         <!-- Izquierda: editores con tabs -->
-        <section class="w-1/2 flex flex-col border-r border-slate-200 bg-white">
+        <section class="flex flex-col bg-white shrink-0 overflow-hidden"
+                 x-show="!editorCollapsed"
+                 :style="`width: ${editorWidth}px`">
             <nav class="flex border-b border-slate-200 bg-slate-50 text-sm">
                 <button type="button"
                         @@click="tab = 'yaml'"
@@ -193,14 +214,10 @@
                         class="px-4 py-2 font-medium transition">
                     data.json
                 </button>
-                <div class="ml-auto flex items-center px-4 text-xs text-slate-400 gap-2 flex-wrap">
-                    <span><kbd class="px-1 bg-slate-200 rounded text-slate-700">Shift</kbd> snap</span>
-                    <span><kbd class="px-1 bg-slate-200 rounded text-slate-700">← ↑ → ↓</kbd> nudge</span>
-                    <span><kbd class="px-1 bg-slate-200 rounded text-slate-700">Shift+clic</kbd> multi</span>
-                    <span><kbd class="px-1 bg-slate-200 rounded text-slate-700">Ctrl+C/V</kbd> copiar</span>
-                    <span><kbd class="px-1 bg-slate-200 rounded text-slate-700">Ctrl+D</kbd> dup</span>
-                    <span><kbd class="px-1 bg-slate-200 rounded text-slate-700">Del</kbd> borrar</span>
-                    <span><kbd class="px-1 bg-slate-200 rounded text-slate-700">Ctrl+Z</kbd> undo</span>
+                <div class="ml-auto flex items-center px-2">
+                    <button type="button" @@click="toggleEditor()"
+                            class="w-7 h-7 rounded text-slate-500 hover:bg-slate-200 hover:text-slate-900"
+                            title="Ocultar el editor (Ctrl/Cmd+B)">⇤</button>
                 </div>
             </nav>
 
@@ -226,62 +243,79 @@
             </form>
         </section>
 
+        <!-- Divisor redimensionable (doble clic: ancho por defecto) -->
+        <div x-show="!editorCollapsed"
+             class="w-1.5 shrink-0 cursor-col-resize bg-slate-200 hover:bg-sky-400 transition-colors"
+             :class="resizingEditor ? 'bg-sky-500' : ''"
+             title="Arrastra para cambiar el ancho del editor · doble clic para restablecer"
+             @@pointerdown.prevent="startEditorResize($event)"
+             @@dblclick="setEditorWidth(defaultEditorWidth())"></div>
+        <!-- Riel visible con el editor oculto -->
+        <div x-show="editorCollapsed" x-cloak
+             class="w-8 shrink-0 bg-slate-50 border-r border-slate-200 flex flex-col items-center pt-2">
+            <button type="button" @@click="toggleEditor()"
+                    class="w-7 h-7 rounded text-slate-500 hover:bg-slate-200 hover:text-slate-900"
+                    title="Mostrar el editor (Ctrl/Cmd+B)">⇥</button>
+            <span class="mt-3 text-[10px] text-slate-400 tracking-wide [writing-mode:vertical-rl]">YAML · JSON</span>
+        </div>
+
         <!-- Toolbox vertical -->
-        <aside class="w-20 bg-slate-100 border-r border-slate-200 flex flex-col items-center py-3 gap-2 overflow-y-auto">
+        <aside class="w-28 shrink-0 bg-slate-100 border-r border-slate-200 flex flex-col items-center py-3 gap-2 overflow-y-auto">
             <div class="text-[10px] uppercase text-slate-500 tracking-wide mb-1">Insertar</div>
             <template x-for="tool in tools" :key="tool.kind">
                 <button type="button"
-                        class="toolbox-item w-14 h-12 rounded border border-slate-300 bg-white hover:border-sky-500 hover:bg-sky-50 flex flex-col items-center justify-center gap-1 text-[10px] text-slate-700 select-none touch-none"
+                        class="toolbox-item w-20 h-12 rounded border border-slate-300 bg-white hover:border-sky-500 hover:bg-sky-50 flex flex-col items-center justify-center gap-1 text-[10px] text-slate-700 select-none touch-none"
                         :class="creating?.kind === tool.kind ? 'border-sky-600 bg-sky-100' : ''"
+                        :title="'Arrastra a una banda para insertar: ' + tool.label"
                         @@pointerdown.prevent="onToolPointerDown($event, tool.kind)">
                     <span x-text="tool.icon" class="text-lg leading-none"></span>
                     <span x-text="tool.label"></span>
                 </button>
             </template>
-            <div class="mt-1 text-[9px] text-slate-400 text-center leading-tight px-1">
-                Arrastra a<br>una banda
+            <div class="mt-1 text-[10px] text-slate-400 text-center leading-tight px-1">
+                Arrastra a una banda
             </div>
 
             <!-- Panel de bandas -->
-            <div class="mt-3 w-full border-t border-slate-300 pt-3 px-1.5">
-                <div class="text-[10px] uppercase text-slate-500 tracking-wide mb-2">Bandas</div>
+            <div class="mt-3 w-full border-t border-slate-300 pt-3 px-2">
+                <div class="text-[10px] uppercase text-slate-500 tracking-wide mb-2 text-center">Bandas</div>
                 <template x-for="(b, idx) in bands" :key="b.index">
-                    <div class="flex items-center gap-0.5 mb-1 rounded"
-                         :class="hoveredBand?.index === b.index ? 'bg-sky-50' : ''"
+                    <div class="flex items-center gap-0.5 mb-1 rounded px-0.5 py-0.5"
+                         :class="hoveredBand?.index === b.index ? 'bg-sky-100' : ''"
                          @@mouseenter="showBandTooltip(b, $event)"
                          @@mouseleave="hoveredBand = null">
-                        <span class="flex-1 text-[9px] text-slate-700 truncate" x-text="b.kind"></span>
+                        <span class="flex-1 text-[11px] leading-tight text-slate-700 truncate" x-text="bandShortLabel(b.kind)"></span>
                         <button type="button"
                                 @@click="moveBandUp(b.index)"
                                 :disabled="idx === 0"
                                 :class="idx === 0 ? 'opacity-20 cursor-not-allowed' : 'hover:text-slate-900'"
-                                class="text-[10px] text-slate-500 px-1"
+                                class="text-[10px] text-slate-500 px-0.5"
                                 title="Subir">▲</button>
                         <button type="button"
                                 @@click="moveBandDown(b.index)"
                                 :disabled="idx === bands.length - 1"
                                 :class="idx === bands.length - 1 ? 'opacity-20 cursor-not-allowed' : 'hover:text-slate-900'"
-                                class="text-[10px] text-slate-500 px-1"
+                                class="text-[10px] text-slate-500 px-0.5"
                                 title="Bajar">▼</button>
                         <button type="button"
                                 @@click="deleteBand(b.index)"
-                                class="text-[10px] text-red-500 hover:text-red-700 px-1"
+                                class="text-[10px] text-red-500 hover:text-red-700 px-0.5"
                                 title="Eliminar banda">✕</button>
                     </div>
                 </template>
 
                 <div class="mt-2">
                     <select x-model="newBandKind"
-                            class="w-full text-[9px] border border-slate-300 rounded py-0.5 px-1 mb-1 bg-white">
-                        <option value="ReportHeader">Report Header</option>
-                        <option value="PageHeader">Page Header</option>
-                        <option value="Detail">Detail</option>
-                        <option value="PageFooter">Page Footer</option>
-                        <option value="ReportFooter">Report Footer</option>
+                            class="w-full text-[11px] border border-slate-300 rounded py-0.5 px-1 mb-1 bg-white">
+                        <option value="ReportHeader">Encabezado de reporte</option>
+                        <option value="PageHeader">Encabezado de página</option>
+                        <option value="Detail">Detalle</option>
+                        <option value="PageFooter">Pie de página</option>
+                        <option value="ReportFooter">Pie de reporte</option>
                     </select>
                     <button type="button"
                             @@click="addBand()"
-                            class="w-full text-[9px] bg-sky-600 text-white rounded px-1.5 py-1 hover:bg-sky-700">
+                            class="w-full text-[11px] bg-sky-600 text-white rounded px-1.5 py-1 hover:bg-sky-700">
                         + Banda
                     </button>
                 </div>
@@ -294,17 +328,17 @@
         <section class="flex-1 min-w-0 flex flex-col bg-slate-200 relative">
             <div class="flex items-center justify-between px-4 py-2 border-b border-slate-300 bg-slate-100 text-sm">
                 <div class="flex items-center gap-3">
-                    <span class="font-medium text-slate-700">Preview</span>
+                    <span class="font-medium text-slate-700">Vista previa</span>
                     <div class="flex items-center gap-1 text-xs">
                         <button type="button"
                                 @@click="zoomOut()"
-                                title="Zoom out (Ctrl/Cmd + -)"
+                                title="Alejar (Ctrl/Cmd + -)"
                                 class="w-6 h-6 flex items-center justify-center border border-slate-300 rounded bg-white text-slate-700 hover:bg-sky-50 hover:border-sky-500 leading-none">−</button>
                         <span class="w-12 text-center font-mono text-slate-700"
                               x-text="Math.round(zoom * 100) + '%'"></span>
                         <button type="button"
                                 @@click="zoomIn()"
-                                title="Zoom in (Ctrl/Cmd + +)"
+                                title="Acercar (Ctrl/Cmd + +)"
                                 class="w-6 h-6 flex items-center justify-center border border-slate-300 rounded bg-white text-slate-700 hover:bg-sky-50 hover:border-sky-500 leading-none">+</button>
                         <button type="button"
                                 @@click="zoomReset()"
@@ -391,7 +425,7 @@
 
                     <!-- Bounds -->
                     <fieldset class="border border-slate-200 rounded p-2">
-                        <legend class="text-[10px] uppercase text-slate-500 px-1">Bounds (pt)</legend>
+                        <legend class="text-[10px] uppercase text-slate-500 px-1">Posición y tamaño (pt)</legend>
                         <div class="grid grid-cols-2 gap-2">
                             <label class="flex flex-col text-[11px] text-slate-600">
                                 X
@@ -482,7 +516,7 @@
                     <!-- Rectángulo: fill + esquinas -->
                     <div x-show="selected?.kind === 'rectangle'" class="grid grid-cols-2 gap-2">
                         <label class="flex flex-col text-[11px] text-slate-600">
-                            Fill
+                            Relleno
                             <input type="color"
                                    x-model="form.fill"
                                    @@input.debounce.400ms="applyPatch({Fill: form.fill})"
@@ -512,7 +546,7 @@
                                 Imagen embebida en el template (data URI). También puedes usar un path o un template:
                             </p>
                             <label class="flex flex-col text-[11px] text-slate-600">
-                                Source (path o template)
+                                Origen (ruta o plantilla)
                                 <input type="text" list="json-template-paths"
                                        :value="form.source === 'data:' ? '' : form.source"
                                        @@change="form.source = $event.target.value; applyPatch({Source: form.source})"
@@ -656,7 +690,7 @@
                     <template x-if="selected?.kind === 'table'">
                         <div class="space-y-2">
                             <label class="flex flex-col text-[11px] text-slate-600">
-                                Rows (JSON Path)
+                                Filas (JSON Path al array)
                                 <input type="text" list="json-array-paths"
                                        x-model="form.rows"
                                        @@input.debounce.400ms="refreshRowPaths(form.rows); applyPatch({Rows: form.rows})"
@@ -666,14 +700,14 @@
 
                             <div class="grid grid-cols-2 gap-2">
                                 <label class="flex flex-col text-[11px] text-slate-600">
-                                    Header height
+                                    Alto encabezado
                                     <input type="number" step="1" min="1"
                                            x-model.number="form.headerHeight"
                                            @@input.debounce.400ms="applyPatch({HeaderHeight: form.headerHeight})"
                                            class="mt-0.5 border border-slate-300 rounded px-2 py-1 text-sm">
                                 </label>
                                 <label class="flex flex-col text-[11px] text-slate-600">
-                                    Row height
+                                    Alto de fila
                                     <input type="number" step="1" min="1"
                                            x-model.number="form.rowHeight"
                                            @@input.debounce.400ms="applyPatch({RowHeight: form.rowHeight})"
@@ -682,17 +716,17 @@
                             </div>
 
                             <label class="flex flex-col text-[11px] text-slate-600">
-                                Header mode
+                                Encabezado
                                 <select x-model="form.headerMode"
                                         @@change="applyPatch({HeaderMode: form.headerMode})"
                                         class="mt-0.5 border border-slate-300 rounded px-2 py-1 text-sm bg-white">
-                                    <option value="RepeatOnPageBreak">RepeatOnPageBreak</option>
-                                    <option value="PrintOnce">PrintOnce</option>
+                                    <option value="RepeatOnPageBreak">Repetir en cada página</option>
+                                    <option value="PrintOnce">Solo la primera vez</option>
                                 </select>
                             </label>
 
                             <label class="flex flex-col text-[11px] text-slate-600">
-                                Header style
+                                Estilo del encabezado
                                 <input type="text" list="style-names"
                                        x-model="form.headerStyle"
                                        @@input.debounce.400ms="applyPatch({HeaderStyle: form.headerStyle})"
@@ -701,7 +735,7 @@
                             </label>
 
                             <label class="flex flex-col text-[11px] text-slate-600">
-                                Row style
+                                Estilo de fila
                                 <input type="text" list="style-names"
                                        x-model="form.rowStyle"
                                        @@input.debounce.400ms="applyPatch({RowStyle: form.rowStyle})"
@@ -710,7 +744,7 @@
                             </label>
 
                             <label class="flex flex-col text-[11px] text-slate-600">
-                                Alternate row style (opcional)
+                                Estilo de fila alterna (opcional)
                                 <input type="text" list="style-names"
                                        x-model="form.alternateRowStyle"
                                        @@input.debounce.400ms="applyPatch({AlternateRowStyle: form.alternateRowStyle})"
@@ -727,7 +761,7 @@
                                     <button type="button"
                                             @@click="addColumn()"
                                             class="text-[10px] bg-sky-600 text-white rounded px-2 py-0.5 hover:bg-sky-700">
-                                        + col
+                                        + columna
                                     </button>
                                 </div>
                                 <template x-for="(col, idx) in form.columns" :key="idx">
@@ -741,12 +775,12 @@
                                                     x-text="col.expanded ? '▼' : '▶'"></button>
                                             <input type="text" x-model="col.header"
                                                    @@input.debounce.400ms="flushColumns()"
-                                                   placeholder="Header"
+                                                   placeholder="Encabezado"
                                                    class="flex-1 border border-slate-300 rounded px-1 py-0.5 text-[11px] bg-white min-w-0">
                                             <input type="number" step="1" min="1"
                                                    x-model.number="col.width"
                                                    @@input.debounce.400ms="flushColumns()"
-                                                   title="Width (pt)"
+                                                   title="Ancho (pt)"
                                                    class="w-10 border border-slate-300 rounded px-1 py-0.5 text-[11px] bg-white shrink-0">
                                             <button type="button" @@click="moveColumn(idx, -1)"
                                                     :disabled="idx === 0"
@@ -761,28 +795,28 @@
                                         </div>
                                         <!-- Detalles solo cuando expandida -->
                                         <div x-show="col.expanded" x-cloak class="px-1 pb-1 space-y-0.5 border-t border-slate-200 pt-1">
-                                            <label class="block text-[9px] uppercase text-slate-500 tracking-wide">Binding</label>
+                                            <label class="block text-[9px] uppercase text-slate-500 tracking-wide">Valor (binding)</label>
                                             <input type="text" x-model="col.binding" list="json-row-paths"
                                                    @@input.debounce.400ms="flushColumns()"
                                                    placeholder="$.campo o = $.a * $.b"
                                                    class="w-full border border-slate-300 rounded px-1 py-0.5 text-[11px] font-mono bg-white">
                                             <div class="grid grid-cols-2 gap-0.5 mt-1">
                                                 <div>
-                                                    <label class="block text-[9px] uppercase text-slate-500 tracking-wide">Format</label>
+                                                    <label class="block text-[9px] uppercase text-slate-500 tracking-wide">Formato</label>
                                                     <input type="text" x-model="col.format"
                                                            @@input.debounce.400ms="flushColumns()"
                                                            placeholder="N2, dd/MM/yyyy"
                                                            class="w-full border border-slate-300 rounded px-1 py-0.5 text-[11px] bg-white">
                                                 </div>
                                                 <div>
-                                                    <label class="block text-[9px] uppercase text-slate-500 tracking-wide">Align</label>
+                                                    <label class="block text-[9px] uppercase text-slate-500 tracking-wide">Alineación</label>
                                                     <select x-model="col.align"
                                                             @@change="flushColumns()"
                                                             class="w-full border border-slate-300 rounded px-1 py-0.5 text-[11px] bg-white">
-                                                        <option value="left">Left</option>
-                                                        <option value="center">Center</option>
-                                                        <option value="right">Right</option>
-                                                        <option value="justify">Justify</option>
+                                                        <option value="left">Izquierda</option>
+                                                        <option value="center">Centro</option>
+                                                        <option value="right">Derecha</option>
+                                                        <option value="justify">Justificado</option>
                                                     </select>
                                                 </div>
                                             </div>
@@ -859,16 +893,88 @@
             newBandKind: 'Detail',
             hoveredBand: null,     // { index, kind, ..., anchorTop (px viewport) }
             tools: [
-                { kind: 'text',      label: 'Text',  icon: 'T' },
-                { kind: 'line',      label: 'Line',  icon: '━' },
-                { kind: 'rectangle', label: 'Rect',  icon: '▭' },
-                { kind: 'table',     label: 'Table', icon: '⊞' },
-                { kind: 'image',     label: 'Image', icon: '🖼' },
-                { kind: 'barcode',   label: 'Code',  icon: '▦' },
-                { kind: 'chart',     label: 'Chart', icon: '📊' }
+                { kind: 'text',      label: 'Texto',      icon: 'T' },
+                { kind: 'line',      label: 'Línea',      icon: '━' },
+                { kind: 'rectangle', label: 'Rectángulo', icon: '▭' },
+                { kind: 'table',     label: 'Tabla',      icon: '⊞' },
+                { kind: 'image',     label: 'Imagen',     icon: '🖼' },
+                { kind: 'barcode',   label: 'Código',     icon: '▦' },
+                { kind: 'chart',     label: 'Gráfico',    icon: '📊' }
             ],
 
+            // === Distribución: editor redimensionable / plegable ===
+            editorWidth: 560,
+            editorCollapsed: false,
+            resizingEditor: null,
+            EDITOR_STORAGE_KEY: 'netreporter.designer.editor',
+            EDITOR_MIN: 280,
+            showHelp: false,
+            shortcuts: [
+                ['Shift + arrastrar', 'Ajustar a la cuadrícula (5 pt)'],
+                ['← ↑ → ↓', 'Mover 1 pt (Shift: 10 pt)'],
+                ['Shift / ⌘ + clic', 'Agregar o quitar de la selección'],
+                ['Arrastrar en vacío', 'Seleccionar por marco'],
+                ['Ctrl/⌘ + A', 'Seleccionar todo'],
+                ['Ctrl/⌘ + C / X / V', 'Copiar / cortar / pegar'],
+                ['Ctrl/⌘ + D', 'Duplicar'],
+                ['Supr / ⌫', 'Eliminar la selección'],
+                ['Ctrl/⌘ + Z', 'Deshacer (Shift: rehacer)'],
+                ['Ctrl/⌘ + S', 'Guardar plantilla'],
+                ['Ctrl/⌘ + B', 'Mostrar / ocultar editor'],
+                ['Ctrl/⌘ + + / − / 0', 'Zoom'],
+                ['Esc', 'Quitar selección'],
+            ],
+            BAND_LABELS: {
+                ReportHeader: 'Encabezado de reporte', PageHeader: 'Encabezado de página', Detail: 'Detalle',
+                PageFooter: 'Pie de página', ReportFooter: 'Pie de reporte'
+            },
+            bandLabel(kind) { return this.BAND_LABELS[kind] || kind || ''; },
+            BAND_SHORT: { ReportHeader: 'Enc. rep.', PageHeader: 'Enc. pág.', Detail: 'Detalle', PageFooter: 'Pie pág.', ReportFooter: 'Pie rep.' },
+            bandShortLabel(kind) { return this.BAND_SHORT[kind] || kind || ''; },
+
+            defaultEditorWidth() { return Math.round(Math.max(this.EDITOR_MIN, Math.min(window.innerWidth * 0.4, 680))); },
+            maxEditorWidth() { return Math.max(this.EDITOR_MIN, window.innerWidth - 520); },
+
+            setEditorWidth(w) {
+                this.editorWidth = Math.round(Math.min(this.maxEditorWidth(), Math.max(this.EDITOR_MIN, w)));
+                this.persistEditorLayout();
+            },
+
+            persistEditorLayout() {
+                try {
+                    localStorage.setItem(this.EDITOR_STORAGE_KEY,
+                        JSON.stringify({ width: this.editorWidth, collapsed: this.editorCollapsed }));
+                } catch {}
+            },
+
+            toggleEditor() {
+                this.editorCollapsed = !this.editorCollapsed;
+                this.persistEditorLayout();
+                this.$nextTick(() => this.onLayoutChanged());
+            },
+
+            startEditorResize(evt) {
+                const section = evt.currentTarget.previousElementSibling;
+                this.resizingEditor = { left: section.getBoundingClientRect().left };
+                evt.currentTarget.setPointerCapture?.(evt.pointerId);
+                document.body.style.cursor = 'col-resize';
+                document.body.style.userSelect = 'none';
+            },
+
+            /** Hook para quien necesite reaccionar a cambios de ancho del editor/preview. */
+            onLayoutChanged() {},
+
             async init() {
+                try {
+                    const layout = JSON.parse(localStorage.getItem(this.EDITOR_STORAGE_KEY) || 'null');
+                    this.editorWidth = layout?.width ? layout.width : this.defaultEditorWidth();
+                    this.editorCollapsed = !!layout?.collapsed;
+                } catch { this.editorWidth = this.defaultEditorWidth(); }
+                this.editorWidth = Math.min(this.maxEditorWidth(), Math.max(this.EDITOR_MIN, this.editorWidth));
+                window.addEventListener('resize', () => {
+                    if (this.editorWidth > this.maxEditorWidth()) this.editorWidth = this.maxEditorWidth();
+                });
+
                 // Cargar zoom persistido antes de Promise.all para que el primer render salga ya escalado.
                 const stored = parseFloat(localStorage.getItem(this.ZOOM_STORAGE_KEY));
                 if (Number.isFinite(stored)) this.zoom = this.clampZoom(stored);
@@ -1037,6 +1143,21 @@
             },
 
             onKeyDown(evt) {
+                const isModKey = evt.metaKey || evt.ctrlKey;
+                if (isModKey && !evt.altKey && evt.key.toLowerCase() === 's') {
+                    evt.preventDefault();
+                    this.saveTemplate();
+                    return;
+                }
+                if (isModKey && !evt.altKey && evt.key.toLowerCase() === 'b') {
+                    evt.preventDefault();
+                    this.toggleEditor();
+                    return;
+                }
+                if (evt.key === '?' && !['INPUT', 'TEXTAREA', 'SELECT'].includes(evt.target.tagName) && !evt.target.isContentEditable) {
+                    this.showHelp = !this.showHelp;
+                    return;
+                }
                 // Ignorar si foco está en un input de texto del drawer o los textareas.
                 const tag = evt.target.tagName;
                 const inEditor = evt.target.id === 'yaml-editor' || evt.target.id === 'json-editor';
@@ -1103,7 +1224,7 @@
                     return;
                 }
 
-                if (evt.key === 'Escape') { this.clearSelection(); return; }
+                if (evt.key === 'Escape') { this.showHelp = false; this.clearSelection(); return; }
 
                 // Delete / Backspace → borrar la selección (uno o varios).
                 if (this.selection.length && (evt.key === 'Delete' || evt.key === 'Backspace')) {
@@ -1779,6 +1900,11 @@
             },
 
             onPointerMove(evt) {
+                if (this.resizingEditor) {
+                    this.editorWidth = Math.round(Math.min(this.maxEditorWidth(),
+                        Math.max(this.EDITOR_MIN, evt.clientX - this.resizingEditor.left)));
+                    return;
+                }
                 if (this.marquee) {
                     this.marquee.x1 = evt.clientX;
                     this.marquee.y1 = evt.clientY;
@@ -1834,6 +1960,15 @@
             },
 
             async onPointerUp(evt) {
+                if (this.resizingEditor) {
+                    this.resizingEditor = null;
+                    document.body.style.cursor = '';
+                    document.body.style.userSelect = '';
+                    window.getSelection()?.removeAllRanges();
+                    this.persistEditorLayout();
+                    this.onLayoutChanged();
+                    return;
+                }
                 if (this.marquee) {
                     const m = this.marquee;
                     this.marquee = null;
