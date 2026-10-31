@@ -155,10 +155,10 @@
     <value>Insert</value>
   </data>
   <data name="Toolbox.DragHint" xml:space="preserve">
-    <value>Drag onto a band</value>
+    <value>Drag onto the page, or click and draw</value>
   </data>
   <data name="Toolbox.DragTitle" xml:space="preserve">
-    <value>Drag onto a band to insert: {tool}</value>
+    <value>Drag onto the page to insert {tool}, or click here and then draw it on the page</value>
   </data>
   <data name="Tool.Text" xml:space="preserve">
     <value>Text</value>
@@ -629,7 +629,7 @@
     <value>Esc</value>
   </data>
   <data name="Shortcut.Esc" xml:space="preserve">
-    <value>Clear selection</value>
+    <value>Clear selection / cancel the picked tool</value>
   </data>
   <data name="Shortcut.WheelKey" xml:space="preserve">
     <value>Ctrl/⌘ + wheel</value>
@@ -747,5 +747,17 @@
   </data>
   <data name="Server.PathOutsideRoot" xml:space="preserve">
     <value>Path outside the templates folder.</value>
+  </data>
+  <data name="Msg.DropOutsidePage" xml:space="preserve">
+    <value>Drop onto a report page to insert the element</value>
+  </data>
+  <data name="Msg.ToolArmed" xml:space="preserve">
+    <value>{tool}: click on the page to insert it, or drag to draw its size · Esc cancels</value>
+  </data>
+  <data name="Msg.AddError" xml:space="preserve">
+    <value>The element could not be inserted</value>
+  </data>
+  <data name="Header.ElementIn" xml:space="preserve">
+    <value>in {band} · #{n}</value>
   </data>
 </root>

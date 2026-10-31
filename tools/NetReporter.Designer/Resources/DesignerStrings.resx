@@ -155,10 +155,10 @@
     <value>Insertar</value>
   </data>
   <data name="Toolbox.DragHint" xml:space="preserve">
-    <value>Arrastra a una banda</value>
+    <value>Arrastra a la hoja, o haz clic y dibuja</value>
   </data>
   <data name="Toolbox.DragTitle" xml:space="preserve">
-    <value>Arrastra a una banda para insertar: {tool}</value>
+    <value>Arrastra a la hoja para insertar {tool}, o haz clic aquí y luego dibújalo en la hoja</value>
   </data>
   <data name="Tool.Text" xml:space="preserve">
     <value>Texto</value>
@@ -629,7 +629,7 @@
     <value>Esc</value>
   </data>
   <data name="Shortcut.Esc" xml:space="preserve">
-    <value>Quitar selección</value>
+    <value>Quitar selección / cancelar la herramienta elegida</value>
   </data>
   <data name="Shortcut.WheelKey" xml:space="preserve">
     <value>Ctrl/⌘ + rueda</value>
@@ -747,5 +747,17 @@
   </data>
   <data name="Server.PathOutsideRoot" xml:space="preserve">
     <value>Ruta fuera de la carpeta de plantillas.</value>
+  </data>
+  <data name="Msg.DropOutsidePage" xml:space="preserve">
+    <value>Suelta sobre una hoja del reporte para insertar el elemento</value>
+  </data>
+  <data name="Msg.ToolArmed" xml:space="preserve">
+    <value>{tool}: haz clic en la hoja para insertarlo, o arrastra para dibujar su tamaño · Esc cancela</value>
+  </data>
+  <data name="Msg.AddError" xml:space="preserve">
+    <value>No se pudo insertar el elemento</value>
+  </data>
+  <data name="Header.ElementIn" xml:space="preserve">
+    <value>en {band} · nº {n}</value>
   </data>
 </root>

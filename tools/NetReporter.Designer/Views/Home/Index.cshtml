@@ -1,9 +1,13 @@
 @model NetReporter.Designer.Models.DesignerViewModel
+@using NetReporter.Templates
 @inject Microsoft.Extensions.Localization.IStringLocalizer<NetReporter.Designer.DesignerStrings> L
 @{
     ViewData["Title"] = L["Page.Title"].Value;
     var uiLanguage = System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName;
     const string Cm = "https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/";
+    // Default size per element kind, for the creation ghost: the same numbers AddElement uses.
+    var defaultSizes = new[] { "text", "line", "rectangle", "table", "image", "barcode", "chart" }
+        .ToDictionary(k => k, k => { var (w, h) = YamlReportRewriter.DefaultSize(k); return new[] { w, h }; });
 }
 
 <link rel="stylesheet" href="@(Cm)codemirror.min.css">
@@ -25,6 +29,7 @@
 <script>
     // UI strings for the browser side (Alpine expressions and JS messages): the same resources the view uses.
     window.NR_I18N = @Html.Raw(Json.Serialize(L.GetAllStrings(includeParentCultures: true).ToDictionary(s => s.Name, s => s.Value)));
+    window.NR_DEFAULT_SIZES = @Html.Raw(Json.Serialize(defaultSizes));
 </script>
 <style>
     .cm-host { position: relative; flex: 1 1 0; min-height: 0; }
@@ -51,6 +56,8 @@
         background-size: var(--grid-step) var(--grid-step);
         background-position: var(--grid-ox) var(--grid-oy);
     }
+    /* Herramienta armada: la hoja se dibuja con cruz hasta que se inserta el elemento o se pulsa Esc */
+    #preview.armed, #preview.armed * { cursor: crosshair; }
     .smart-guide { position: absolute; pointer-events: none; z-index: 5; background: rgb(236, 72, 153); }
     .smart-guide.v { width: 1px; top: 0; bottom: 0; }
     .smart-guide.h { height: 1px; left: 0; right: 0; }
@@ -58,7 +65,7 @@
 
 <div class="h-screen flex flex-col"
      x-data="designer()"
-     :class="creating ? 'creating-mode' : ''"
+     :class="(creating || armedTool || drawing) ? 'creating-mode' : ''"
      @@pointermove.window="onPointerMove($event)"
      @@pointerup.window="onPointerUp($event)"
      @@keydown.window="onKeyDown($event)">
@@ -73,7 +80,7 @@
         </div>
 
         <!-- Template controls -->
-        <div class="flex items-center gap-2 text-xs">
+        <div class="flex items-center gap-2 text-xs whitespace-nowrap">
             <select x-model="currentSelection"
                     @@change="onSelectionChange()"
                     class="nr-select border border-slate-300 rounded pl-2 py-1 bg-white text-slate-800 min-w-[180px]">
@@ -135,7 +142,7 @@
                 ⭳ XLSX
             </button>
         </div>
-        <div class="text-xs text-slate-500 flex items-center gap-3">
+        <div class="text-xs text-slate-500 flex items-center gap-3 whitespace-nowrap shrink-0">
             <div class="flex items-center gap-1">
                 <button type="button"
                         @@click="undo()"
@@ -156,9 +163,11 @@
                     <span class="text-[9px] text-slate-400" x-text="redoStack.length > 0 ? '(' + redoStack.length + ')' : ''"></span>
                 </button>
             </div>
-            <span x-show="selected && !isMulti" x-cloak class="inline-flex items-center gap-1 bg-amber-100 text-amber-800 px-2 py-0.5 rounded">
-                <span x-text="selected?.kind"></span>
-                · <code x-text="selected?.path"></code>
+            <span x-show="selected && !isMulti" x-cloak
+                  class="inline-flex items-center gap-1 bg-amber-100 text-amber-800 px-2 py-0.5 rounded"
+                  :title="selected?.path">
+                <span class="font-medium" x-text="toolLabel(selected?.kind)"></span>
+                <span class="text-amber-700/80 truncate max-w-[14rem]" x-text="selectedLocation()"></span>
             </span>
             <span x-show="isMulti" x-cloak class="inline-flex items-center gap-1 bg-amber-100 text-amber-800 px-2 py-0.5 rounded"
                   x-text="t('Header.SelectedCount', { n: selection.length })"></span>
@@ -210,12 +219,17 @@
         <template x-for="p in rowPaths" :key="p"><option :value="p"></option></template>
     </datalist>
 
-    <!-- Ghost que sigue el cursor durante la creación -->
-    <div x-show="creating"
-         x-cloak
-         class="fixed pointer-events-none bg-sky-600 text-white text-xs rounded px-2 py-1 shadow-lg z-50 select-none"
-         :style="`left: ${creating?.x + 8}px; top: ${creating?.y + 8}px`"
-         x-text="'+ ' + creating?.kind"></div>
+    <!-- Fantasma durante la creación: el tamaño que tendrá el elemento (por defecto, o el que se está dibujando) -->
+    <div x-show="ghost" x-cloak class="fixed pointer-events-none z-50 select-none" :style="ghostStyle()">
+        <div class="absolute inset-0 border-2 border-dashed border-sky-500 bg-sky-500/10 rounded-sm"></div>
+        <div class="absolute left-0 -top-6 whitespace-nowrap bg-sky-600 text-white text-xs rounded px-2 py-0.5 shadow"
+             x-text="ghostLabel()"></div>
+    </div>
+
+    <!-- Aviso breve (soltar fuera de la hoja, herramienta elegida, errores) -->
+    <div x-show="toast" x-cloak x-transition.opacity role="status"
+         class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-slate-800 text-white text-xs rounded-full px-4 py-2 shadow-lg pointer-events-none"
+         x-text="toast"></div>
 
     <!-- Tooltip de banda al hover del panel -->
     <div x-show="hoveredBand"
@@ -325,7 +339,7 @@
             <template x-for="tool in tools" :key="tool.kind">
                 <button type="button"
                         class="toolbox-item w-20 h-12 rounded border border-slate-300 bg-white hover:border-sky-500 hover:bg-sky-50 flex flex-col items-center justify-center gap-1 text-[10px] text-slate-700 select-none touch-none"
-                        :class="creating?.kind === tool.kind ? 'border-sky-600 bg-sky-100' : ''"
+                        :class="(creating?.kind === tool.kind || armedTool === tool.kind) ? 'border-sky-600 bg-sky-100 ring-2 ring-sky-300' : ''"
                         :title="t('Toolbox.DragTitle', { tool: tool.label })"
                         @@pointerdown.prevent="onToolPointerDown($event, tool.kind)">
                     <span x-text="tool.icon" class="text-lg leading-none"></span>
@@ -467,6 +481,9 @@
                 </span>
             </div>
 
+            <!-- Hoja (reglas + preview) y, a su derecha, el cajón de propiedades como columna propia:
+                 flotando sobre la hoja tapaba los elementos del borde derecho y no se podían agarrar. -->
+            <div class="flex-1 min-w-0 min-h-0 flex">
             <div class="flex-1 min-w-0 min-h-0 grid"
                  :style="rulersOn ? 'grid-template-columns: 22px minmax(0, 1fr); grid-template-rows: 22px minmax(0, 1fr)' : 'grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr)'">
                 <button type="button" x-show="rulersOn" @@click="cycleRulerUnit()"
@@ -477,24 +494,23 @@
                 <canvas id="ruler-y" x-show="rulersOn" class="block h-full w-[22px] bg-slate-100 border-r border-slate-300"></canvas>
             <div id="preview"
                  class="min-w-0 min-h-0 overflow-auto p-6"
-                 :class="cleanView ? 'clean-view' : ''"
+                 :class="(cleanView ? 'clean-view ' : '') + (armedTool ? 'armed' : '')"
                  @@scroll.passive="onPreviewScroll()"
                  @@wheel="onPreviewWheel($event)"
                  @@pointermove="onPreviewHover($event)"
-                 @@pointerleave="rulerCursor = null; drawRulers()"
+                 @@pointerleave="rulerCursor = null; armedCursor = null; drawRulers()"
                  @@pointerdown="onOverlayPointerDown($event)">
                 <p class="text-sm text-slate-500 text-center mt-8">@L["Preview.Loading"]</p>
             </div>
             </div>
 
-            <!-- Drawer de propiedades del elemento seleccionado -->
+            <!-- Cajón de propiedades del elemento seleccionado (columna a la derecha de la hoja) -->
             <aside x-show="selected"
                    x-cloak
                    x-transition:enter="transition ease-out duration-150"
                    x-transition:enter-start="translate-x-2 opacity-0"
                    x-transition:enter-end="translate-x-0 opacity-100"
-                   class="absolute top-12 right-4 w-72 bg-white rounded-lg shadow-lg border border-slate-200 text-sm flex flex-col"
-                   style="max-height: calc(100vh - 6rem);">
+                   class="w-72 shrink-0 min-h-0 bg-white border-l border-slate-200 text-sm flex flex-col">
                 <header class="flex items-center justify-between px-3 py-2 bg-slate-50 border-b border-slate-200 shrink-0 rounded-t-lg">
                     <div class="font-semibold text-slate-800" x-text="isMulti ? t('Drawer.MultiTitle') : t('Drawer.Title')"></div>
                     <div class="flex items-center gap-1">
@@ -948,6 +964,7 @@
                     </template>
                 </div>
             </aside>
+            </div>
         </section>
     </div>
 </div>
@@ -1029,8 +1046,10 @@
 
             /** Stores the UI language in a cookie and reloads (the server renders the strings). */
             setLanguage(code) {
-                if (code === this.language) return;
-                if (this.isDirty && !confirm(t('Msg.DiscardLoad'))) { this.language = '@uiLanguage'; return; }
+                // x-model ya cambió `language` cuando llega el evento change: compara con el idioma servido, no con el estado.
+                const current = '@uiLanguage';
+                if (code === current) return;
+                if (this.isDirty && !confirm(t('Msg.DiscardLoad'))) { this.language = current; return; }
                 location.href = '/Home/SetLanguage?culture=' + encodeURIComponent(code);
             },
 
@@ -1416,6 +1435,7 @@
             },
 
             onPreviewHover(evt) {
+                if (this.armedTool && !this.drawing) this.armedCursor = { x: evt.clientX, y: evt.clientY };
                 if (!this.rulersOn) return;
                 this.rulerCursor = { x: evt.clientX, y: evt.clientY };
                 if (!this._rulerRaf) this._rulerRaf = requestAnimationFrame(() => { this._rulerRaf = null; this.drawRulers(); });
@@ -1744,7 +1764,70 @@
                 evt.preventDefault();
                 if (this.cleanView) this.cleanView = false;   // crear necesita las zonas de las bandas
                 this.clearSelection();
-                this.creating = { kind, x: evt.clientX, y: evt.clientY };
+                // x0/y0 distinguen un clic (arma la herramienta) de un arrastre hasta la hoja.
+                this.creating = { kind, x: evt.clientX, y: evt.clientY, x0: evt.clientX, y0: evt.clientY };
+            },
+
+            // === Creación de elementos ===
+
+            armedTool: null,         // herramienta elegida con un clic: el siguiente clic o trazo en la hoja la inserta
+            armedCursor: null,       // { x, y } del puntero sobre el preview mientras hay herramienta armada
+            drawing: null,           // { kind, x0, y0, x1, y1, active } mientras se dibuja el tamaño del elemento nuevo
+            toast: null,
+            _toastTimer: null,
+
+            toolLabel(kind) { return this.tools.find(t => t.kind === kind)?.label ?? (kind || ''); },
+            defaultSize(kind) {
+                const s = (window.NR_DEFAULT_SIZES || {})[kind];
+                return s ? { w: s[0], h: s[1] } : { w: 100, h: 40 };
+            },
+
+            showToast(message, ms = 2800) {
+                this.toast = message;
+                clearTimeout(this._toastTimer);
+                this._toastTimer = setTimeout(() => { this.toast = null; }, ms);
+            },
+
+            armTool(kind) {
+                this.armedTool = this.armedTool === kind ? null : kind;
+                this.armedCursor = null;
+                if (this.armedTool) this.showToast(t('Msg.ToolArmed', { tool: this.toolLabel(kind) }), 4000);
+            },
+
+            disarmTool() { this.armedTool = null; this.armedCursor = null; this.drawing = null; },
+
+            /** Rectángulo (viewport-px) que muestra dónde y de qué tamaño quedará el elemento nuevo. */
+            get ghost() {
+                const z = this.zoom || 1;
+                if (this.drawing?.active) {
+                    const d = this.drawing;
+                    return { x: Math.min(d.x0, d.x1), y: Math.min(d.y0, d.y1), w: Math.abs(d.x1 - d.x0), h: Math.abs(d.y1 - d.y0), kind: d.kind, drawn: true };
+                }
+                const at = this.creating ?? (this.armedTool ? this.armedCursor : null);
+                if (!at) return null;
+                const kind = this.creating?.kind ?? this.armedTool;
+                const def = this.defaultSize(kind);
+                // Una tabla nueva mide 0 de alto (crece con las filas): se insinúa cabecera + una fila.
+                const h = def.h || (kind === 'table' ? 40 : 0);
+                return { x: at.x, y: at.y, w: def.w * z, h: h * z, kind, drawn: false };
+            },
+            ghostStyle() {
+                const g = this.ghost;
+                return g ? `left: ${g.x}px; top: ${g.y}px; width: ${Math.max(g.w, 2)}px; height: ${Math.max(g.h, 2)}px` : '';
+            },
+            ghostLabel() {
+                const g = this.ghost;
+                if (!g) return '';
+                const z = this.zoom || 1;
+                return g.drawn ? `${this.toolLabel(g.kind)} · ${Math.round(g.w / z)} × ${Math.round(g.h / z)} pt` : this.toolLabel(g.kind);
+            },
+
+            /** "en Encabezado de reporte · nº 3" para el badge de selección; la ruta técnica va en el tooltip. */
+            selectedLocation() {
+                const m = /^bands\.(\d+)\.elements\.(\d+)$/.exec(this.selected?.path ?? '');
+                if (!m) return '';
+                const band = this.bands.find(b => b.index === +m[1]);
+                return '· ' + t('Header.ElementIn', { band: this.bandLabel(band?.kind ?? ''), n: +m[2] + 1 });
             },
 
             // === Undo / Redo ===
@@ -1871,7 +1954,7 @@
                     return;
                 }
 
-                if (evt.key === 'Escape') { this.showHelp = false; this.clearSelection(); return; }
+                if (evt.key === 'Escape') { this.showHelp = false; this.disarmTool(); this.clearSelection(); return; }
                 if (evt.key === 'PageDown' || evt.key === 'PageUp') {
                     evt.preventDefault();
                     this.goToPage(this.currentPage + (evt.key === 'PageDown' ? 1 : -1));
@@ -2344,33 +2427,57 @@
                 return dz;
             },
 
-            async finishCreate(evt) {
-                const kind = this.creating.kind;
-                const dz = this.hitTestDropzone(evt.clientX, evt.clientY);
-                this.creating = null;
-                document.querySelectorAll('.band-dropzone.hover').forEach(z => z.classList.remove('hover'));
-
-                if (!dz) {
-                    console.warn('[Designer] Drop fuera de dropzone — elemento no creado. Suelta sobre una banda.');
-                    return;
+            /**
+             * Zona de banda bajo el puntero o, si soltó en un margen, en el hueco entre bandas o en el espacio
+             * vacío de la hoja, la banda más cercana de esa hoja. Null solo lejos de cualquier hoja.
+             */
+            nearestDropzone(clientX, clientY) {
+                const exact = this.hitTestDropzone(clientX, clientY);
+                if (exact) return exact;
+                let page = null, best = Infinity;
+                for (const p of this.pageEls()) {
+                    const r = p.getBoundingClientRect();
+                    const d = Math.hypot(Math.max(r.left - clientX, 0, clientX - r.right), Math.max(r.top - clientY, 0, clientY - r.bottom));
+                    if (d < best) { best = d; page = p; }
                 }
+                if (!page || best > 48) return null;
+                let zone = null;
+                best = Infinity;
+                for (const z of page.querySelectorAll('.band-dropzone')) {
+                    const r = z.getBoundingClientRect();
+                    if (r.height <= 0) continue;
+                    const d = clientY < r.top ? r.top - clientY : clientY > r.bottom ? clientY - r.bottom : 0;
+                    if (d < best) { best = d; zone = z; }
+                }
+                return zone;
+            },
+
+            /**
+             * Inserta un elemento `kind` con su esquina superior izquierda en (clientX, clientY) y, si se dibujó,
+             * con `size` = { w, h } en pt. La posición se ajusta al contenido de la hoja y a la banda elegida.
+             */
+            async createAt(kind, clientX, clientY, size = null, snap = false) {
+                const dz = this.nearestDropzone(clientX, clientY);
+                if (!dz) { this.showToast(t('Msg.DropOutsidePage')); return; }
 
                 const bandIndex = parseInt(dz.dataset.bandIndex, 10);
                 const rect = dz.getBoundingClientRect();
-                // rect y clientX/Y están en viewport-px; el zoom CSS escaló todo igual.
-                // Dividir el offset por zoom convierte de vuelta a page-pt.
-                const xInPage = (evt.clientX - rect.left) / this.zoom;
-                const yInBand = (evt.clientY - rect.top)  / this.zoom;
+                const m = this.pageMetrics();
+                const contentW = m ? Math.max(1, m.w - m.ml - m.mr) : Infinity;
+                const bandH = parseFloat(dz.dataset.bandHeight) || 0;
+                const { w, h } = size ?? this.defaultSize(kind);
 
-                const root = document.querySelector('[data-preview-root]');
-                const marginLeft = parseFloat(root?.dataset.marginLeft) || 0;
-                // bounds.X en el YAML es relativo al content origin (sin margen izquierdo de página).
-                let xYaml = Math.max(0, xInPage - marginLeft);
-                let yYaml = Math.max(0, yInBand);
-                if (evt.shiftKey) {
-                    xYaml = Math.round(xYaml / this.SNAP) * this.SNAP;
-                    yYaml = Math.round(yYaml / this.SNAP) * this.SNAP;
+                // rect y clientX/Y están en viewport-px; el zoom CSS escaló todo igual, así que dividir por él
+                // devuelve page-pt. bounds.x del YAML es relativo al origen del contenido; bounds.y a la banda.
+                let x = (clientX - rect.left) / this.zoom - (m?.ml ?? 0);
+                let y = (clientY - rect.top) / this.zoom;
+                if (snap) {
+                    x = Math.round(x / this.SNAP) * this.SNAP;
+                    y = Math.round(y / this.SNAP) * this.SNAP;
                 }
+                // Lo que cae en un margen o fuera de la banda se pega al borde más cercano.
+                x = Math.min(Math.max(0, x), Math.max(0, contentW - w));
+                y = Math.min(Math.max(0, y), Math.max(0, bandH - h));
 
                 this.pushUndo();
                 this.saving = true;
@@ -2378,20 +2485,69 @@
                     const form = this.buildFormData();
                     form.append('BandIndex', bandIndex.toString());
                     form.append('Kind', kind);
-                    form.append('X', xYaml.toFixed(2));
-                    form.append('Y', yYaml.toFixed(2));
+                    form.append('X', x.toFixed(2));
+                    form.append('Y', y.toFixed(2));
+                    if (size) {
+                        form.append('Width', size.w.toFixed(2));
+                        form.append('Height', size.h.toFixed(2));
+                    }
                     const res = await fetch('/Home/Add', { method: 'POST', body: form });
+                    if (!res.ok) throw new Error('HTTP ' + res.status);
                     const data = await res.json();
                     if (data.error) {
                         console.error('Add:', data.error);
+                        this.showToast(t('Msg.Error', { error: data.error }), 5000);
                     } else {
+                        this.toast = null;                       // el aviso de "herramienta elegida" ya cumplió
                         this.applyServerResponse(data);
                         if (data.newPath) this.reselectByPath(data.newPath);
                     }
+                } catch (e) {
+                    console.error('Add:', e);
+                    this.showToast(t('Msg.AddError'), 5000);
                 } finally { this.saving = false; }
             },
 
+            /** Fin del arrastre desde la caja de herramientas: un clic sin mover arma la herramienta. */
+            async finishCreate(evt) {
+                const c = this.creating;
+                this.creating = null;
+                document.querySelectorAll('.band-dropzone.hover').forEach(z => z.classList.remove('hover'));
+                if (Math.hypot(evt.clientX - c.x0, evt.clientY - c.y0) < 4) { this.armTool(c.kind); return; }
+                this.armedTool = null;
+                await this.createAt(c.kind, evt.clientX, evt.clientY, null, evt.shiftKey);
+            },
+
+            /** Fin del trazo con herramienta armada: clic = tamaño por defecto; arrastre = el rectángulo dibujado. */
+            async finishDrawing(evt) {
+                const d = this.drawing;
+                this.disarmTool();
+                document.querySelectorAll('.band-dropzone.hover').forEach(z => z.classList.remove('hover'));
+                if (!d.active) { await this.createAt(d.kind, d.x0, d.y0, null, evt.shiftKey); return; }
+                const size = { w: Math.abs(d.x1 - d.x0) / this.zoom, h: Math.abs(d.y1 - d.y0) / this.zoom };
+                if (evt.shiftKey) {
+                    size.w = Math.round(size.w / this.SNAP) * this.SNAP;
+                    size.h = Math.round(size.h / this.SNAP) * this.SNAP;
+                }
+                if (d.kind === 'line') {
+                    // Una línea se traza en una dirección: la dimensión menor queda en 0 (el servidor la hace vertical si toca).
+                    if (size.w >= size.h) size.h = 0; else size.w = 0;
+                } else {
+                    size.w = Math.max(size.w, this.MIN_SIZE);
+                    size.h = Math.max(size.h, this.MIN_SIZE);
+                }
+                await this.createAt(d.kind, Math.min(d.x0, d.x1), Math.min(d.y0, d.y1), size, evt.shiftKey);
+            },
+
             onOverlayPointerDown(evt) {
+                // 0) Herramienta armada: el clic (o el trazo que empieza aquí) inserta el elemento.
+                if (this.armedTool) {
+                    if (evt.button !== 0) return;
+                    evt.preventDefault();
+                    this.drawing = { kind: this.armedTool, x0: evt.clientX, y0: evt.clientY, x1: evt.clientX, y1: evt.clientY, active: false };
+                    return;
+                }
+
                 // 1) Si clickearon un resize handle (solo en elemento ya seleccionado), iniciar resize.
                 const handle = evt.target.closest('.resize-handle');
                 if (handle) {
@@ -2590,6 +2746,14 @@
                     this.updateDropzoneHover(evt);
                     return;
                 }
+                if (this.drawing) {
+                    const d = this.drawing;
+                    d.x1 = evt.clientX;
+                    d.y1 = evt.clientY;
+                    if (!d.active && Math.hypot(d.x1 - d.x0, d.y1 - d.y0) > 4) d.active = true;
+                    this.updateDropzoneHover({ clientX: d.x0, clientY: d.y0 });
+                    return;
+                }
 
                 if (this.resizing) {
                     const r = this.resizing;
@@ -2664,6 +2828,10 @@
                 }
                 if (this.creating) {
                     await this.finishCreate(evt);
+                    return;
+                }
+                if (this.drawing) {
+                    await this.finishDrawing(evt);
                     return;
                 }
 

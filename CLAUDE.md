@@ -25,7 +25,7 @@ src/
 tests/
   NetReporter.Core.Tests/  NetReporter.Templates.Tests/  NetReporter.Html.Tests/  NetReporter.Svg.Tests/
   NetReporter.Pdf.Tests/   NetReporter.Xlsx.Tests/       NetReporter.Barcodes.Tests/
-  NetReporter.Viewer.Tests/ (TestServer)                                                 — 468 tests total
+  NetReporter.Viewer.Tests/ (TestServer)                                                 — 479 tests total
   TestAssets/Fonts/        Lato-Regular.ttf (SIL OFL) — font tests use it instead of system fonts (CI has almost none)
 tools/
   NetReporter.Designer/    ASP.NET Core MVC + Alpine.js + HTMX + Tailwind (CDN)
@@ -47,7 +47,7 @@ Solution file is `NetReporter.slnx` (the newer XML format — not classic `.sln`
 
 ```bash
 dotnet build
-dotnet test                                                # 468 tests
+dotnet test                                                # 479 tests
 dotnet run --project samples/InvoiceSample                 # → factura.pdf
 dotnet run --project samples/TemplateSample                # → 13 PDF + 13 XLSX
 dotnet run --project tools/NetReporter.Designer            # → http://localhost:5296
@@ -118,6 +118,8 @@ When the user asks for a feature that "should also work in XLSX", remember XLSX 
 - `YamlReportRewriter` does parse → modify POCO → re-serialize. **This drops comments**. If you change rewriter behavior, extend `YamlReportRewriterTests` (single-element methods) and `YamlReportRewriterMultiTests` (multi-element moves/deletes, clipboard copy/paste, image/barcode/chart patches, `UpdateSeries`). New schema fields must be nullable so `OmitNull` serialization doesn't add defaults to users' YAML.
 - The Designer renders the **SVG** preview live via HTMX, with Alpine.js for state. Drag/resize/create operations POST back to mutation endpoints (`/Home/MoveMany`, `/Home/Update`, `/Home/Add`, `/Home/DeleteMany`, `/Home/Copy`, `/Home/Paste`, `/Home/UpdateSeries`, etc.) which call into `YamlReportRewriter`.
 - Overlays carry two sets of coordinates: `data-x/y/w/h` = rendered bbox in page points (for hit-testing and visual feedback) and `data-bx/by/bw/bh` = the YAML bounds (band-relative). Anything that writes bounds back to YAML must apply deltas to the `b*` values (`yamlBounds(ds)`), never write page coordinates.
+- **Creating elements.** Everything goes through `createAt(kind, clientX, clientY, size?, snap)`: it picks the band with `nearestDropzone` (exact hit, else the nearest band of the page under the pointer; null only >48px away from any page → toast), clamps x/y into the content width and the band, and POSTs `/Home/Add` (`Width`/`Height` only when the user drew the size → `YamlReportRewriter.AddElement(…, width, height)`). Two entry points: drag from the toolbox (`creating`, `finishCreate`) and an **armed tool** (click on the tool → `armedTool`; a click or a drag on the page → `drawing`, `finishDrawing`; `Esc` disarms). `.band-dropzone`s are `display:none` unless the root has `creating-mode`, so hit-testing only works while `creating || armedTool || drawing`. The creation ghost uses `window.NR_DEFAULT_SIZES`, emitted by the view from `YamlReportRewriter.DefaultSize` — don't hard-code sizes in JS. Short notices go through `showToast(message)` (never `console.warn` as the only feedback).
+- The properties drawer is a **flex column** to the right of the preview (`w-72 shrink-0`), not an absolutely positioned panel: floating over the page it covered the right-hand resize handles. The header badge shows `toolLabel(kind)` + `selectedLocation()` (band label + index); the raw path is only the tooltip.
 - The YAML/JSON panes are CodeMirror 5 instances kept outside Alpine state (`EDITORS`, `EDITOR_STATE`); the `<textarea>`s stay the source for HTMX and exports (synced with `cm.save()`). Read/write editor text only through `getEditorText(key)` / `setEditorText(key, text)`, and put preview HTML in the DOM through `setPreviewHtml` (or HTMX) so the line map (`YamlSourceMap`, `[data-yaml-lines]`), error marker and element↔YAML highlight stay in sync.
 - **Localization.** Every Designer UI string comes from `Resources/DesignerStrings.resx` (Spanish = neutral fallback) and `DesignerStrings.en.resx`, through `IStringLocalizer<DesignerStrings>`: `@L["Key"]` in views (server strings use `{0}` placeholders), `t('Key', { name })` in JS (the view emits the dictionary as `window.NR_I18N`; `{name}` placeholders), `_l[...]` in the controller and stores. Never add a hard-coded UI string; add a key to both resx files (`Key.Group` naming). `Program.cs` varies only the UI culture — the request culture stays invariant so form numbers keep `.` — and `/Home/SetLanguage` stores the cookie. The viewer has its own tables in `viewer.js` (`I18N` + `registerLanguage`/`globalThis.NetReporterViewerI18n`) and negotiates `lang` server-side in `NegotiateLanguage`.
 - Selection state: `selection` (array of `{path, kind}`) + `selected` (primary element for the drawer). Re-render classes with `renderSelectionClasses()`; after any server response call `applyServerResponse` (it also re-applies zoom).

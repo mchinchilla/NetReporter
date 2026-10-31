@@ -61,7 +61,7 @@
 |---|---|
 | 🖥️ **`NetReporter.Viewer`** (paquete nuevo, opt-in) | `app.MapNetReporterViewer("/reports", …)` sirve un visor paginado y con zoom para los usuarios finales de una app ASP.NET Core: navegación de páginas, miniaturas, impresión, descarga en PDF/XLSX/HTML. Las páginas son SVG escritos bajo demanda e incrustados por el web component `<netreporter-viewer>` (sin CDN), así que el texto se puede seleccionar y buscar; las imágenes van por URL, así que un logo en todas las páginas se descarga una vez. Ver [Visor de reportes](#️-visor-de-reportes-netreporterviewer) |
 | ⚡ **SVG escrito directamente** | `SvgRenderer` ya no dibuja a través del canvas SVG de Skia, que reconstruía la tabla glifo→Unicode de toda la fuente en cada texto (coste proporcional al número de glifos, bajo un lock global) y recodificaba cada imagen en PNG en cada página. Un documento de 18 páginas y 600 filas pasó de 96 ms a 9.7 ms en Linux (358 → 10 ms en macOS), y 8 hilos renderizan 1 060 docs/s en vez de 12.6. Misma geometría que el PDF (`PageGeometry` se comparte con el pintor del PDF; un test compara cada posición de glifo con el canvas de Skia) |
-| 🎨 **Designer** | Editor redimensionable/plegable, editores CodeMirror con líneas de error y enlace elemento ↔ YAML, navegador de páginas, vista limpia, zoom alrededor del cursor, reglas, cuadrícula y guías inteligentes. Ver [Designer visual](#-designer-visual) |
+| 🎨 **Designer** | Inserta elementos arrastrando una herramienta a cualquier punto de la hoja (márgenes y huecos caen en la banda más cercana) o haciendo clic en la herramienta y luego clic/dibujando en la hoja; el drawer de propiedades es una columna junto a la hoja en vez de taparla; editor redimensionable/plegable, editores CodeMirror con líneas de error y enlace elemento ↔ YAML, navegador de páginas, vista limpia, zoom alrededor del cursor, reglas, cuadrícula, guías inteligentes y selector ES/EN. Ver [Designer visual](#-designer-visual) |
 
 ### ⚠️ Cambios de comportamiento en la 1.4
 
@@ -291,7 +291,7 @@ flowchart TB
     A -->|Del| E[Eliminar]
     A -->|Ctrl+C / Ctrl+V| P[Copiar / Pegar]
 
-    G[Toolbox] -->|drag a banda| H[Crear elemento]
+    G[Toolbox] -->|arrastrar a la hoja, o clic + dibujar| H[Crear elemento]
 
     B -->|edit campo| I[POST /Home/Update]
     C -->|drop| J[POST /Home/MoveMany]
@@ -531,8 +531,8 @@ Abre `http://localhost:5296`.
 El designer es una app web de tres paneles (visible en la captura de arriba):
 
 - **Izquierda** — editor con tabs para `report.yaml` y `data.json`. Las ediciones hacen debounce y re-renderizan el preview. Arrastra el divisor para cambiar su ancho (se recuerda) u ocúltalo con `⇤` / `Ctrl+B`. Ambos paneles son editores de código (CodeMirror: números de línea, resaltado de sintaxis, plegado, búsqueda con `Ctrl/⌘+F`, `Alt+G` para ir a una línea). Seleccionar un elemento resalta su bloque en el YAML; poner el cursor dentro de un bloque marca ese elemento en el preview; doble clic en un elemento salta a su YAML. Los errores de parseo marcan la línea culpable en `report.yaml` o `data.json` y el panel de error enlaza a ella.
-- **Centro** — el **Toolbox** (arrastra `Text` / `Line` / `Rect` / `Table` / `Image` / `Code` / `Chart` a una banda) y la lista de **Bandas** con controles para reordenar/eliminar.
-- **Derecha** — **preview SVG** en vivo de la página renderizada, con controles de zoom (`−` / `+` / `1:1` / `↔`) y paginación. Click en cualquier elemento para seleccionarlo; un drawer de propiedades se desliza desde el borde derecho. Con varios elementos seleccionados, el drawer cambia a **selección múltiple** (lista, alinear, copiar, duplicar, borrar).
+- **Centro** — el **Toolbox** (`Text` / `Line` / `Rect` / `Table` / `Image` / `Code` / `Chart`) y la lista de **Bandas** con controles para reordenar/eliminar. Dos formas de insertar: **arrastra** una herramienta a la hoja (un fantasma muestra el tamaño del elemento; si sueltas en un margen, entre bandas o en el espacio vacío de la hoja cae en la banda más cercana), o **haz clic** en la herramienta y luego **clic** en la hoja para el tamaño por defecto o **arrastra para dibujar** sus límites (una línea más alta que ancha queda vertical; `Esc` cancela). Mientras insertas, la hoja muestra el nombre de cada banda.
+- **Derecha** — **preview SVG** en vivo de la página renderizada, con controles de zoom (`−` / `+` / `1:1` / `↔`) y paginación. Click en cualquier elemento para seleccionarlo; el drawer de propiedades se abre como una columna a la derecha de la hoja (nunca la tapa). Con varios elementos seleccionados, el drawer cambia a **selección múltiple** (lista, alinear, copiar, duplicar, borrar). La cabecera dice qué está seleccionado en palabras (`Texto · en Encabezado de reporte · nº 3`); la ruta YAML va en su tooltip.
 
 La barra superior expone las acciones globales (y el selector de **idioma**: español / inglés; sigue el `Accept-Language` del navegador hasta que eliges uno, que se recuerda en una cookie; todos los textos de la interfaz viven en `tools/NetReporter.Designer/Resources/DesignerStrings*.resx` — para añadir un idioma, agrega un `DesignerStrings.<cultura>.resx` y lista la cultura en `Program.cs`; solo cambia el idioma de la interfaz: los números de los formularios y del YAML siempre usan `.` como separador decimal): selector de template, **Importar**, **Save** / **Save as** / **Delete**, **Undo** / **Redo**, y export con un click a **PDF** / **HTML** / **XLSX**.
 
@@ -601,7 +601,7 @@ Los campos de path sugieren bindings descubiertos en `data.json`: paths de array
 
 1. **Abrir un sample** → `📦 Samples / invoice-with-qr`.
 2. **Editar** datos de prueba en el tab `data.json`.
-3. **Drag** un texto, **resize** una tabla, **agregar columnas** desde el drawer, **soltar un gráfico** desde el toolbox y elegir sus filas/series.
+3. **Drag** un texto, **resize** una tabla, **agregar columnas** desde el drawer, **clic en la herramienta Gráfico y dibujarlo** en la hoja, y elegir sus filas/series.
 4. **Save as…** con un nombre propio → se guarda en `~/.netreporter/templates/`.
 5. **⭳ PDF**, **⭳ HTML** o **⭳ XLSX** → descarga con el `fileName` del template (e.g. `factura-000-001.pdf`).
 
@@ -1172,7 +1172,7 @@ dotnet test
 │ Proyecto                            │ Tests │
 ├─────────────────────────────────────┼───────┤
 │ NetReporter.Core.Tests              │  117  │
-│ NetReporter.Templates.Tests         │  204  │
+│ NetReporter.Templates.Tests         │  215  │
 │ NetReporter.Html.Tests              │   20  │
 │ NetReporter.Svg.Tests               │   61  │
 │ NetReporter.Pdf.Tests               │   18  │
@@ -1180,7 +1180,7 @@ dotnet test
 │ NetReporter.Barcodes.Tests          │    7  │
 │ NetReporter.Viewer.Tests            │   26  │
 ├─────────────────────────────────────┼───────┤
-│ Total                               │  468  │
+│ Total                               │  479  │
 └─────────────────────────────────────┴───────┘
 ```
 

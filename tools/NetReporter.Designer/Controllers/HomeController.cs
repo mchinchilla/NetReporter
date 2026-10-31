@@ -379,7 +379,9 @@ public sealed class HomeController : Controller
                 request.BandIndex,
                 request.Kind ?? "text",
                 request.X,
-                request.Y);
+                request.Y,
+                request.Width,
+                request.Height);
         }
         catch (Exception ex)
         {

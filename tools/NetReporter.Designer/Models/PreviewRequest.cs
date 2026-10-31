@@ -120,6 +120,9 @@ public sealed class AddRequest
     public string Kind { get; set; } = "text";
     public double X { get; set; }
     public double Y { get; set; }
+    /// <summary>Size drawn by the user (pt); null keeps the kind's default.</summary>
+    public double? Width { get; set; }
+    public double? Height { get; set; }
 }
 
 public sealed class DeleteRequest

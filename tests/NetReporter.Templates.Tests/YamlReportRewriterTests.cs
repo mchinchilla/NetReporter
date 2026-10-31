@@ -177,6 +177,63 @@ public sealed class YamlReportRewriterTests
             YamlReportRewriter.AddElement(BasicYaml, 0, "unknown", 0, 0));
     }
 
+    [Theory]
+    [InlineData("text")]
+    [InlineData("line")]
+    [InlineData("rectangle")]
+    [InlineData("table")]
+    [InlineData("image")]
+    [InlineData("barcode")]
+    [InlineData("chart")]
+    public void DefaultSize_MatchesTheElementAddElementCreates(string kind)
+    {
+        var (yaml, _) = YamlReportRewriter.AddElement(BasicYaml, 0, kind, 0, 0);
+        var bounds = Parse(yaml).Bands![0].Elements![2].Bounds!;
+        var (width, height) = YamlReportRewriter.DefaultSize(kind);
+        Assert.Equal(bounds.Width, width);
+        Assert.Equal(bounds.Height, height);
+    }
+
+    [Fact]
+    public void AddElement_WithDrawnSize_UsesItRoundedToTwoDecimals()
+    {
+        var (yaml, _) = YamlReportRewriter.AddElement(BasicYaml, 0, "rectangle", 10, 20, 250.456, 80.004);
+        var bounds = Parse(yaml).Bands![0].Elements![2].Bounds!;
+        Assert.Equal(250.46, bounds.Width);
+        Assert.Equal(80, bounds.Height);
+    }
+
+    [Fact]
+    public void AddElement_NullSize_KeepsTheDefaultForThatDimension()
+    {
+        var (yaml, _) = YamlReportRewriter.AddElement(BasicYaml, 0, "text", 0, 0, 300, null);
+        var bounds = Parse(yaml).Bands![0].Elements![2].Bounds!;
+        Assert.Equal(300, bounds.Width);
+        Assert.Equal(YamlReportRewriter.DefaultSize("text").Height, bounds.Height);
+    }
+
+    [Fact]
+    public void AddElement_LineDrawnTallerThanWide_IsVertical()
+    {
+        var (yaml, _) = YamlReportRewriter.AddElement(BasicYaml, 0, "line", 0, 0, 0, 120);
+        var el = Parse(yaml).Bands![0].Elements![2];
+        Assert.Equal("vertical", el.Orientation);
+        Assert.Equal(0, el.Bounds!.Width);
+        Assert.Equal(120, el.Bounds.Height);
+
+        var (wide, _) = YamlReportRewriter.AddElement(BasicYaml, 0, "line", 0, 0, 120, 0);
+        Assert.Equal("horizontal", Parse(wide).Bands![0].Elements![2].Orientation);
+    }
+
+    [Fact]
+    public void AddElement_NegativeSize_ClampsToZero()
+    {
+        var (yaml, _) = YamlReportRewriter.AddElement(BasicYaml, 0, "rectangle", 0, 0, -5, -1);
+        var bounds = Parse(yaml).Bands![0].Elements![2].Bounds!;
+        Assert.Equal(0, bounds.Width);
+        Assert.Equal(0, bounds.Height);
+    }
+
     // === DeleteElement ===
 
     [Fact]

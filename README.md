@@ -61,7 +61,7 @@
 |---|---|
 | 🖥️ **`NetReporter.Viewer`** (new package, opt-in) | `app.MapNetReporterViewer("/reports", …)` serves a paginated, zoomable viewer for end users of an ASP.NET Core app: page navigation, thumbnails, print, PDF/XLSX/HTML download. Pages are SVG written on demand and inlined by the `<netreporter-viewer>` web component (no CDN), so text is selectable and searchable; images are referenced by URL, so a logo on every page is downloaded once. See [Report viewer](#️-report-viewer-netreporterviewer) |
 | ⚡ **SVG written directly** | `SvgRenderer` no longer draws through Skia's SVG canvas, which rebuilt the whole glyph→Unicode table of the font for every text (cost proportional to the font's glyph count, under a global lock) and re-encoded every image as PNG on every page. An 18-page, 600-row document went from 96 ms to 9.7 ms on Linux (358 → 10 ms on macOS), and 8 threads now render 1 060 docs/s instead of 12.6. Same geometry as the PDF (`PageGeometry` is shared with the PDF painter, a test checks every glyph position against Skia's canvas) |
-| 🎨 **Designer** | Resizable/collapsible editor, CodeMirror editors with error lines and element ↔ YAML linking, page navigator, clean view, zoom around the cursor, rulers, grid and smart guides. See [Visual designer](#-visual-designer) |
+| 🎨 **Designer** | Insert elements by dragging a tool anywhere on the page (margins and gaps land in the nearest band) or by clicking the tool and clicking/drawing on the page; the properties drawer is a column beside the page instead of covering it; resizable/collapsible editor, CodeMirror editors with error lines and element ↔ YAML linking, page navigator, clean view, zoom around the cursor, rulers, grid, smart guides and an ES/EN switch. See [Visual designer](#-visual-designer) |
 
 ### ⚠️ Behavior changes in 1.4
 
@@ -291,7 +291,7 @@ flowchart TB
     A -->|Del| E[Delete]
     A -->|Ctrl+C / Ctrl+V| P[Copy / Paste]
 
-    G[Toolbox] -->|drag to band| H[Create element]
+    G[Toolbox] -->|drag onto the page, or click + draw| H[Create element]
 
     B -->|edit field| I[POST /Home/Update]
     C -->|drop| J[POST /Home/MoveMany]
@@ -531,8 +531,8 @@ Open `http://localhost:5296`.
 The designer is a three-pane web app (visible in the screenshot above):
 
 - **Left** — tabbed editor for `report.yaml` and `data.json`. Edits debounce and re-render the preview. Drag the divider to resize it (the width is remembered) or hide it with `⇤` / `Ctrl+B`. Both panes are code editors (CodeMirror: line numbers, syntax highlighting, folding, `Ctrl/⌘+F` search, `Alt+G` go to line). Selecting an element highlights its YAML block; placing the cursor inside a block outlines that element in the preview; double-clicking an element jumps to its YAML. Parse errors mark the offending line in `report.yaml` or `data.json` and the error panel links to it.
-- **Middle** — the **Toolbox** (drag `Text` / `Line` / `Rect` / `Table` / `Image` / `Code` / `Chart` onto a band) and the **Bands** list with reorder/delete controls.
-- **Right** — live **SVG preview** of the rendered page, with zoom controls (`−` / `+` / `1:1` / `↔`) and pagination. Click any element to select it; a properties drawer slides in on the right edge. With several elements selected, the drawer switches to **multi-selection** (list, align, copy, duplicate, delete).
+- **Middle** — the **Toolbox** (`Text` / `Line` / `Rect` / `Table` / `Image` / `Code` / `Chart`) and the **Bands** list with reorder/delete controls. Two ways to insert: **drag** a tool onto the page (a ghost shows the element's size; dropping on a margin, between bands or on empty page space lands in the nearest band), or **click** the tool and then **click** on the page for the default size or **drag to draw** the bounds (a line drawn taller than wide becomes vertical; `Esc` cancels). Band names appear on the page while you insert.
+- **Right** — live **SVG preview** of the rendered page, with zoom controls (`−` / `+` / `1:1` / `↔`) and pagination. Click any element to select it; the properties drawer opens as a column to the right of the page (it never covers the page). With several elements selected, the drawer switches to **multi-selection** (list, align, copy, duplicate, delete). The header shows what is selected in plain words (`Text · in Report header · #3`); the YAML path is in its tooltip.
 
 The header strip exposes the global actions: template picker, **Import**, **Save** / **Save as** / **Delete**, **Undo** / **Redo**, one-click export to **PDF** / **HTML** / **XLSX**, and the **language** switcher (Spanish / English; it follows the browser's `Accept-Language` until you pick one, which is remembered in a cookie). Every UI string lives in `tools/NetReporter.Designer/Resources/DesignerStrings*.resx`; to add a language, add a `DesignerStrings.<culture>.resx` and list the culture in `Program.cs`. Only the UI language changes: numbers in the forms and YAML always use `.` as the decimal separator.
 
@@ -601,7 +601,7 @@ Path inputs suggest bindings discovered in `data.json`: array paths for `rows`, 
 
 1. **Open a sample** → `📦 Samples / invoice-with-qr`.
 2. **Edit** sample data on the `data.json` tab.
-3. **Drag** a text, **resize** a table, **add columns** from the drawer, **drop a chart** from the toolbox and pick its rows/series.
+3. **Drag** a text, **resize** a table, **add columns** from the drawer, **click the Chart tool and draw it** on the page, then pick its rows/series.
 4. **Save as…** with your own name → stored in `~/.netreporter/templates/`.
 5. **⭳ PDF**, **⭳ HTML** or **⭳ XLSX** → downloads with the template's `fileName` (e.g. `invoice-000-001.pdf`).
 
@@ -1171,7 +1171,7 @@ dotnet test
 │ Project                             │ Tests │
 ├─────────────────────────────────────┼───────┤
 │ NetReporter.Core.Tests              │  117  │
-│ NetReporter.Templates.Tests         │  204  │
+│ NetReporter.Templates.Tests         │  215  │
 │ NetReporter.Html.Tests              │   20  │
 │ NetReporter.Svg.Tests               │   61  │
 │ NetReporter.Pdf.Tests               │   18  │
@@ -1179,7 +1179,7 @@ dotnet test
 │ NetReporter.Barcodes.Tests          │    7  │
 │ NetReporter.Viewer.Tests            │   26  │
 ├─────────────────────────────────────┼───────┤
-│ Total                               │  468  │
+│ Total                               │  479  │
 └─────────────────────────────────────┴───────┘
 ```
 

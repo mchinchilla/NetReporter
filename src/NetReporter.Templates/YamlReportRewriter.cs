@@ -395,6 +395,15 @@ public static class YamlReportRewriter
     /// </summary>
     public static (string Yaml, string NewPath) AddElement(
         string yaml, int bandIndex, string kind, double x, double y)
+        => AddElement(yaml, bandIndex, kind, x, y, width: null, height: null);
+
+    /// <summary>
+    /// Igual que <see cref="AddElement(string, int, string, double, double)"/> pero con el tamaño que el
+    /// usuario dibujó: un valor nulo conserva el tamaño por defecto del tipo (<see cref="DefaultSize"/>).
+    /// Una línea más alta que ancha se crea vertical.
+    /// </summary>
+    public static (string Yaml, string NewPath) AddElement(
+        string yaml, int bandIndex, string kind, double x, double y, double? width, double? height)
     {
         ArgumentNullException.ThrowIfNull(yaml);
         ArgumentNullException.ThrowIfNull(kind);
@@ -408,12 +417,25 @@ public static class YamlReportRewriter
         band.Elements ??= new List<ElementYaml>();
 
         var element = CreateDefaultElement(kind, x, y);
+        if (width is { } w) element.Bounds!.Width = Math.Round(Math.Max(w, 0), 2);
+        if (height is { } h) element.Bounds!.Height = Math.Round(Math.Max(h, 0), 2);
+        if (element.Type == "line" && width is not null && height is not null && element.Bounds!.Height > element.Bounds.Width)
+            element.Orientation = "vertical";
+
         band.Elements.Add(element);
         var newIndex = band.Elements.Count - 1;
 
         var newYaml = s_serializer.Serialize(model);
         var newPath = $"bands.{bandIndex}.elements.{newIndex}";
         return (newYaml, newPath);
+    }
+
+    /// <summary>Ancho y alto (pt) con los que <see cref="AddElement(string, int, string, double, double)"/> crea cada tipo.</summary>
+    public static (double Width, double Height) DefaultSize(string kind)
+    {
+        ArgumentNullException.ThrowIfNull(kind);
+        var bounds = CreateDefaultElement(kind, 0, 0).Bounds!;
+        return (bounds.Width, bounds.Height);
     }
 
     /// <summary>

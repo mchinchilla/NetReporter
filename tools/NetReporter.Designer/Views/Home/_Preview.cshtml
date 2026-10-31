@@ -58,6 +58,7 @@ else
                     {
                         <div class="band-dropzone absolute"
                              style="left: 0; top: @(b.Y)px; width: @(Model.PageWidthPt)px; height: @(b.Height)px;"
+                             data-band-label="@L["Band." + b.Kind]"
                              data-band-index="@b.Index"
                              data-band-kind="@b.Kind"
                              data-band-y="@b.Y"
@@ -226,6 +227,17 @@ else
     .creating-mode .band-dropzone.hover {
         border-color: rgba(14, 165, 233, 1);
         background-color: rgba(14, 165, 233, 0.15);
+    }
+    /* Nombre de la banda mientras se inserta, para saber dónde caerá el elemento */
+    .creating-mode .band-dropzone::before {
+        content: attr(data-band-label);
+        position: absolute; left: 4px; top: 2px;
+        font: 600 9px/1 ui-sans-serif, system-ui, sans-serif;
+        letter-spacing: 0.04em; text-transform: uppercase;
+        color: rgb(3, 105, 161);
+        background: rgba(255, 255, 255, 0.85);
+        padding: 2px 5px; border-radius: 3px;
+        pointer-events: none;
     }
     .creating-mode .element-overlay { pointer-events: none; }
 </style>
