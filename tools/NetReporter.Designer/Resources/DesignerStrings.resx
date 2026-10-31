@@ -224,7 +224,7 @@
     <value>Guías inteligentes al arrastrar (Alt las desactiva momentáneamente)</value>
   </data>
   <data name="Preview.CleanViewTitle" xml:space="preserve">
-    <value>Vista limpia: oculta los marcos de edición para ver el reporte tal cual (V)</value>
+    <value>Vista limpia: oculta marcos de edición, cuadrícula y reglas para ver el reporte tal cual (V)</value>
   </data>
   <data name="Preview.CleanView" xml:space="preserve">
     <value>Vista limpia</value>
@@ -647,7 +647,7 @@
     <value>V</value>
   </data>
   <data name="Shortcut.Clean" xml:space="preserve">
-    <value>Vista limpia (sin marcos de edición)</value>
+    <value>Vista limpia (sin marcos, cuadrícula ni reglas)</value>
   </data>
   <data name="Shortcut.DblKey" xml:space="preserve">
     <value>Doble clic</value>

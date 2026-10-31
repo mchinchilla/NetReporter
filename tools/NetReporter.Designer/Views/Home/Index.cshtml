@@ -431,25 +431,26 @@
                                 class="w-6 h-6 flex items-center justify-center border border-slate-300 rounded bg-white text-slate-700 hover:bg-sky-50 hover:border-sky-500 disabled:opacity-40 disabled:hover:bg-white">›</button>
                     </div>
                     <span class="w-px h-5 bg-slate-300"></span>
-                    <div class="flex items-center gap-1 text-xs">
-                        <button type="button" @@click="toggleRulers()"
+                    <!-- Ayudas de edición; la vista limpia las apaga sin tocar las preferencias guardadas -->
+                    <div class="flex items-center gap-1 text-xs" :class="cleanView ? 'opacity-40' : ''">
+                        <button type="button" @@click="toggleRulers()" :disabled="cleanView"
                                 :class="showRulers ? 'bg-slate-700 text-white border-slate-700' : 'bg-white text-slate-700 border-slate-300 hover:bg-sky-50 hover:border-sky-500'"
-                                title="@L["Preview.Rulers"]" class="px-1.5 h-6 border rounded leading-none">📏</button>
-                        <button type="button" @@click="toggleGrid()"
+                                title="@L["Preview.Rulers"]" class="px-1.5 h-6 border rounded leading-none disabled:cursor-not-allowed">📏</button>
+                        <button type="button" @@click="toggleGrid()" :disabled="cleanView"
                                 :class="showGrid ? 'bg-slate-700 text-white border-slate-700' : 'bg-white text-slate-700 border-slate-300 hover:bg-sky-50 hover:border-sky-500'"
-                                title="@L["Preview.Grid"]" class="px-1.5 h-6 border rounded leading-none font-mono">#</button>
-                        <select x-model.number="gridStep" @@change="applyGridToDom(); persistGuides()"
+                                title="@L["Preview.Grid"]" class="px-1.5 h-6 border rounded leading-none font-mono disabled:cursor-not-allowed">#</button>
+                        <select x-model.number="gridStep" @@change="applyGridToDom(); persistGuides()" :disabled="cleanView"
                                 title="@L["Preview.GridStep"]"
-                                class="nr-select h-6 border border-slate-300 rounded bg-white text-slate-700 text-xs pl-1">
+                                class="nr-select h-6 border border-slate-300 rounded bg-white text-slate-700 text-xs pl-1 disabled:cursor-not-allowed">
                             <option value="5">5 pt</option>
                             <option value="10">10 pt</option>
                             <option value="20">20 pt</option>
                             <option value="28.3465">1 cm</option>
                         </select>
-                        <button type="button" @@click="smartGuides = !smartGuides; persistGuides()"
+                        <button type="button" @@click="smartGuides = !smartGuides; persistGuides()" :disabled="cleanView"
                                 :class="smartGuides ? 'bg-slate-700 text-white border-slate-700' : 'bg-white text-slate-700 border-slate-300 hover:bg-sky-50 hover:border-sky-500'"
                                 title="@L["Preview.SmartGuides"]"
-                                class="px-1.5 h-6 border rounded leading-none">⌖</button>
+                                class="px-1.5 h-6 border rounded leading-none disabled:cursor-not-allowed">⌖</button>
                     </div>
                     <span class="w-px h-5 bg-slate-300"></span>
                     <button type="button" @@click="toggleCleanView()"
@@ -467,13 +468,13 @@
             </div>
 
             <div class="flex-1 min-w-0 min-h-0 grid"
-                 :style="showRulers ? 'grid-template-columns: 22px minmax(0, 1fr); grid-template-rows: 22px minmax(0, 1fr)' : 'grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr)'">
-                <button type="button" x-show="showRulers" @@click="cycleRulerUnit()"
+                 :style="rulersOn ? 'grid-template-columns: 22px minmax(0, 1fr); grid-template-rows: 22px minmax(0, 1fr)' : 'grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr)'">
+                <button type="button" x-show="rulersOn" @@click="cycleRulerUnit()"
                         class="bg-slate-100 border-r border-b border-slate-300 text-[9px] text-slate-500 hover:text-slate-900 font-mono"
                         title="@L["Preview.RulerUnit"]"
                         x-text="rulerUnit"></button>
-                <canvas id="ruler-x" x-show="showRulers" class="block w-full h-[22px] bg-slate-100 border-b border-slate-300"></canvas>
-                <canvas id="ruler-y" x-show="showRulers" class="block h-full w-[22px] bg-slate-100 border-r border-slate-300"></canvas>
+                <canvas id="ruler-x" x-show="rulersOn" class="block w-full h-[22px] bg-slate-100 border-b border-slate-300"></canvas>
+                <canvas id="ruler-y" x-show="rulersOn" class="block h-full w-[22px] bg-slate-100 border-r border-slate-300"></canvas>
             <div id="preview"
                  class="min-w-0 min-h-0 overflow-auto p-6"
                  :class="cleanView ? 'clean-view' : ''"
@@ -1382,6 +1383,10 @@
                 } catch {}
             },
 
+            /** Reglas y cuadrícula efectivas: la vista limpia las apaga sin cambiar lo que el usuario eligió. */
+            get rulersOn() { return this.showRulers && !this.cleanView; },
+            get gridOn() { return this.showGrid && !this.cleanView; },
+
             toggleRulers() { this.showRulers = !this.showRulers; this.persistGuides(); this.$nextTick(() => this.drawRulers()); },
             toggleGrid() { this.showGrid = !this.showGrid; this.persistGuides(); this.applyGridToDom(); },
             cycleRulerUnit() {
@@ -1403,7 +1408,7 @@
             applyGridToDom() {
                 const host = document.getElementById('preview');
                 if (!host) return;
-                host.classList.toggle('show-grid', this.showGrid);
+                host.classList.toggle('show-grid', this.gridOn);
                 const m = this.pageMetrics();
                 host.style.setProperty('--grid-step', this.gridStep + 'px');
                 host.style.setProperty('--grid-ox', (m?.ml ?? 0) + 'px');
@@ -1411,14 +1416,14 @@
             },
 
             onPreviewHover(evt) {
-                if (!this.showRulers) return;
+                if (!this.rulersOn) return;
                 this.rulerCursor = { x: evt.clientX, y: evt.clientY };
                 if (!this._rulerRaf) this._rulerRaf = requestAnimationFrame(() => { this._rulerRaf = null; this.drawRulers(); });
             },
 
             /** Pinta ambas reglas para la página en vista: 0 = origen del contenido; margen sombreado; selección y cursor marcados. */
             drawRulers() {
-                if (!this.showRulers) return;
+                if (!this.rulersOn) return;
                 const cx = document.getElementById('ruler-x'), cy = document.getElementById('ruler-y');
                 const host = document.getElementById('preview');
                 const page = this.pageEls()[this.currentPage - 1];
@@ -1605,9 +1610,12 @@
                 this.currentPage = n;
             },
 
+            /** Vista limpia: el reporte tal cual saldrá impreso — sin marcos, cuadrícula, reglas ni selección. */
             toggleCleanView() {
                 this.cleanView = !this.cleanView;
                 if (this.cleanView) this.clearSelection();
+                this.applyGridToDom();
+                this.$nextTick(() => this.drawRulers());
             },
 
             /** Ctrl/⌘ + rueda (o pinch del trackpad): zoom anclado al punto bajo el cursor. */

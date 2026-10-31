@@ -224,7 +224,7 @@
     <value>Smart guides while dragging (hold Alt to disable them)</value>
   </data>
   <data name="Preview.CleanViewTitle" xml:space="preserve">
-    <value>Clean view: hides the editing overlays to see the report as it prints (V)</value>
+    <value>Clean view: hides the editing overlays, grid and rulers to see the report as it prints (V)</value>
   </data>
   <data name="Preview.CleanView" xml:space="preserve">
     <value>Clean view</value>
@@ -647,7 +647,7 @@
     <value>V</value>
   </data>
   <data name="Shortcut.Clean" xml:space="preserve">
-    <value>Clean view (no editing overlays)</value>
+    <value>Clean view (no overlays, grid or rulers)</value>
   </data>
   <data name="Shortcut.DblKey" xml:space="preserve">
     <value>Double-click</value>
