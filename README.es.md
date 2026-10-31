@@ -38,16 +38,17 @@
 8. [Estructura del repo](#-estructura-del-repo)
 9. [Quick start](#-quick-start)
 10. [Designer visual](#-designer-visual)
-11. [Sintaxis del template YAML](#-sintaxis-del-template-yaml)
-12. [Expresiones (DSL)](#-expresiones-dsl)
-13. [Gráficos](#-gráficos)
-14. [Renderers disponibles](#-renderers-disponibles)
-15. [Tamaños de papel](#-tamaños-de-papel)
-16. [Tests](#-tests)
-17. [Limitaciones conocidas](#-limitaciones-conocidas)
-18. [Completado](#-completado)
-19. [Roadmap](#-roadmap)
-20. [Licencias](#-licencias)
+11. [Visor de reportes](#️-visor-de-reportes-netreporterviewer)
+12. [Sintaxis del template YAML](#-sintaxis-del-template-yaml)
+13. [Expresiones (DSL)](#-expresiones-dsl)
+14. [Gráficos](#-gráficos)
+15. [Renderers disponibles](#-renderers-disponibles)
+16. [Tamaños de papel](#-tamaños-de-papel)
+17. [Tests](#-tests)
+18. [Limitaciones conocidas](#-limitaciones-conocidas)
+19. [Completado](#-completado)
+20. [Roadmap](#-roadmap)
+21. [Licencias](#-licencias)
 
 ---
 
@@ -327,6 +328,7 @@ NetReporter/
 │   ├── NetReporter.Html/        🌐 HtmlRenderer (HTML/CSS paginado)
 │   ├── NetReporter.Xlsx/        📊 XlsxRenderer semántico (ClosedXML, Excel Tables nativas)
 │   ├── NetReporter.Barcodes/    ▦ Generador de barcode/QR vía ZXing (opt-in)
+│   ├── NetReporter.Viewer/      🖥️ MapNetReporterViewer + web component <netreporter-viewer> (opt-in)
 │   └── NetReporter/             📦 Meta-package que referencia todos los anteriores
 │
 ├── 🧪 tests/
@@ -337,6 +339,7 @@ NetReporter/
 │   ├── NetReporter.Pdf.Tests/         PdfRendererTests, TrueTypeSubsetterTests
 │   ├── NetReporter.Xlsx.Tests/        XlsxRendererTests
 │   ├── NetReporter.Barcodes.Tests/    ZXingBarcodeGeneratorTests
+│   ├── NetReporter.Viewer.Tests/      Endpoints, documentos por usuario, exportaciones, formatos, caché del script
 │   └── TestAssets/Fonts/              Lato-Regular.ttf (SIL OFL) para que los tests de fuentes no dependan del sistema
 │
 ├── 🛠️ tools/
@@ -344,6 +347,7 @@ NetReporter/
 │
 └── 🎯 samples/
     ├── InvoiceSample/           Factura con API C# (sin YAML)
+    ├── ViewerSample/            ERP mínimo que aloja NetReporter.Viewer (página completa + embebido)
     └── TemplateSample/          Demo con YAML (13 templates exportados por Program.cs)
         ├── report.yaml                   Reporte de clientes
         ├── invoice-laser.yaml            📄 Factura Letter (laser)
@@ -390,6 +394,7 @@ O referenciar solo las piezas que necesites:
 | `NetReporter.Xlsx` | Renderer XLSX semántico (ClosedXML) |
 | `NetReporter.Barcodes` | QR / Code 128 / Code 39 / EAN-13 (ZXing.Net) |
 | `NetReporter.Fonts.Liberation` | Liberation Sans/Serif/Mono embebidas, para hosts sin fuentes del sistema (no está en el meta-paquete) |
+| `NetReporter.Viewer` | Visor de reportes para apps ASP.NET Core: visor paginado, miniaturas, impresión, descargas (no está en el meta-paquete) |
 
 Todos los paquetes comparten una misma versión. Cada push a `main` publica una nueva versión **patch** mediante
 [`.github/workflows/publish.yml`](.github/workflows/publish.yml); incluye `[minor]` o `[major]` en el mensaje
@@ -483,6 +488,10 @@ dotnet run --project samples/TemplateSample
 # Designer visual (navegador)
 dotnet run --project tools/NetReporter.Designer
 # → http://localhost:5296
+
+# Visor de reportes (navegador)
+dotnet run --project samples/ViewerSample
+# → http://localhost:5297
 ```
 
 ---
@@ -582,6 +591,66 @@ Los campos de path sugieren bindings descubiertos en `data.json`: paths de array
 La barra del preview tiene botones `−` / `+` / `1:1` / `↔`. Los pasos son `25 · 50 · 75 · 100 · 125 · 150 · 200 · 300 · 400 %`. El botón `↔` ajusta el ancho de página al área disponible del preview. El nivel elegido se persiste en `localStorage`, así que recargar el designer lo mantiene. Las coordenadas de drag/resize se compensan por el zoom actual — mover un elemento al 200% sigue moviéndolo pt-a-pt en el YAML.
 
 > Nota de implementación: el preview se escala con `transform: scale(var(--zoom))`, no con la propiedad CSS `zoom`. `zoom` mete el contenido escalado en el cálculo de layout de flexbox, haciendo que el panel del preview invada el editor YAML / toolbox. Los flex items del chain del preview llevan `min-w-0` para que el `overflow-auto` del contenedor sí recorte el contenido escalado en vez de dejarlo crecer al panel.
+
+---
+
+## 🖥️ Visor de reportes (`NetReporter.Viewer`)
+
+Un visor para los usuarios finales de una aplicación ASP.NET Core (un ERP, un back office): paginado, con zoom,
+miniaturas, impresión y descarga en PDF / Excel / HTML. Sin CDN ni framework de front-end: el web component
+`<netreporter-viewer>` es un único script embebido en el paquete.
+
+```bash
+dotnet add package NetReporter.Viewer
+```
+
+```csharp
+// Program.cs — la aplicación decide cómo un id + query string se convierte en un reporte enlazado
+app.MapNetReporterViewer("/reports", async (request, ct) =>
+{
+    var factura = await db.Facturas.FindAsync([int.Parse(request["id"]!)], ct);
+    if (factura is null) return null;                              // → 404
+    return plantillaFactura.Bind(JsonSerializer.Serialize(factura));
+}, options =>
+{
+    options.Formats = ViewerFormats.Pdf | ViewerFormats.Xlsx;      // lo que ofrece el menú de descarga
+    options.Language = "es";                                       // "es" | "en"
+})
+.RequireAuthorization();                                           // aplica cualquier convención de endpoints
+```
+
+`/reports/factura?id=42` ya es un visor de página completa. Para ponerlo dentro de tu propio layout, usa el componente:
+
+```html
+<script type="module" src="/reports/_viewer/viewer.js"></script>
+<netreporter-viewer src="/reports/factura/open?id=42" lang="es"></netreporter-viewer>
+```
+
+| Endpoint | Para qué |
+|---|---|
+| `GET {prefix}/{reportId}?…` | Visor de página completa |
+| `GET {prefix}/{reportId}/open?…` | Resuelve y diagrama el reporte **una vez**; devuelve título, nº de páginas, tamaño y URLs (JSON) |
+| `GET {prefix}/_doc/{token}/pages/{n}` | Página `n` en SVG, renderizada en la primera petición |
+| `GET {prefix}/_doc/{token}/export/{pdf\|xlsx\|html}` | Descarga (`?inline=1` para mostrar; se usa al imprimir) |
+| `GET {prefix}/_viewer/viewer.js` | El web component (ETag + caché) |
+
+- **Un layout por apertura.** Páginas, impresión y descargas reutilizan el mismo `RenderList`: lo que se imprime es
+  lo que se vio. Los documentos viven en memoria bajo un token imposible de adivinar (`DocumentLifetime`, deslizante,
+  10 min por defecto; `MaxCachedDocuments`, 100 por defecto) y quedan ligados al usuario que los abrió; si uno
+  expira, el visor lo reabre de forma transparente.
+- **Páginas bajo demanda.** Solo se piden las páginas cercanas a la vista; un reporte de 300 páginas no descarga 300 SVG.
+- **Interfaz:** primera/anterior/siguiente/última, ir a página, miniaturas, zoom 25–400 % (ajustar al ancho, página
+  completa, Ctrl/⌘ + rueda o pinch del trackpad anclado al cursor), Inicio/Fin y ←/→, imprimir (Ctrl/⌘+P), menú
+  de descarga, barra adaptable a pantallas angostas. Se tematiza con `--nr-bg`, `--nr-toolbar-bg`,
+  `--nr-toolbar-fg`, `--nr-accent`.
+- **API del componente:** atributos `src`, `lang`, `zoom` (`page-width` | `page-fit` | número), `thumbnails`
+  (`open` | `closed`), `set-title`; eventos `nr-load`, `nr-error`, `nr-pagechange`; métodos `reload()`,
+  `goToPage(n)`, `setZoom(z)`, `print()`, `download(format)`.
+- Los errores devuelven `{ "error": "not-found" | "render-failed" }`; el mensaje de la excepción solo se incluye con
+  `IncludeErrorDetails = true` (desarrollo).
+- Las páginas SVG dibujan el texto con las fuentes **del navegador**. Instala las fuentes del reporte en los equipos
+  cliente o usa el PDF (fuentes embebidas) cuando la tipografía exacta importe.
+- No está en el meta-paquete `NetReporter` (trae ASP.NET Core). Demo: `dotnet run --project samples/ViewerSample` → `http://localhost:5297`.
 
 ---
 

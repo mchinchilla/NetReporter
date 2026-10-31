@@ -2,6 +2,7 @@
   <Folder Name="/samples/">
     <Project Path="samples/InvoiceSample/InvoiceSample.csproj" />
     <Project Path="samples/TemplateSample/TemplateSample.csproj" />
+    <Project Path="samples/ViewerSample/ViewerSample.csproj" />
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/NetReporter/NetReporter.csproj" />
@@ -12,6 +13,7 @@
     <Project Path="src/NetReporter.Pdf/NetReporter.Pdf.csproj" />
     <Project Path="src/NetReporter.Svg/NetReporter.Svg.csproj" />
     <Project Path="src/NetReporter.Templates/NetReporter.Templates.csproj" />
+    <Project Path="src/NetReporter.Viewer/NetReporter.Viewer.csproj" />
     <Project Path="src/NetReporter.Xlsx/NetReporter.Xlsx.csproj" />
   </Folder>
   <Folder Name="/tests/">
@@ -21,6 +23,7 @@
     <Project Path="tests/NetReporter.Pdf.Tests/NetReporter.Pdf.Tests.csproj" />
     <Project Path="tests/NetReporter.Svg.Tests/NetReporter.Svg.Tests.csproj" />
     <Project Path="tests/NetReporter.Templates.Tests/NetReporter.Templates.Tests.csproj" />
+    <Project Path="tests/NetReporter.Viewer.Tests/NetReporter.Viewer.Tests.csproj" />
     <Project Path="tests/NetReporter.Xlsx.Tests/NetReporter.Xlsx.Tests.csproj" />
   </Folder>
   <Folder Name="/tools/">

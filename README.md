@@ -38,16 +38,17 @@
 8. [Repository layout](#-repository-layout)
 9. [Quick start](#-quick-start)
 10. [Visual designer](#-visual-designer)
-11. [YAML template syntax](#-yaml-template-syntax)
-12. [Expressions (DSL)](#-expressions-dsl)
-13. [Charts](#-charts)
-14. [Available renderers](#-available-renderers)
-15. [Page sizes](#-page-sizes)
-16. [Tests](#-tests)
-17. [Known limitations](#-known-limitations)
-18. [Completed](#-completed)
-19. [Roadmap](#-roadmap)
-20. [Licenses](#-licenses)
+11. [Report viewer](#️-report-viewer-netreporterviewer)
+12. [YAML template syntax](#-yaml-template-syntax)
+13. [Expressions (DSL)](#-expressions-dsl)
+14. [Charts](#-charts)
+15. [Available renderers](#-available-renderers)
+16. [Page sizes](#-page-sizes)
+17. [Tests](#-tests)
+18. [Known limitations](#-known-limitations)
+19. [Completed](#-completed)
+20. [Roadmap](#-roadmap)
+21. [Licenses](#-licenses)
 
 ---
 
@@ -327,6 +328,7 @@ NetReporter/
 │   ├── NetReporter.Html/        🌐 HtmlRenderer (paginated HTML/CSS)
 │   ├── NetReporter.Xlsx/        📊 XlsxRenderer semantic (ClosedXML, native tables)
 │   ├── NetReporter.Barcodes/    ▦ ZXing-based barcode/QR generator (opt-in)
+│   ├── NetReporter.Viewer/      🖥️ MapNetReporterViewer + <netreporter-viewer> web component (opt-in)
 │   └── NetReporter/             📦 Meta-package that references all of the above
 │
 ├── 🧪 tests/
@@ -337,6 +339,7 @@ NetReporter/
 │   ├── NetReporter.Pdf.Tests/         PdfRendererTests, TrueTypeSubsetterTests
 │   ├── NetReporter.Xlsx.Tests/        XlsxRendererTests
 │   ├── NetReporter.Barcodes.Tests/    ZXingBarcodeGeneratorTests
+│   ├── NetReporter.Viewer.Tests/      Endpoints, per-user documents, exports, formats, script caching
 │   └── TestAssets/Fonts/              Lato-Regular.ttf (SIL OFL) so font tests don't depend on system fonts
 │
 ├── 🛠️ tools/
@@ -344,6 +347,7 @@ NetReporter/
 │
 └── 🎯 samples/
     ├── InvoiceSample/           Invoice using the C# API (no YAML)
+    ├── ViewerSample/            Minimal ERP hosting NetReporter.Viewer (full page + embedded)
     └── TemplateSample/          YAML demo (13 templates exported by Program.cs)
         ├── report.yaml                   Customer report
         ├── invoice-laser.yaml            📄 Letter invoice (laser)
@@ -390,6 +394,7 @@ Or reference only the pieces you need:
 | `NetReporter.Xlsx` | Semantic XLSX renderer (ClosedXML) |
 | `NetReporter.Barcodes` | QR / Code 128 / Code 39 / EAN-13 (ZXing.Net) |
 | `NetReporter.Fonts.Liberation` | Liberation Sans/Serif/Mono embedded, for hosts without system fonts (not in the meta-package) |
+| `NetReporter.Viewer` | Report viewer for ASP.NET Core apps: paginated viewer, thumbnails, print, downloads (not in the meta-package) |
 
 All packages share one version. Every push to `main` publishes a new **patch** version through
 [`.github/workflows/publish.yml`](.github/workflows/publish.yml); put `[minor]` or `[major]` in a commit
@@ -483,6 +488,10 @@ dotnet run --project samples/TemplateSample
 # Visual designer (browser)
 dotnet run --project tools/NetReporter.Designer
 # → http://localhost:5296
+
+# Report viewer (browser)
+dotnet run --project samples/ViewerSample
+# → http://localhost:5297
 ```
 
 ---
@@ -582,6 +591,65 @@ Path inputs suggest bindings discovered in `data.json`: array paths for `rows`, 
 The preview header has `−` / `+` / `1:1` / `↔` buttons. Steps are `25 · 50 · 75 · 100 · 125 · 150 · 200 · 300 · 400 %`. The `↔` button fits the page width to the available preview area. The chosen level persists in `localStorage` so reloading the designer keeps it. Drag and resize coordinates are compensated for the current zoom — moving an element at 200% still moves it pt-by-pt in the YAML.
 
 > Implementation note: the preview is scaled with `transform: scale(var(--zoom))`, not the CSS `zoom` property. `zoom` would push the scaled content into flex layout calculations, making the preview panel invade the YAML editor / toolbox. The flex items in the preview chain require `min-w-0` so the parent's `overflow-auto` actually clips the scaled content instead of letting it grow the panel.
+
+---
+
+## 🖥️ Report viewer (`NetReporter.Viewer`)
+
+A viewer for end users of an ASP.NET Core application (an ERP, a back office): paginated, zoomable, with
+thumbnails, print and PDF / Excel / HTML download. No CDN or front-end framework: the
+`<netreporter-viewer>` web component is a single script embedded in the package.
+
+```bash
+dotnet add package NetReporter.Viewer
+```
+
+```csharp
+// Program.cs — the app decides how an id + query string becomes a bound report
+app.MapNetReporterViewer("/reports", async (request, ct) =>
+{
+    var invoice = await db.Invoices.FindAsync([int.Parse(request["id"]!)], ct);
+    if (invoice is null) return null;                              // → 404
+    return invoiceTemplate.Bind(JsonSerializer.Serialize(invoice));
+}, options =>
+{
+    options.Formats = ViewerFormats.Pdf | ViewerFormats.Xlsx;      // what the download menu offers
+    options.Language = "es";                                       // "es" | "en"
+})
+.RequireAuthorization();                                           // any endpoint convention applies
+```
+
+`/reports/invoice?id=42` is now a full-page viewer. To place it inside your own layout, use the component:
+
+```html
+<script type="module" src="/reports/_viewer/viewer.js"></script>
+<netreporter-viewer src="/reports/invoice/open?id=42" lang="es"></netreporter-viewer>
+```
+
+| Endpoint | Purpose |
+|---|---|
+| `GET {prefix}/{reportId}?…` | Full-page viewer |
+| `GET {prefix}/{reportId}/open?…` | Resolves and lays out the report **once**; returns title, page count, page size and URLs (JSON) |
+| `GET {prefix}/_doc/{token}/pages/{n}` | Page `n` as SVG, rendered on first request |
+| `GET {prefix}/_doc/{token}/export/{pdf\|xlsx\|html}` | Download (`?inline=1` to display; used for printing) |
+| `GET {prefix}/_viewer/viewer.js` | The web component (ETag + cache) |
+
+- **One layout per open.** Pages, print and downloads reuse the same `RenderList`, so what is printed is what was
+  shown. Documents live in memory under an unguessable token (`DocumentLifetime`, sliding, default 10 min;
+  `MaxCachedDocuments`, default 100) and are bound to the user who opened them; when one expires the viewer
+  reopens it transparently.
+- **Lazy pages.** Only pages near the viewport are requested; a 300-page report doesn't download 300 SVGs.
+- **Viewer UI:** first/previous/next/last, go to page, thumbnails, zoom 25–400 % (fit width, fit page, Ctrl/⌘ +
+  wheel or trackpad pinch anchored at the cursor), Home/End and ←/→, print (Ctrl/⌘+P), download menu,
+  responsive toolbar. Theme it with `--nr-bg`, `--nr-toolbar-bg`, `--nr-toolbar-fg`, `--nr-accent`.
+- **Component API:** attributes `src`, `lang`, `zoom` (`page-width` | `page-fit` | number), `thumbnails`
+  (`open` | `closed`), `set-title`; events `nr-load`, `nr-error`, `nr-pagechange`; methods `reload()`,
+  `goToPage(n)`, `setZoom(z)`, `print()`, `download(format)`.
+- Errors return `{ "error": "not-found" | "render-failed" }`; the exception message is only included with
+  `IncludeErrorDetails = true` (development).
+- SVG pages draw text with the **browser's** fonts. Install the report fonts on client machines or rely on the
+  PDF (fonts embedded) when exact typography matters.
+- Not in the `NetReporter` meta-package (it brings in ASP.NET Core). Demo: `dotnet run --project samples/ViewerSample` → `http://localhost:5297`.
 
 ---
 
@@ -1066,15 +1134,16 @@ dotnet test
 ┌─────────────────────────────────────┬───────┐
 │ Project                             │ Tests │
 ├─────────────────────────────────────┼───────┤
-│ NetReporter.Core.Tests              │  114  │
+│ NetReporter.Core.Tests              │  117  │
 │ NetReporter.Templates.Tests         │  204  │
 │ NetReporter.Html.Tests              │   20  │
-│ NetReporter.Svg.Tests               │   11  │
-│ NetReporter.Pdf.Tests               │   12  │
+│ NetReporter.Svg.Tests               │   33  │
+│ NetReporter.Pdf.Tests               │   18  │
 │ NetReporter.Xlsx.Tests              │   15  │
 │ NetReporter.Barcodes.Tests          │    7  │
+│ NetReporter.Viewer.Tests            │   13  │
 ├─────────────────────────────────────┼───────┤
-│ Total                               │  383  │
+│ Total                               │  427  │
 └─────────────────────────────────────┴───────┘
 ```
 

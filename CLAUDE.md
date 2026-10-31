@@ -20,16 +20,19 @@ src/
   NetReporter.Xlsx/        XlsxRenderer — semantic, consumes ReportDefinition directly
   NetReporter.Barcodes/    ZXing-based QR/Code128/Code39/EAN-13 (opt-in)
   NetReporter.Fonts.Liberation/  Liberation Sans/Serif/Mono embedded (SIL OFL); LiberationFonts.Register() (opt-in, not in the meta-package)
+  NetReporter.Viewer/      ASP.NET Core viewer: MapNetReporterViewer endpoints + <netreporter-viewer> web component (Assets/viewer.js, embedded) (opt-in, not in the meta-package)
   NetReporter/             Meta-package (no code) that references all of the above
 tests/
   NetReporter.Core.Tests/  NetReporter.Templates.Tests/  NetReporter.Html.Tests/  NetReporter.Svg.Tests/
-  NetReporter.Pdf.Tests/   NetReporter.Xlsx.Tests/       NetReporter.Barcodes.Tests/   — 414 tests total
+  NetReporter.Pdf.Tests/   NetReporter.Xlsx.Tests/       NetReporter.Barcodes.Tests/
+  NetReporter.Viewer.Tests/ (TestServer)                                                 — 427 tests total
   TestAssets/Fonts/        Lato-Regular.ttf (SIL OFL) — font tests use it instead of system fonts (CI has almost none)
 tools/
   NetReporter.Designer/    ASP.NET Core MVC + Alpine.js + HTMX + Tailwind (CDN)
 samples/
   InvoiceSample/           Imperative C# API
   TemplateSample/          13 YAML templates exporting PDF + XLSX
+  ViewerSample/            Minimal ERP hosting NetReporter.Viewer (http://localhost:5297)
 ```
 
 Solution file is `NetReporter.slnx` (the newer XML format — not classic `.sln`).
@@ -44,10 +47,11 @@ Solution file is `NetReporter.slnx` (the newer XML format — not classic `.sln`
 
 ```bash
 dotnet build
-dotnet test                                                # 414 tests
+dotnet test                                                # 427 tests
 dotnet run --project samples/InvoiceSample                 # → factura.pdf
 dotnet run --project samples/TemplateSample                # → 13 PDF + 13 XLSX
 dotnet run --project tools/NetReporter.Designer            # → http://localhost:5296
+dotnet run --project samples/ViewerSample                  # → http://localhost:5297 (report viewer)
 ```
 
 ## Architecture — the non-negotiable invariants
@@ -97,6 +101,14 @@ The pipeline is **IR → LayoutEngine → RenderList → Renderer** (PDF/HTML/SV
 - Registered fonts are process-wide statics: tests that register go in the `RegisteredFontsCollection` (parallelization disabled) and call `SkiaFonts.ResetRegisteredFonts()` (internal) on dispose.
 
 When the user asks for a feature that "should also work in XLSX", remember XLSX is semantic: ask whether it has a meaningful cell-level analog before adding logic to the Xlsx renderer.
+
+## Viewer (`NetReporter.Viewer`)
+
+- `/open` resolves the report through the app's `IReportSource` (or delegate) and runs `LayoutEngine` **once**; the result (`ViewerDocument`: `ReportDefinition` + `RenderList` + lazily rendered SVG pages) lives in a private `MemoryCache` under a random token, bound to `User.Identity.Name`. Pages and exports must reuse it — never re-resolve or re-layout per page.
+- `ViewerDocumentStore.Add` compacts synchronously before inserting: `MemoryCache` silently drops entries over `SizeLimit`, and the viewer requests pages right after `/open`.
+- The client is one dependency-free ES module (`Assets/viewer.js`, shadow DOM, i18n es/en). It is a production UI inside the ERP: no CDN scripts, no Tailwind/Alpine. Pages load lazily via `IntersectionObserver`; a 404 on a page/export means the document expired and the component reopens it once.
+- Page images are SVG `<img>`s, so text uses the client's fonts (documented). Print/download fetch the PDF/XLSX/HTML export as a blob.
+- No browser tests: verify UI changes manually with `samples/ViewerSample`.
 
 ## Templates and Designer
 

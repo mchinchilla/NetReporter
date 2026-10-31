@@ -34,6 +34,7 @@ Or reference only the pieces you need. All packages share the same version numbe
 | `NetReporter.Xlsx` | Semantic XLSX renderer via ClosedXML: text becomes cells, tables become native Excel Tables |
 | `NetReporter.Barcodes` | QR / Code 128 / Code 39 / EAN-13 via ZXing.Net (opt-in) |
 | `NetReporter.Fonts.Liberation` | Liberation Sans / Serif / Mono embedded (SIL OFL 1.1), for hosts where SkiaSharp sees no system fonts (opt-in, not in the meta-package) |
+| `NetReporter.Viewer` | Report viewer for ASP.NET Core apps: `app.MapNetReporterViewer("/reports", …)` serves a paginated viewer (`<netreporter-viewer>` web component, no CDN) with thumbnails, zoom, print and PDF/XLSX/HTML download (opt-in, not in the meta-package) |
 
 ## How it works
 
@@ -136,6 +137,25 @@ string                html = new HtmlRenderer().Render(layout, new HtmlRenderOpt
 IReadOnlyList<string> svgs = new SvgRenderer().Render(layout);          // one SVG per page
 byte[]                xlsx = new XlsxRenderer().Render(report);         // semantic: takes the ReportDefinition
 ```
+
+## Report viewer (ASP.NET Core)
+
+```csharp
+app.MapNetReporterViewer("/reports", async (request, ct) =>
+{
+    var data = await LoadInvoiceJsonAsync(request["id"], ct);   // your data access
+    return data is null ? null : invoiceTemplate.Bind(data);       // null → 404
+}).RequireAuthorization();
+```
+
+`/reports/invoice?id=42` opens a full-page viewer. To embed it in your own page:
+
+```html
+<script type="module" src="/reports/_viewer/viewer.js"></script>
+<netreporter-viewer src="/reports/invoice/open?id=42" lang="es"></netreporter-viewer>
+```
+
+The report is laid out once per open; pages are rendered to SVG on demand and print/downloads reuse the same layout.
 
 ## Features
 
