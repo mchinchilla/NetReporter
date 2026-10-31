@@ -65,6 +65,9 @@ public sealed class LayoutEngine
         private readonly double _pageHeaderH;
         private readonly double _pageFooterH;
         private readonly double _usableHeight;
+        // Papel continuo: sin límite inferior (nunca se abre página) y la altura final sale del cursor.
+        private readonly bool _continuous;
+        private double _contentBottom;
 
         // Página en curso: siempre la MISMA instancia; NewPage() la vuelca a _pages y la reinicia.
         private PageBuilder _page = new(1);
@@ -86,9 +89,10 @@ public sealed class LayoutEngine
             _pageHeaderH = _pageHeader?.Height ?? 0;
             _pageFooterH = _pageFooter?.Height ?? 0;
             _origin = report.Page.ContentOrigin;
-            _usableHeight = report.Page.ContentHeight - _pageHeaderH - _pageFooterH;
+            _continuous = report.Page.Continuous;
+            _usableHeight = _continuous ? double.PositiveInfinity : report.Page.ContentHeight - _pageHeaderH - _pageFooterH;
             _cursorY = TopY;
-            _maxY = TopY + _usableHeight;
+            _maxY = _continuous ? double.MaxValue : TopY + _usableHeight;
         }
 
         private double TopY => _origin.Y + _pageHeaderH;
@@ -127,7 +131,14 @@ public sealed class LayoutEngine
 
             // PASADA 2: con el total de páginas conocido, page header/footer definitivos
             // ({{ pageNumber }} / {{ totalPages }} resueltos en ambos).
-            return new RlRenderList(_report.Page, EmitPageChrome());
+            if (!_continuous) return new RlRenderList(_report.Page, EmitPageChrome());
+
+            // Papel continuo: una sola página; el pie va justo después del contenido y la altura
+            // final (contenido + pie + margen inferior) viaja en el PageSetup del RenderList.
+            _contentBottom = _cursorY;
+            var pages = EmitPageChrome();
+            var height = _contentBottom + _pageFooterH + _report.Page.Margins.Bottom;
+            return new RlRenderList(_report.Page with { Size = new Size(_report.Page.Size.Width, height) }, pages);
         }
 
         // === Paginación ===
@@ -200,7 +211,7 @@ public sealed class LayoutEngine
                 if (_pageFooter is not null && PrintsOn(_pageFooter, isFirst, isLast) && IsVisible(_pageFooter, ctx))
                 {
                     var tmp = new PageBuilder(page.PageNumber);
-                    var y = _origin.Y + _report.Page.ContentHeight - _pageFooterH;
+                    var y = _continuous ? _contentBottom : _origin.Y + _report.Page.ContentHeight - _pageFooterH;
                     EmitBand(_pageFooter, tmp, ref y, ctx);
                     commands.AddRange(tmp.Commands);
                 }

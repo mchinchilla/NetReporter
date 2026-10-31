@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\NetReporter.Core\NetReporter.Core.csproj" />
+    <ProjectReference Include="..\NetReporter.Svg\NetReporter.Svg.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="NetReporter.EscPos.Tests" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <Description>ESC/POS output for thermal receipt printers (58/80 mm rolls): the laid-out report is rasterized with the same painter as the PDF and sent as GS v 0 raster blocks, with cut and cash-drawer commands and a TCP/IP (port 9100) sender. Opt-in, not in the meta-package.</Description>
+    <PackageTags>$(PackageTags);escpos;esc-pos;pos;thermal;receipt;ticket;printer</PackageTags>
+  </PropertyGroup>
+
+</Project>

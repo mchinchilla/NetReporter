@@ -40,16 +40,17 @@
 10. [Quick start](#-quick-start)
 11. [Visual designer](#-visual-designer)
 12. [Report viewer](#️-report-viewer-netreporterviewer)
-13. [YAML template syntax](#-yaml-template-syntax)
-14. [Expressions (DSL)](#-expressions-dsl)
-15. [Charts](#-charts)
-16. [Available renderers](#-available-renderers)
-17. [Page sizes](#-page-sizes)
-18. [Tests](#-tests)
-19. [Known limitations](#-known-limitations)
-20. [Completed](#-completed)
-21. [Roadmap](#-roadmap)
-22. [Licenses](#-licenses)
+13. [ESC/POS thermal printers](#-escpos-thermal-printers-netreporterescpos)
+14. [YAML template syntax](#-yaml-template-syntax)
+15. [Expressions (DSL)](#-expressions-dsl)
+16. [Charts](#-charts)
+17. [Available renderers](#-available-renderers)
+18. [Page sizes](#-page-sizes)
+19. [Tests](#-tests)
+20. [Known limitations](#-known-limitations)
+21. [Completed](#-completed)
+22. [Roadmap](#-roadmap)
+23. [Licenses](#-licenses)
 
 ---
 
@@ -61,6 +62,7 @@
 |---|---|
 | 🖥️ **`NetReporter.Viewer`** (new package, opt-in) | `app.MapNetReporterViewer("/reports", …)` serves a paginated, zoomable viewer for end users of an ASP.NET Core app: page navigation, thumbnails, print, PDF/XLSX/HTML download. Pages are SVG written on demand and inlined by the `<netreporter-viewer>` web component (no CDN), so text is selectable and searchable; images are referenced by URL, so a logo on every page is downloaded once. See [Report viewer](#️-report-viewer-netreporterviewer) |
 | ⚡ **SVG written directly** | `SvgRenderer` no longer draws through Skia's SVG canvas, which rebuilt the whole glyph→Unicode table of the font for every text (cost proportional to the font's glyph count, under a global lock) and re-encoded every image as PNG on every page. An 18-page, 600-row document went from 96 ms to 9.7 ms on Linux (358 → 10 ms on macOS), and 8 threads now render 1 060 docs/s instead of 12.6. Same geometry as the PDF (`PageGeometry` is shared with the PDF painter, a test checks every glyph position against Skia's canvas) |
+| 🧾 **Roll paper + ESC/POS** (new package `NetReporter.EscPos`, opt-in) | `PageSetup.Roll80` / `Roll58` / `Roll(width)` (`page.size: roll80`) are continuous pages: no page breaks, the layout returns one page whose height is the content's. `EscPosRenderer` rasterizes it with the PDF's painter and emits `GS v 0` blocks with feed, cut and cash-drawer commands (2.2 ms per ticket); `EscPosTcpPrinter` sends them over TCP 9100. Every setting is a runtime option. See [ESC/POS thermal printers](#-escpos-thermal-printers-netreporterescpos) |
 | 🎨 **Designer** | Insert elements by dragging a tool anywhere on the page (margins and gaps land in the nearest band) or by clicking the tool and clicking/drawing on the page; the properties drawer is a column beside the page instead of covering it; resizable/collapsible editor, CodeMirror editors with error lines and element ↔ YAML linking, page navigator, clean view, zoom around the cursor, rulers, grid, smart guides and an ES/EN switch. See [Visual designer](#-visual-designer) |
 
 ### ⚠️ Behavior changes in 1.4
@@ -234,7 +236,7 @@ NetReporter splits the report into four layers with clear interfaces. **The temp
 - 🔗 **JSON Path bindings** — `$.client.name`, `$.lines[*]`, `$.lines[*].total` (projection), `$$.root` (document root from inside a table)
 - 🪝 **Template strings** — `{{ pageNumber }}`, `{{ totalPages }}`, `{{ $.title }}`, `{{ $.total:N2 }}`, `{{ #group }}`, `{{ #count }}`, and any expression: `{{ $.total * 1.15 : N2 }}`
 - 📁 **Templated FileName and title** — `fileName: "invoice-{{ $.number }}"` resolved at export time
-- 🎯 **Multi-format** — Letter, Legal, A3-A6, B4-B5, Tabloid, custom (80mm/58mm receipt)
+- 🎯 **Multi-format** — Letter, Legal, A3-A6, B4-B5, Tabloid, custom, and continuous 80/58 mm rolls for POS printers (printed as ESC/POS with `NetReporter.EscPos`)
 
 ### Visual web designer
 - 🖱️ **Drag-and-drop** on the SVG preview (move and create elements) — toolbox with Text, Line, Rect, Table, **Image, Barcode, Chart**
@@ -369,7 +371,8 @@ NetReporter/
     └── TemplateSample/          YAML demo (13 templates exported by Program.cs)
         ├── report.yaml                   Customer report
         ├── invoice-laser.yaml            📄 Letter invoice (laser)
-        ├── invoice-paperoll.yaml         🧾 80mm invoice (thermal POS)
+        ├── invoice-paperoll.yaml         🧾 80mm receipt (continuous roll, thermal POS)
+        ├── ticket-complete.yaml          🧾 80mm ticket with logo, QR, Code 128, legal text
         ├── wrap-demo.yaml                Word-wrap + auto-height
         ├── grouped-invoice.yaml          groupBy + sum/count/avg subtotals
         ├── invoice-with-qr.yaml          Logo + QR of CAI
@@ -584,7 +587,8 @@ Path inputs suggest bindings discovered in `data.json`: array paths for `rows`, 
 |---|---|
 | `clientes` | Basic tabular report with header, table, page footer |
 | `invoice-laser` | Full Letter invoice with totals block |
-| `invoice-paperoll` | 80mm continuous receipt (POS thermal printer) |
+| `invoice-paperoll` | 80mm continuous receipt (`roll80`, POS thermal printer), monospaced |
+| `ticket-complete` | 80mm continuous ticket with logo, client box, QR of the CAI, Code 128 of the number and wrapped legal text — the ESC/POS showcase |
 | `wrap-demo` | Real word wrap + band auto-height |
 | `grouped-invoice` | `groupBy` with per-group headers and `Sum`/`Count`/`Avg` subtotals |
 | `invoice-with-qr` | Embedded PNG logo + vector QR code of the CAI |
@@ -688,6 +692,44 @@ app.MapNetReporterViewer("/reports", async (request, ct) =>
 - Not in the `NetReporter` meta-package (it brings in ASP.NET Core). Demo: `dotnet run --project samples/ViewerSample` → `http://localhost:5297`.
 
 ---
+
+## 🧾 ESC/POS thermal printers (`NetReporter.EscPos`)
+
+Print tickets straight to a 58/80 mm thermal printer. The laid-out report is rasterized with the **same painter as the PDF**, so fonts, QR codes, barcodes, logos and lines come out exactly as in the PDF or the Designer preview, then sent as `GS v 0` raster blocks followed by feed, cut and (optionally) cash-drawer commands. `EscPosTcpPrinter` delivers the bytes over TCP (port 9100); implement `IEscPosTransport` for USB, serial or a spooler. Pair it with a continuous page ([`Roll80` / `Roll58`](#roll-paper-pos-thermal-printers)) so a long ticket is one strip cut once at the end.
+
+```csharp
+using NetReporter.EscPos;
+
+var layout = new LayoutEngine(SkiaTextMeasurer.Instance, ZXingBarcodeGenerator.Instance).Layout(report); // PageSetup.Roll80
+
+var renderer = new EscPosRenderer(EscPosRendererOptions.ForRoll80());   // ForRoll58(), or new EscPosRendererOptions { … }
+byte[] escPos = renderer.Render(layout, cancellationToken);              // also Render(layout, stream, ct)
+
+var printer = new EscPosTcpPrinter(new EscPosTcpPrinterOptions
+{
+    Host = "192.168.1.50",
+    Port = 9100,
+    ConnectTimeout = TimeSpan.FromSeconds(3),
+    SendTimeout = TimeSpan.FromSeconds(20),
+});
+await printer.SendAsync(escPos, cancellationToken);          // or: await printer.PrintAsync(layout, renderer, ct)
+```
+
+Every setting is an option you set at runtime (and may change between prints; they are re-validated on each render):
+
+| Option | Default | Meaning |
+|---|---|---|
+| `DotsPerLine` | 576 | Printable dots per row: 576 on 80 mm, 384 on 58 mm (multiple of 8) |
+| `Dpi` | 203.2 | Head resolution (8 dots/mm); some printers are 180 dpi |
+| `PageFit` | `Auto` | `Crop` = 1:1 and centered (the roll presets' margins fall exactly in the unprintable strip); `Scale` = fit the page width; `Auto` crops when the content fits, else scales |
+| `Dithering` / `Threshold` | `Threshold` / 160 | A fixed threshold keeps text crisp; `FloydSteinberg` (use ~128) keeps the grays of logos and photos |
+| `BandRows` | 256 | Rows per `GS v 0` block (small blocks suit cheap printers' buffers; max 2303) |
+| `Initialize`, `Prologue`, `Epilogue` | `true`, –, – | `ESC @` first; your raw bytes after it (code page, density…) and after the last cut |
+| `FeedLinesBeforeCut`, `Cut`, `CutAfterEachPage` | 3, `Partial`, `true` | Feed before `GS V`; `None` / `Partial` / `Full`; multi-page documents cut per page or once at the end |
+| `OpenCashDrawer`, `CashDrawerPin` | `false`, 0 | `ESC p` pulse on pin 2 (0) or pin 5 (1) before printing |
+| TCP: `Host`, `Port`, `ConnectTimeout`, `SendTimeout`, `NoDelay` | –, 9100, 5 s, 30 s, `true` | Refused connections and timeouts surface as `EscPosPrinterException` (with host and port); cancellation as `OperationCanceledException` |
+
+The sample receipt (`invoice-paperoll.yaml`, 80 mm, 297 pt tall) renders in **2.2 ms** on one thread and **2 500 tickets/s** on 8 threads (60 KB of raster), on a par with the PDF of the same layout; `dotnet run --project samples/TemplateSample` writes it as `invoice-paperoll.escpos`. Fonts resolve through the same `SkiaFonts` as every other renderer, so a host without fonts fails loudly instead of printing blank paper (register `LiberationFonts` or your own). This package targets Epson-compatible ESC/POS; Star printers in Star Line Mode speak a different command set.
 
 ## 📝 YAML template syntax
 
@@ -1131,6 +1173,15 @@ byte[] xlsx = new XlsxRenderer().Render(report, new XlsxRenderOptions
 
 ---
 
+### 🧾 ESC/POS — `NetReporter.EscPos`
+
+Raster output for thermal receipt printers: the page is painted with the PDF's `SkiaPagePainter` into a 1-bit image at the printer's resolution and sent as `GS v 0` blocks, plus feed, cut and cash-drawer commands; `EscPosTcpPrinter` delivers it over TCP. Consumes `RenderList`, so it prints anything the PDF prints. See [ESC/POS thermal printers](#-escpos-thermal-printers-netreporterescpos).
+
+```csharp
+byte[] ticket = new EscPosRenderer(EscPosRendererOptions.ForRoll80()).Render(renderList);
+await new EscPosTcpPrinter("192.168.1.50").SendAsync(ticket);
+```
+
 ## 📐 Page sizes
 
 ### US / ANSI
@@ -1142,7 +1193,24 @@ byte[] xlsx = new XlsxRenderer().Render(report, new XlsxRenderOptions
 ### ISO B
 `B4` · `B5`
 
-### Custom (e.g. POS receipt)
+### Roll paper (POS thermal printers)
+
+`Roll80` (80 mm, 576 dots) · `Roll58` (58 mm, 384 dots) · `Roll(widthPt)`. These are **continuous**: there are no page breaks, the layout returns a single page and `RenderList.Page.Size.Height` is the final height (content + page footer + bottom margin). `PageHeader` and `PageFooter` print once, at the top and right after the content, so `{{ totalPages }}` is always `1`. The default side margins (4 mm on 80 mm, 5 mm on 58 mm) match the printers' unprintable strip, so the content width is exactly the printable area (72 mm / 48 mm). `orientation: landscape` is rejected on rolls.
+
+```yaml
+page:
+  size: roll80          # or roll58, or `roll` + width: 200 (points)
+  margins: { horizontal: 4mm, vertical: 4mm }
+```
+
+```csharp
+PageSetup.Roll80                      // 226.77 pt wide, continuous
+PageSetup.Roll(Units.Mm(76))          // any width, 4 mm margins
+```
+
+Print the result with [`NetReporter.EscPos`](#-escpos-thermal-printers-netreporterescpos), or export it to PDF/SVG/HTML like any other report (the page is as tall as the ticket).
+
+### Custom (e.g. fixed-height POS receipt)
 
 ```yaml
 page:
@@ -1170,16 +1238,17 @@ dotnet test
 ┌─────────────────────────────────────┬───────┐
 │ Project                             │ Tests │
 ├─────────────────────────────────────┼───────┤
-│ NetReporter.Core.Tests              │  117  │
-│ NetReporter.Templates.Tests         │  215  │
+│ NetReporter.Core.Tests              │  124  │
+│ NetReporter.Templates.Tests         │  221  │
 │ NetReporter.Html.Tests              │   20  │
-│ NetReporter.Svg.Tests               │   61  │
+│ NetReporter.Svg.Tests               │   62  │
 │ NetReporter.Pdf.Tests               │   18  │
 │ NetReporter.Xlsx.Tests              │   15  │
 │ NetReporter.Barcodes.Tests          │    7  │
 │ NetReporter.Viewer.Tests            │   26  │
+│ NetReporter.EscPos.Tests            │   19  │
 ├─────────────────────────────────────┼───────┤
-│ Total                               │  479  │
+│ Total                               │  512  │
 └─────────────────────────────────────┴───────┘
 ```
 
@@ -1202,6 +1271,7 @@ The Designer (UI) has no automated tests; its 1.1 features were verified manuall
 | Feature | Status | Current workaround |
 |---|---|---|
 | **Subreports** | ❌ | Use several Detail bands / tables over different JSON paths |
+| **One `ReportHeader` / `ReportFooter` / `PageHeader` / `PageFooter` per report** | ⚠️ | The layout engine uses the first band of each of those kinds and ignores the rest. Group the blocks into one band (use `autoHeight: true` so it grows); add as many `Detail` bands as you need |
 | **Data-driven Detail bands** | ❌ | A Detail band is a static block; repeat data with tables (and groups) instead of repeating bands |
 | **Unsorted grouping** | ⚠️ | Groups are consecutive runs: sort the rows by the group keys before binding |
 | **Chart types** | ⚠️ | bar / horizontalBar / line / area / pie / donut. No scatter, combo or dual-axis charts; no axis titles (use a text element) |

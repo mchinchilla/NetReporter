@@ -16,6 +16,7 @@
     <EmbeddedResource Include="..\..\samples\TemplateSample\invoice-laser.yaml" LogicalName="Samples.invoice-laser.yaml" />
     <EmbeddedResource Include="..\..\samples\TemplateSample\invoice-paperoll.yaml" LogicalName="Samples.invoice-paperoll.yaml" />
     <EmbeddedResource Include="..\..\samples\TemplateSample\invoice-data.json" LogicalName="Samples.invoice.json" />
+    <EmbeddedResource Include="..\..\samples\TemplateSample\ticket-complete.yaml" LogicalName="Samples.ticket-complete.yaml" />
     <EmbeddedResource Include="..\..\samples\TemplateSample\wrap-demo.yaml" LogicalName="Samples.wrap-demo.yaml" />
     <EmbeddedResource Include="..\..\samples\TemplateSample\wrap-data.json" LogicalName="Samples.wrap-demo.json" />
     <EmbeddedResource Include="..\..\samples\TemplateSample\grouped-invoice.yaml" LogicalName="Samples.grouped-invoice.yaml" />

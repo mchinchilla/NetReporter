@@ -48,6 +48,34 @@ public sealed record PageSetup(
     /// <summary>176 × 250 mm.</summary>
     public static readonly PageSetup B5 = new(new Size(498.898, 708.661),  DefaultMargins);
 
+    // === Papel continuo (rollo de impresora POS) ===
+
+    /// <summary>
+    /// Papel continuo: no hay saltos de página y la altura la decide el contenido. El
+    /// <c>LayoutEngine</c> devuelve una sola página cuyo <c>RenderList.Page.Size.Height</c> es la
+    /// altura final (contenido + pie de página + margen inferior); <see cref="Size"/>.Height aquí es
+    /// solo nominal. Las bandas PageHeader/PageFooter se imprimen una vez, arriba y al final.
+    /// </summary>
+    public bool Continuous { get; init; }
+
+    // El área imprimible de un rollo de 80 mm son 72 mm (576 puntos a 203 dpi) y la de 58 mm son
+    // 48 mm (384 puntos): los márgenes laterales por defecto dejan el contenido dentro de ella.
+    private static readonly Thickness Roll80Margins = new(Units.Mm(4), Units.Mm(4));
+    private static readonly Thickness Roll58Margins = new(Units.Mm(5), Units.Mm(4));
+
+    /// <summary>Rollo de 80 mm (226.77 pt) de ancho, continuo; márgenes 4 mm (área imprimible de 72 mm).</summary>
+    public static readonly PageSetup Roll80 = new(new Size(Units.Mm(80), 0), Roll80Margins) { Continuous = true };
+
+    /// <summary>Rollo de 58 mm (164.41 pt) de ancho, continuo; márgenes 5 mm a los lados (área imprimible de 48 mm) y 4 mm arriba/abajo.</summary>
+    public static readonly PageSetup Roll58 = new(new Size(Units.Mm(58), 0), Roll58Margins) { Continuous = true };
+
+    /// <summary>Rollo continuo de ancho arbitrario en puntos (<see cref="Units"/> convierte desde mm); márgenes 4 mm salvo que se indiquen.</summary>
+    public static PageSetup Roll(double widthPt, Thickness? margins = null)
+    {
+        if (!(widthPt > 0)) throw new ArgumentOutOfRangeException(nameof(widthPt), widthPt, "El ancho del rollo debe ser mayor que 0.");
+        return new(new Size(widthPt, 0), margins ?? Roll80Margins) { Continuous = true };
+    }
+
     // === Factories ===
 
     /// <summary>
@@ -58,8 +86,10 @@ public sealed record PageSetup(
 
     // === Transformaciones ===
 
-    /// <summary>Devuelve la misma página en orientación horizontal (intercambia ancho/alto).</summary>
-    public PageSetup Landscape() => Orientation == PageOrientation.Landscape
+    /// <summary>Devuelve la misma página en orientación horizontal (intercambia ancho/alto). No aplica a papel continuo.</summary>
+    public PageSetup Landscape() => Continuous
+        ? throw new InvalidOperationException("Un rollo continuo no tiene orientación: su altura la decide el contenido.")
+        : Orientation == PageOrientation.Landscape
         ? this
         : this with
         {

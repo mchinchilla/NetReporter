@@ -21,11 +21,12 @@ src/
   NetReporter.Barcodes/    ZXing-based QR/Code128/Code39/EAN-13 (opt-in)
   NetReporter.Fonts.Liberation/  Liberation Sans/Serif/Mono embedded (SIL OFL); LiberationFonts.Register() (opt-in, not in the meta-package)
   NetReporter.Viewer/      ASP.NET Core viewer: MapNetReporterViewer endpoints + <netreporter-viewer> web component (Assets/viewer.js, embedded) (opt-in, not in the meta-package)
+  NetReporter.EscPos/      EscPosRenderer (raster GS v 0 via SkiaPagePainter on a Gray8 bitmap) + EscPosTcpPrinter (port 9100) for 58/80 mm thermal printers (opt-in, not in the meta-package)
   NetReporter/             Meta-package (no code) that references all of the above
 tests/
   NetReporter.Core.Tests/  NetReporter.Templates.Tests/  NetReporter.Html.Tests/  NetReporter.Svg.Tests/
   NetReporter.Pdf.Tests/   NetReporter.Xlsx.Tests/       NetReporter.Barcodes.Tests/
-  NetReporter.Viewer.Tests/ (TestServer)                                                 — 479 tests total
+  NetReporter.Viewer.Tests/ (TestServer)  NetReporter.EscPos.Tests/                       — 512 tests total
   TestAssets/Fonts/        Lato-Regular.ttf (SIL OFL) — font tests use it instead of system fonts (CI has almost none)
 tools/
   NetReporter.Designer/    ASP.NET Core MVC + Alpine.js + HTMX + Tailwind (CDN)
@@ -47,7 +48,7 @@ Solution file is `NetReporter.slnx` (the newer XML format — not classic `.sln`
 
 ```bash
 dotnet build
-dotnet test                                                # 479 tests
+dotnet test                                                # 512 tests
 dotnet run --project samples/InvoiceSample                 # → factura.pdf
 dotnet run --project samples/TemplateSample                # → 13 PDF + 13 XLSX
 dotnet run --project tools/NetReporter.Designer            # → http://localhost:5296
@@ -75,6 +76,8 @@ The pipeline is **IR → LayoutEngine → RenderList → Renderer** (PDF/HTML/SV
 - `LayoutEngine.Layout` runs a private `LayoutRun`: the current page (`PageBuilder`, always the same instance — `NewPage()` snapshots it into the list and resets it), the cursor and `maxY` are fields, not `ref` parameters. Anything can break a page; don't reintroduce the old "copy commands back into workingPage" pattern.
 - `Measure(Action)` does a dry-run layout into a scratch page with no bottom limit; it powers KeepTogether (report/detail bands) and auto-height band measurement. Keep emission code side-effect free apart from `_page`/`_cursorY`/`_ctx` so measuring stays safe.
 - Page headers and footers are emitted in pass 2 (`EmitPageChrome`) once `totalPages` is known.
+- The engine uses only the **first** `ReportHeaderBand`, `ReportFooterBand`, `PageHeaderBand` and `PageFooterBand` (`OfType<>().FirstOrDefault()`); extra bands of those kinds are silently ignored, so sample templates group their blocks into one band each (all `DetailBand`s are emitted, in order).
+- **Continuous pages** (`PageSetup.Continuous`, set by `Roll80`/`Roll58`/`Roll(width)`; YAML `page.size: roll80|roll58|roll`): `_maxY = double.MaxValue` so nothing ever breaks, the footer is placed at `_contentBottom`, and the returned `RenderList.Page` is the setup `with` the computed height (content + footer + bottom margin). Renderers, the Designer and the Viewer must take the page size from `RenderList.Page`, never from `ReportDefinition.Page` (nominal height 0 on rolls). The paginated path only pays a bool check; keep it that way.
 - A table's `Bounds.Y` is an offset from the current flow position. Detail bands without tables move whole to the next page when they don't fit.
 
 ## Renderers — when to consume what
@@ -85,6 +88,7 @@ The pipeline is **IR → LayoutEngine → RenderList → Renderer** (PDF/HTML/SV
 | `HtmlRenderer` | `RenderList` | HTML/CSS `@page` | Self-contained, printable |
 | `SvgRenderer` | `RenderList` | `SvgPageWriter` (own writer; `PageGeometry` + `SkiaFonts` + `GlyphAdvances`) | One SVG string per page; used by the Designer preview and the Viewer. No Skia canvas |
 | `XlsxRenderer` | `ReportDefinition` (not RenderList) | ClosedXML | Semantic — text → cells, tables → native Excel Tables (grouped tables → outline), charts → data tables. Lines/rectangles/barcodes are intentionally skipped |
+| `EscPosRenderer` | `RenderList` | `SkiaPagePainter` on a `Gray8` `SKBitmap` at printer dpi → 1-bit rows → `GS v 0` blocks | Thermal receipt printers. One `SkiaPaintCache` per document, pooled row buffer, threshold or Floyd–Steinberg; `EscPosPageFit` maps the page to `DotsPerLine` (Roll80/Roll58 margins = the unprintable strip, so `Auto` crops exactly them). All knobs live in `EscPosRendererOptions`, re-validated on every `Render` |
 
 ### Fonts (SVG / PDF / measurer) — keep these in sync
 

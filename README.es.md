@@ -40,16 +40,17 @@
 10. [Quick start](#-quick-start)
 11. [Designer visual](#-designer-visual)
 12. [Visor de reportes](#️-visor-de-reportes-netreporterviewer)
-13. [Sintaxis del template YAML](#-sintaxis-del-template-yaml)
-14. [Expresiones (DSL)](#-expresiones-dsl)
-15. [Gráficos](#-gráficos)
-16. [Renderers disponibles](#-renderers-disponibles)
-17. [Tamaños de papel](#-tamaños-de-papel)
-18. [Tests](#-tests)
-19. [Limitaciones conocidas](#-limitaciones-conocidas)
-20. [Completado](#-completado)
-21. [Roadmap](#-roadmap)
-22. [Licencias](#-licencias)
+13. [Impresoras térmicas ESC/POS](#-impresoras-térmicas-escpos-netreporterescpos)
+14. [Sintaxis del template YAML](#-sintaxis-del-template-yaml)
+15. [Expresiones (DSL)](#-expresiones-dsl)
+16. [Gráficos](#-gráficos)
+17. [Renderers disponibles](#-renderers-disponibles)
+18. [Tamaños de papel](#-tamaños-de-papel)
+19. [Tests](#-tests)
+20. [Limitaciones conocidas](#-limitaciones-conocidas)
+21. [Completado](#-completado)
+22. [Roadmap](#-roadmap)
+23. [Licencias](#-licencias)
 
 ---
 
@@ -61,6 +62,7 @@
 |---|---|
 | 🖥️ **`NetReporter.Viewer`** (paquete nuevo, opt-in) | `app.MapNetReporterViewer("/reports", …)` sirve un visor paginado y con zoom para los usuarios finales de una app ASP.NET Core: navegación de páginas, miniaturas, impresión, descarga en PDF/XLSX/HTML. Las páginas son SVG escritos bajo demanda e incrustados por el web component `<netreporter-viewer>` (sin CDN), así que el texto se puede seleccionar y buscar; las imágenes van por URL, así que un logo en todas las páginas se descarga una vez. Ver [Visor de reportes](#️-visor-de-reportes-netreporterviewer) |
 | ⚡ **SVG escrito directamente** | `SvgRenderer` ya no dibuja a través del canvas SVG de Skia, que reconstruía la tabla glifo→Unicode de toda la fuente en cada texto (coste proporcional al número de glifos, bajo un lock global) y recodificaba cada imagen en PNG en cada página. Un documento de 18 páginas y 600 filas pasó de 96 ms a 9.7 ms en Linux (358 → 10 ms en macOS), y 8 hilos renderizan 1 060 docs/s en vez de 12.6. Misma geometría que el PDF (`PageGeometry` se comparte con el pintor del PDF; un test compara cada posición de glifo con el canvas de Skia) |
+| 🧾 **Rollo de papel + ESC/POS** (paquete nuevo `NetReporter.EscPos`, opt-in) | `PageSetup.Roll80` / `Roll58` / `Roll(ancho)` (`page.size: roll80`) son páginas continuas: sin saltos de página, el layout devuelve una página cuya altura es la del contenido. `EscPosRenderer` la rasteriza con el pintor del PDF y emite bloques `GS v 0` con alimentación, corte y gaveta (2.2 ms por ticket); `EscPosTcpPrinter` los manda por TCP 9100. Todo se configura en tiempo de ejecución. Ver [Impresoras térmicas ESC/POS](#-impresoras-térmicas-escpos-netreporterescpos) |
 | 🎨 **Designer** | Inserta elementos arrastrando una herramienta a cualquier punto de la hoja (márgenes y huecos caen en la banda más cercana) o haciendo clic en la herramienta y luego clic/dibujando en la hoja; el drawer de propiedades es una columna junto a la hoja en vez de taparla; editor redimensionable/plegable, editores CodeMirror con líneas de error y enlace elemento ↔ YAML, navegador de páginas, vista limpia, zoom alrededor del cursor, reglas, cuadrícula, guías inteligentes y selector ES/EN. Ver [Designer visual](#-designer-visual) |
 
 ### ⚠️ Cambios de comportamiento en la 1.4
@@ -234,7 +236,7 @@ NetReporter separa el reporte en cuatro capas con interfaces claras. **El templa
 - 🔗 **JSON Path bindings** — `$.cliente.nombre`, `$.lineas[*]`, `$.lineas[*].total` (proyección), `$$.raiz` (la raíz del documento desde dentro de una tabla)
 - 🪝 **Template strings** — `{{ pageNumber }}`, `{{ totalPages }}`, `{{ $.titulo }}`, `{{ $.total:N2 }}`, `{{ #group }}`, `{{ #count }}`, y cualquier expresión: `{{ $.total * 1.15 : N2 }}`
 - 📁 **FileName y title con templates** — `fileName: "factura-{{ $.numero }}"` resuelto al exportar
-- 🎯 **Multi-formato** — Letter, Legal, A3-A6, B4-B5, Tabloid, custom (paperoll 80mm/58mm)
+- 🎯 **Multi-formato** — Letter, Legal, A3-A6, B4-B5, Tabloid, custom, y rollos continuos de 80/58 mm para impresoras POS (impresos como ESC/POS con `NetReporter.EscPos`)
 
 ### Designer visual web
 - 🖱️ **Drag-and-drop** sobre el preview SVG (mover y crear elementos) — toolbox con Text, Line, Rect, Table, **Image, Barcode, Chart**
@@ -369,7 +371,8 @@ NetReporter/
     └── TemplateSample/          Demo con YAML (13 templates exportados por Program.cs)
         ├── report.yaml                   Reporte de clientes
         ├── invoice-laser.yaml            📄 Factura Letter (laser)
-        ├── invoice-paperoll.yaml         🧾 Factura 80mm (POS térmico)
+        ├── invoice-paperoll.yaml         🧾 Recibo 80mm (rollo continuo, POS térmico)
+        ├── ticket-complete.yaml          🧾 Ticket 80mm con logo, QR, Code 128 y texto legal
         ├── wrap-demo.yaml                Word-wrap + auto-height
         ├── grouped-invoice.yaml          groupBy + subtotales sum/count/avg
         ├── invoice-with-qr.yaml          Logo + QR del CAI
@@ -584,7 +587,8 @@ Los campos de path sugieren bindings descubiertos en `data.json`: paths de array
 |---|---|
 | `clientes` | Reporte tabular básico con header, tabla, page footer |
 | `invoice-laser` | Factura completa Letter con bloque de totales |
-| `invoice-paperoll` | Recibo continuo 80mm (impresora térmica POS) |
+| `invoice-paperoll` | Recibo continuo 80mm (`roll80`, impresora térmica POS), monoespaciado |
+| `ticket-complete` | Ticket continuo 80mm con logo, caja de cliente, QR del CAI, Code 128 del número y texto legal con ajuste de línea — el escaparate de ESC/POS |
 | `wrap-demo` | Word wrap real + auto-height de bandas |
 | `grouped-invoice` | `groupBy` con headers por grupo y subtotales `Sum`/`Count`/`Avg` |
 | `invoice-with-qr` | Logo PNG embebido + QR vectorial del CAI |
@@ -689,6 +693,44 @@ app.MapNetReporterViewer("/reports", async (request, ct) =>
 - No está en el meta-paquete `NetReporter` (trae ASP.NET Core). Demo: `dotnet run --project samples/ViewerSample` → `http://localhost:5297`.
 
 ---
+
+## 🧾 Impresoras térmicas ESC/POS (`NetReporter.EscPos`)
+
+Imprime tickets directamente en una impresora térmica de 58/80 mm. El reporte maquetado se rasteriza con el **mismo pintor que el PDF**, así que fuentes, códigos QR, códigos de barras, logos y líneas salen exactamente como en el PDF o en el preview del Designer, y se envía como bloques raster `GS v 0` seguidos de la alimentación, el corte y (opcionalmente) la apertura de la gaveta. `EscPosTcpPrinter` manda los bytes por TCP (puerto 9100); implementa `IEscPosTransport` para USB, serie o un spooler. Combínalo con una página continua ([`Roll80` / `Roll58`](#rollo-de-papel-impresoras-térmicas-pos)) para que un ticket largo sea una sola tira cortada al final.
+
+```csharp
+using NetReporter.EscPos;
+
+var layout = new LayoutEngine(SkiaTextMeasurer.Instance, ZXingBarcodeGenerator.Instance).Layout(report); // PageSetup.Roll80
+
+var renderer = new EscPosRenderer(EscPosRendererOptions.ForRoll80());   // ForRoll58(), o new EscPosRendererOptions { … }
+byte[] escPos = renderer.Render(layout, cancellationToken);              // también Render(layout, stream, ct)
+
+var printer = new EscPosTcpPrinter(new EscPosTcpPrinterOptions
+{
+    Host = "192.168.1.50",
+    Port = 9100,
+    ConnectTimeout = TimeSpan.FromSeconds(3),
+    SendTimeout = TimeSpan.FromSeconds(20),
+});
+await printer.SendAsync(escPos, cancellationToken);          // o: await printer.PrintAsync(layout, renderer, ct)
+```
+
+Todo es una opción que fijas en tiempo de ejecución (y puedes cambiar entre impresiones; se revalidan en cada render):
+
+| Opción | Por defecto | Significado |
+|---|---|---|
+| `DotsPerLine` | 576 | Puntos imprimibles por fila: 576 en 80 mm, 384 en 58 mm (múltiplo de 8) |
+| `Dpi` | 203.2 | Resolución del cabezal (8 puntos/mm); algunas impresoras son de 180 dpi |
+| `PageFit` | `Auto` | `Crop` = 1:1 y centrado (los márgenes de los presets de rollo caen justo en la franja no imprimible); `Scale` = ajusta el ancho de la página; `Auto` recorta si el contenido cabe y si no escala |
+| `Dithering` / `Threshold` | `Threshold` / 160 | El umbral fijo mantiene el texto nítido; `FloydSteinberg` (usa ~128) conserva los grises de logos y fotos |
+| `BandRows` | 256 | Filas por bloque `GS v 0` (bloques pequeños para el búfer de impresoras económicas; máximo 2303) |
+| `Initialize`, `Prologue`, `Epilogue` | `true`, –, – | `ESC @` primero; tus bytes tras él (página de códigos, densidad…) y tras el último corte |
+| `FeedLinesBeforeCut`, `Cut`, `CutAfterEachPage` | 3, `Partial`, `true` | Alimentación antes de `GS V`; `None` / `Partial` / `Full`; los documentos de varias páginas cortan por página o una vez al final |
+| `OpenCashDrawer`, `CashDrawerPin` | `false`, 0 | Pulso `ESC p` en el pin 2 (0) o el pin 5 (1) antes de imprimir |
+| TCP: `Host`, `Port`, `ConnectTimeout`, `SendTimeout`, `NoDelay` | –, 9100, 5 s, 30 s, `true` | Conexiones rechazadas y timeouts salen como `EscPosPrinterException` (con host y puerto); la cancelación como `OperationCanceledException` |
+
+El ticket de ejemplo (`invoice-paperoll.yaml`, 80 mm, 297 pt de alto) se renderiza en **2.2 ms** en un hilo y a **2 500 tickets/s** con 8 hilos (60 KB de raster), a la par del PDF del mismo layout; `dotnet run --project samples/TemplateSample` lo escribe como `invoice-paperoll.escpos`. Las fuentes se resuelven por el mismo `SkiaFonts` que el resto de renderers, así que un host sin fuentes falla con un error claro en vez de imprimir papel en blanco (registra `LiberationFonts` o las tuyas). Este paquete apunta a ESC/POS compatible Epson; las impresoras Star en Star Line Mode hablan otro juego de comandos.
 
 ## 📝 Sintaxis del template YAML
 
@@ -1132,6 +1174,15 @@ byte[] xlsx = new XlsxRenderer().Render(report, new XlsxRenderOptions
 
 ---
 
+### 🧾 ESC/POS — `NetReporter.EscPos`
+
+Salida raster para impresoras térmicas de tickets: la página se pinta con el `SkiaPagePainter` del PDF en una imagen de 1 bit a la resolución de la impresora y se envía como bloques `GS v 0`, más alimentación, corte y gaveta; `EscPosTcpPrinter` la manda por TCP. Consume `RenderList`, así que imprime todo lo que imprime el PDF. Ver [Impresoras térmicas ESC/POS](#-impresoras-térmicas-escpos-netreporterescpos).
+
+```csharp
+byte[] ticket = new EscPosRenderer(EscPosRendererOptions.ForRoll80()).Render(renderList);
+await new EscPosTcpPrinter("192.168.1.50").SendAsync(ticket);
+```
+
 ## 📐 Tamaños de papel
 
 ### US / ANSI
@@ -1143,7 +1194,24 @@ byte[] xlsx = new XlsxRenderer().Render(report, new XlsxRenderOptions
 ### ISO B
 `B4` · `B5`
 
-### Custom (ej. paperoll POS)
+### Rollo de papel (impresoras térmicas POS)
+
+`Roll80` (80 mm, 576 puntos) · `Roll58` (58 mm, 384 puntos) · `Roll(anchoPt)`. Son **continuos**: no hay saltos de página, el layout devuelve una sola página y `RenderList.Page.Size.Height` es la altura final (contenido + pie de página + margen inferior). `PageHeader` y `PageFooter` se imprimen una vez, arriba y justo después del contenido, así que `{{ totalPages }}` siempre es `1`. Los márgenes laterales por defecto (4 mm en 80 mm, 5 mm en 58 mm) coinciden con la franja no imprimible de las impresoras, de modo que el ancho de contenido es exactamente el área imprimible (72 mm / 48 mm). `orientation: landscape` se rechaza en rollos.
+
+```yaml
+page:
+  size: roll80          # o roll58, o `roll` + width: 200 (puntos)
+  margins: { horizontal: 4mm, vertical: 4mm }
+```
+
+```csharp
+PageSetup.Roll80                      // 226.77 pt de ancho, continuo
+PageSetup.Roll(Units.Mm(76))          // cualquier ancho, márgenes de 4 mm
+```
+
+Imprímelo con [`NetReporter.EscPos`](#-impresoras-térmicas-escpos-netreporterescpos), o expórtalo a PDF/SVG/HTML como cualquier reporte (la página mide lo que mide el ticket).
+
+### Custom (ej. ticket POS de altura fija)
 
 ```yaml
 page:
@@ -1171,16 +1239,17 @@ dotnet test
 ┌─────────────────────────────────────┬───────┐
 │ Proyecto                            │ Tests │
 ├─────────────────────────────────────┼───────┤
-│ NetReporter.Core.Tests              │  117  │
-│ NetReporter.Templates.Tests         │  215  │
+│ NetReporter.Core.Tests              │  124  │
+│ NetReporter.Templates.Tests         │  221  │
 │ NetReporter.Html.Tests              │   20  │
-│ NetReporter.Svg.Tests               │   61  │
+│ NetReporter.Svg.Tests               │   62  │
 │ NetReporter.Pdf.Tests               │   18  │
 │ NetReporter.Xlsx.Tests              │   15  │
 │ NetReporter.Barcodes.Tests          │    7  │
 │ NetReporter.Viewer.Tests            │   26  │
+│ NetReporter.EscPos.Tests            │   19  │
 ├─────────────────────────────────────┼───────┤
-│ Total                               │  479  │
+│ Total                               │  512  │
 └─────────────────────────────────────┴───────┘
 ```
 
@@ -1203,6 +1272,7 @@ El Designer (UI) no tiene tests automatizados; sus features de la 1.1 se verific
 | Feature | Estado | Workaround actual |
 |---|---|---|
 | **Subreportes** | ❌ | Usa varias bandas Detail / tablas sobre distintos paths del JSON |
+| **Un `ReportHeader` / `ReportFooter` / `PageHeader` / `PageFooter` por reporte** | ⚠️ | El motor de layout usa la primera banda de cada uno de esos tipos e ignora las demás. Agrupa los bloques en una sola banda (con `autoHeight: true` para que crezca); bandas `Detail` puedes poner las que quieras |
 | **Bandas Detail iteradas por datos** | ❌ | Una banda Detail es un bloque estático; para repetir datos usa tablas (y grupos) en lugar de repetir bandas |
 | **Agrupar sin ordenar** | ⚠️ | Los grupos son tramos consecutivos: ordena las filas por las claves de grupo antes de enlazar |
 | **Tipos de gráfico** | ⚠️ | bar / horizontalBar / line / area / pie / donut. Sin scatter, combinados ni doble eje; sin títulos de ejes (usa un elemento de texto) |

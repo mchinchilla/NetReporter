@@ -154,11 +154,20 @@ public sealed class TemplateReport
             "custom" => PageSetup.Custom(
                 yaml.Width  ?? throw new FormatException("page.size=custom requiere 'width'."),
                 yaml.Height ?? throw new FormatException("page.size=custom requiere 'height'.")),
+            // Papel continuo (rollo POS): sin saltos de página, la altura la decide el contenido.
+            "roll80" => PageSetup.Roll80,
+            "roll58" => PageSetup.Roll58,
+            "roll" => PageSetup.Roll(
+                yaml.Width ?? throw new FormatException("page.size=roll requiere 'width' (puntos; 80 mm = 226.77).")),
             _ => throw new FormatException($"Tamaño de página desconocido: '{yaml.Size}'.")
         };
 
         if (string.Equals(yaml.Orientation, "landscape", StringComparison.OrdinalIgnoreCase))
+        {
+            if (page.Continuous)
+                throw new FormatException("page.orientation no aplica a papel continuo (roll80/roll58/roll): su altura la decide el contenido.");
             page = page.Landscape();
+        }
 
         if (yaml.Margins is not null)
             page = page.WithMargins(ResolveThickness(yaml.Margins));

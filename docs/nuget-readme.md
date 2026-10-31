@@ -35,6 +35,7 @@ Or reference only the pieces you need. All packages share the same version numbe
 | `NetReporter.Barcodes` | QR / Code 128 / Code 39 / EAN-13 via ZXing.Net (opt-in) |
 | `NetReporter.Fonts.Liberation` | Liberation Sans / Serif / Mono embedded (SIL OFL 1.1), for hosts where SkiaSharp sees no system fonts (opt-in, not in the meta-package) |
 | `NetReporter.Viewer` | Report viewer for ASP.NET Core apps: `app.MapNetReporterViewer("/reports", …)` serves a paginated viewer (`<netreporter-viewer>` web component, no CDN) with thumbnails, zoom, print and PDF/XLSX/HTML download (opt-in, not in the meta-package) |
+| `NetReporter.EscPos` | ESC/POS output for 58/80 mm thermal receipt printers: the laid-out report (ideally a continuous `PageSetup.Roll80`/`Roll58` page) is rasterized with the same painter as the PDF and sent as `GS v 0` blocks with feed, cut and cash-drawer commands; `EscPosTcpPrinter` sends it over TCP (port 9100). Every setting (dots per line, dpi, threshold/dithering, cut, drawer, host, port, timeouts) is an option set at runtime (opt-in, not in the meta-package) |
 
 ## How it works
 

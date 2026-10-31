@@ -1,5 +1,6 @@
 using NetReporter.Barcodes;
 using NetReporter.Core.Layout;
+using NetReporter.EscPos;
 using NetReporter.Pdf;
 using NetReporter.Svg;
 using NetReporter.Templates;
@@ -27,11 +28,29 @@ RenderToPdf(
     Path.Combine(baseDir, "invoice-data.json"),
     "invoice-laser.pdf");
 
-// === Factura paperoll (80mm) ===
+// === Factura paperoll (80mm, papel continuo) ===
 RenderToPdf(
     Path.Combine(baseDir, "invoice-paperoll.yaml"),
     Path.Combine(baseDir, "invoice-data.json"),
     "invoice-paperoll.pdf");
+
+// === Ticket completo (80mm continuo: logo, QR, Code 128, texto legal con wrap) ===
+RenderToPdf(
+    Path.Combine(baseDir, "ticket-complete.yaml"),
+    Path.Combine(baseDir, "invoice-data.json"),
+    "ticket-complete.pdf");
+
+// Los mismos RenderList como ESC/POS: bytes listos para una impresora térmica de 80 mm
+// (new EscPosTcpPrinter("192.168.1.50").SendAsync(bytes) los mandaría por el puerto 9100).
+foreach (var ticket in new[] { "invoice-paperoll", "ticket-complete" })
+{
+    var template = YamlReportLoader.Load(Path.Combine(baseDir, $"{ticket}.yaml"));
+    var report = template.Bind(File.ReadAllText(Path.Combine(baseDir, "invoice-data.json")));
+    var layout = new LayoutEngine(measurer, barcodeGen).Layout(report);
+    var escPos = new EscPosRenderer(EscPosRendererOptions.ForRoll80()).Render(layout);
+    File.WriteAllBytes(Path.Combine(baseDir, $"{ticket}.escpos"), escPos);
+    Console.WriteLine($"{ticket + ".escpos",-28}  {layout.Page.Size.Height:0} pt de alto  {escPos.Length,7} b");
+}
 
 // === Demo de word wrap + auto-height ===
 RenderToPdf(

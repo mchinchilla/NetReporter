@@ -8,6 +8,7 @@
     <Project Path="src/NetReporter/NetReporter.csproj" />
     <Project Path="src/NetReporter.Barcodes/NetReporter.Barcodes.csproj" />
     <Project Path="src/NetReporter.Core/NetReporter.Core.csproj" />
+    <Project Path="src/NetReporter.EscPos/NetReporter.EscPos.csproj" />
     <Project Path="src/NetReporter.Fonts.Liberation/NetReporter.Fonts.Liberation.csproj" />
     <Project Path="src/NetReporter.Html/NetReporter.Html.csproj" />
     <Project Path="src/NetReporter.Pdf/NetReporter.Pdf.csproj" />
@@ -19,6 +20,7 @@
   <Folder Name="/tests/">
     <Project Path="tests/NetReporter.Barcodes.Tests/NetReporter.Barcodes.Tests.csproj" />
     <Project Path="tests/NetReporter.Core.Tests/NetReporter.Core.Tests.csproj" />
+    <Project Path="tests/NetReporter.EscPos.Tests/NetReporter.EscPos.Tests.csproj" />
     <Project Path="tests/NetReporter.Html.Tests/NetReporter.Html.Tests.csproj" />
     <Project Path="tests/NetReporter.Pdf.Tests/NetReporter.Pdf.Tests.csproj" />
     <Project Path="tests/NetReporter.Svg.Tests/NetReporter.Svg.Tests.csproj" />

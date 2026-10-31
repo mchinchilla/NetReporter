@@ -505,8 +505,9 @@ public sealed class HomeController : Controller
             {
                 Pages = pages,
                 StyleNames = styleNames,
-                PageWidthPt = report.Page.Size.Width,
-                PageHeightPt = report.Page.Size.Height,
+                // Del RenderList, no de la definición: en papel continuo la altura la decide el layout.
+                PageWidthPt = layout.Page.Size.Width,
+                PageHeightPt = layout.Page.Size.Height,
                 MarginLeftPt = report.Page.Margins.Left,
                 MarginTopPt = report.Page.Margins.Top,
                 MarginRightPt = report.Page.Margins.Right,

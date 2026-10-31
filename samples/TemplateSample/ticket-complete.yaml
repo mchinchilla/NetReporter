@@ -1,0 +1,256 @@
+# Ticket completo para impresora térmica de 80 mm (papel continuo): logo, datos fiscales, cliente,
+# tabla de líneas, totales, QR del CAI, Code 128 del número y texto legal con ajuste de línea.
+# page.size: roll80 → una sola tira cuya altura la decide el contenido; márgenes de 4 mm = área
+# imprimible de 72 mm (576 puntos a 203 dpi) → ancho de contenido 204 pt. Todo en negro: las
+# térmicas no imprimen grises (NetReporter.EscPos los convierte con umbral o dithering).
+# Un reporte tiene UN ReportHeader y UN ReportFooter: cada uno agrupa aquí varios bloques y crece
+# con autoHeight; los textos con wordWrap van al final de su banda para no pisar a los siguientes.
+# Imprímelo con `new EscPosRenderer(EscPosRendererOptions.ForRoll80()).Render(layout)`.
+
+name: TicketCompleto
+title: "Ticket {{ $.numero }}"
+fileName: "ticket-{{ $.numero }}"
+
+page:
+  size: roll80
+  margins:
+    horizontal: 4mm
+    vertical: 4mm
+
+culture: es-HN
+
+styles:
+  Default:
+    fontFamily: Helvetica
+    fontSize: 8
+    foreground: "#000000"
+  Center:
+    basedOn: Default
+    align: center
+  Right:
+    basedOn: Default
+    align: right
+  Bold:
+    basedOn: Default
+    bold: true
+  BoldCenter:
+    basedOn: Bold
+    align: center
+  Company:
+    basedOn: Bold
+    fontSize: 11
+    align: center
+  Title:
+    basedOn: Bold
+    fontSize: 13
+    align: center
+  Label:
+    basedOn: Bold
+    fontSize: 7
+  Small:
+    basedOn: Default
+    fontSize: 6.5
+  SmallCenter:
+    basedOn: Small
+    align: center
+  Total:
+    basedOn: Bold
+    fontSize: 11
+  TotalRight:
+    basedOn: Total
+    align: right
+  Mono:
+    basedOn: Default
+    fontFamily: Courier
+  TableHeader:
+    basedOn: Mono
+    bold: true
+    padding: { horizontal: 1, vertical: 1 }
+    border:
+      bottom: { thickness: 0.5, color: "#000000" }
+  TableRow:
+    basedOn: Mono
+    padding: { horizontal: 1, vertical: 1 }
+
+bands:
+  # Logo · emisor · título · datos fiscales · cliente (la dirección del cliente ajusta línea, por eso va al final)
+  - kind: ReportHeader
+    height: 216          # mínimo; crece si la dirección del cliente ocupa más líneas
+    autoHeight: true
+    elements:
+      - type: image
+        bounds: { x: 62, y: 0, width: 80, height: 40 }
+        source: "data:image/png;base64,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"
+        fit: contain
+      - type: text
+        bounds: { x: 0, y: 44, width: 204, height: 14 }
+        content: "{{ $.emisor.nombre }}"
+        style: Company
+      - type: text
+        bounds: { x: 0, y: 58, width: 204, height: 10 }
+        content: "RTN: {{ $.emisor.rtn }}"
+        style: Center
+      - type: text
+        bounds: { x: 0, y: 68, width: 204, height: 10 }
+        content: "{{ $.emisor.direccion }}"
+        style: Center
+      - type: text
+        bounds: { x: 0, y: 78, width: 204, height: 10 }
+        content: "Tel: {{ $.emisor.telefono }}"
+        style: Center
+      - type: line
+        bounds: { x: 0, y: 92, width: 204, height: 0 }
+        color: "#000000"
+        thickness: 0.5
+
+      - type: text
+        bounds: { x: 0, y: 96, width: 204, height: 16 }
+        content: "FACTURA"
+        style: Title
+      - type: text
+        bounds: { x: 0, y: 112, width: 204, height: 10 }
+        content: "No. {{ $.numero }}"
+        style: Center
+      - type: text
+        bounds: { x: 0, y: 124, width: 100, height: 10 }
+        content: "Fecha: {{ $.fecha }}"
+        style: Default
+      - type: text
+        bounds: { x: 100, y: 124, width: 104, height: 10 }
+        content: "Vence CAI: {{ $.vence }}"
+        style: Right
+      - type: text
+        bounds: { x: 0, y: 135, width: 204, height: 9 }
+        content: "CAI: {{ $.cai }}"
+        style: Small
+      - type: line
+        bounds: { x: 0, y: 148, width: 204, height: 0 }
+        color: "#000000"
+        thickness: 0.5
+
+      - type: rectangle
+        bounds: { x: 0, y: 154, width: 204, height: 60 }
+        fill: "#FFFFFF"
+        borderLine: { thickness: 0.5, color: "#000000" }
+      - type: text
+        bounds: { x: 4, y: 157, width: 196, height: 9 }
+        content: "CLIENTE"
+        style: Label
+      - type: text
+        bounds: { x: 4, y: 166, width: 196, height: 11 }
+        content: "{{ $.cliente.nombre }}"
+        style: Bold
+      - type: text
+        bounds: { x: 4, y: 178, width: 196, height: 10 }
+        content: "RTN: {{ $.cliente.rtn }}"
+        style: Default
+      - type: text
+        bounds: { x: 4, y: 188, width: 196, height: 10 }
+        content: "{{ $.cliente.direccion }}"
+        style: Default
+        wordWrap: true
+        autoHeight: true
+
+  # Líneas de la factura (la tabla crece con los datos; en papel continuo nunca se parte)
+  - kind: Detail
+    height: 0
+    autoHeight: true
+    elements:
+      - type: table
+        bounds: { x: 0, y: 6, width: 204, height: 0 }
+        rows: "$.lineas"
+        headerStyle: TableHeader
+        rowStyle: TableRow
+        headerMode: RepeatOnPageBreak
+        headerHeight: 13
+        rowHeight: 11
+        columns:
+          - { header: "Cod",   binding: "$.codigo",      width: 36, align: left }
+          - { header: "Cant",  binding: "$.cantidad",    width: 24, align: right }
+          - { header: "Desc",  binding: "$.descripcion", width: 84, align: left }
+          - { header: "Total", binding: "$.total",       width: 60, format: "N2", align: right }
+
+  # Totales · QR del CAI · Code 128 del número · despedida · texto legal (ajusta línea, va al final)
+  - kind: ReportFooter
+    height: 246          # mínimo; crece con el texto legal
+    autoHeight: true
+    elements:
+      - type: line
+        bounds: { x: 0, y: 2, width: 204, height: 0 }
+        color: "#000000"
+        thickness: 0.5
+      - type: text
+        bounds: { x: 0, y: 8, width: 120, height: 11 }
+        content: "Subtotal:"
+        style: Default
+      - type: text
+        bounds: { x: 120, y: 8, width: 84, height: 11 }
+        content: "{{ $.subtotal : N2 }}"
+        style: Right
+      - type: text
+        bounds: { x: 0, y: 20, width: 120, height: 11 }
+        content: "ISV 15%:"
+        style: Default
+      - type: text
+        bounds: { x: 120, y: 20, width: 84, height: 11 }
+        content: "{{ $.isv : N2 }}"
+        style: Right
+      - type: line
+        bounds: { x: 0, y: 34, width: 204, height: 0 }
+        color: "#000000"
+        thickness: 1
+      - type: text
+        bounds: { x: 0, y: 40, width: 100, height: 16 }
+        content: "TOTAL:"
+        style: Total
+      - type: text
+        bounds: { x: 100, y: 40, width: 104, height: 16 }
+        content: "L {{ $.total : N2 }}"
+        style: TotalRight
+      - type: line
+        bounds: { x: 0, y: 60, width: 204, height: 0 }
+        color: "#000000"
+        thickness: 0.5
+
+      - type: text
+        bounds: { x: 0, y: 66, width: 204, height: 9 }
+        content: "CAI verificable en sar.gob.hn"
+        style: SmallCenter
+      - type: barcode
+        bounds: { x: 62, y: 76, width: 80, height: 80 }
+        value: "{{ $.cai }}"
+        format: qr
+        barcodeForeground: "#000000"
+      - type: barcode
+        bounds: { x: 12, y: 164, width: 180, height: 32 }
+        value: "{{ $.numero }}"
+        format: code128
+        barcodeForeground: "#000000"
+      - type: text
+        bounds: { x: 0, y: 198, width: 204, height: 9 }
+        content: "{{ $.numero }}"
+        style: SmallCenter
+
+      - type: line
+        bounds: { x: 0, y: 212, width: 204, height: 0 }
+        color: "#000000"
+        thickness: 0.5
+      - type: text
+        bounds: { x: 0, y: 218, width: 204, height: 12 }
+        content: "¡Gracias por su compra!"
+        style: BoldCenter
+      - type: text
+        bounds: { x: 0, y: 234, width: 204, height: 9 }
+        content: "Esta factura es generada electrónicamente y es válida sin firma. Conserve este documento por 5 años según el régimen tributario hondureño. Original: cliente · Copia: emisor."
+        style: SmallCenter
+        wordWrap: true
+        autoHeight: true
+
+  # En papel continuo se imprime una sola vez, al final del ticket
+  - kind: PageFooter
+    height: 12
+    elements:
+      - type: text
+        bounds: { x: 0, y: 2, width: 204, height: 9 }
+        content: "Impreso con NetReporter · pág. {{ pageNumber }}/{{ totalPages }}"
+        style: SmallCenter

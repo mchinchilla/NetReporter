@@ -1,20 +1,19 @@
-# Factura formato paperoll / POS — ancho 80mm (226.77pt).
-# Altura fija 600pt (~21cm) suficiente para la factura sample.
-# Ajusta 'height' del PageSetup según la longitud típica del ticket.
-# ContentWidth = 226.77 - 2*8 = 210.77pt. Columnas de la tabla suman a 210 exactos.
-# Font monoespaciada (Courier) para alinear columnas de montos.
+# Factura formato paperoll / POS — rollo de 80 mm (226.77 pt), papel continuo.
+# page.size: roll80 → sin saltos de página: la altura final la decide el contenido (un ticket largo
+# sale en una sola tira y se corta al final). Imprímelo con NetReporter.EscPos o expórtalo a PDF.
+# Márgenes de 4 mm = área imprimible de 72 mm (576 puntos a 203 dpi): ContentWidth = 204 pt y las
+# columnas de la tabla suman 204 exactos. Fuente monoespaciada (Courier) para alinear montos.
+# Un reporte tiene UN ReportHeader y UN ReportFooter (el motor ignora los demás): aquí van completos.
 
 name: FacturaPaperoll
 title: "Ticket {{ $.numero }}"
 fileName: "ticket-{{ $.numero }}"
 
 page:
-  size: custom
-  width: 226.77        # 80mm
-  height: 600          # ~21cm — ajustar según longitud típica
+  size: roll80         # papel continuo de 80 mm: sin saltos de página, la altura la decide el contenido
   margins:
-    horizontal: 8pt
-    vertical: 10pt
+    horizontal: 4mm    # área imprimible de 72 mm (576 puntos a 203 dpi) → contenido de 204 pt
+    vertical: 4mm
 
 culture: es-HN
 
@@ -50,6 +49,9 @@ styles:
   TotalRight:
     basedOn: Total
     align: right
+  Small:               # el CAI no cabe en 204 pt a 9 pt; a 7 pt sí (el texto que desborda se recorta por palabra)
+    basedOn: Default
+    fontSize: 7
   TableHeader:
     basedOn: Default
     bold: true
@@ -61,80 +63,72 @@ styles:
     padding: { horizontal: 1, vertical: 1 }
 
 bands:
-  # ====== ENCABEZADO: emisor centrado ======
+  # Emisor + título + cliente
   - kind: ReportHeader
-    height: 110
+    height: 154
     elements:
       - type: text
-        bounds: { x: 0, y: 0, width: 210, height: 14 }
+        bounds: { x: 0, y: 0, width: 204, height: 14 }
         content: "{{ $.emisor.nombre }}"
         style: BoldCenter
       - type: text
-        bounds: { x: 0, y: 14, width: 210, height: 11 }
+        bounds: { x: 0, y: 14, width: 204, height: 11 }
         content: "RTN: {{ $.emisor.rtn }}"
         style: Center
       - type: text
-        bounds: { x: 0, y: 25, width: 210, height: 11 }
+        bounds: { x: 0, y: 25, width: 204, height: 11 }
         content: "{{ $.emisor.direccion }}"
         style: Center
       - type: text
-        bounds: { x: 0, y: 36, width: 210, height: 11 }
+        bounds: { x: 0, y: 36, width: 204, height: 11 }
         content: "Tel: {{ $.emisor.telefono }}"
         style: Center
 
-      # Separador
       - type: line
-        bounds: { x: 0, y: 50, width: 210, height: 0 }
+        bounds: { x: 0, y: 50, width: 204, height: 0 }
         color: "#000000"
         thickness: 0.5
 
-      # Título FACTURA
       - type: text
-        bounds: { x: 0, y: 56, width: 210, height: 14 }
+        bounds: { x: 0, y: 56, width: 204, height: 14 }
         content: "FACTURA"
         style: Title
       - type: text
-        bounds: { x: 0, y: 72, width: 210, height: 11 }
+        bounds: { x: 0, y: 72, width: 204, height: 11 }
         content: "No. {{ $.numero }}"
         style: Center
       - type: text
-        bounds: { x: 0, y: 84, width: 210, height: 11 }
+        bounds: { x: 0, y: 84, width: 204, height: 11 }
         content: "Fecha: {{ $.fecha }}"
         style: Center
 
-      # Separador
       - type: line
-        bounds: { x: 0, y: 98, width: 210, height: 0 }
+        bounds: { x: 0, y: 98, width: 204, height: 0 }
         color: "#000000"
         thickness: 0.5
 
-  # ====== CLIENTE (bloque compacto) ======
-  - kind: ReportHeader
-    height: 44
-    elements:
       - type: text
-        bounds: { x: 0, y: 0, width: 210, height: 11 }
+        bounds: { x: 0, y: 104, width: 204, height: 11 }
         content: "Cliente: {{ $.cliente.nombre }}"
         style: Default
       - type: text
-        bounds: { x: 0, y: 12, width: 210, height: 11 }
+        bounds: { x: 0, y: 116, width: 204, height: 11 }
         content: "RTN: {{ $.cliente.rtn }}"
         style: Default
       - type: text
-        bounds: { x: 0, y: 24, width: 210, height: 11 }
+        bounds: { x: 0, y: 128, width: 204, height: 11 }
         content: "{{ $.cliente.direccion }}"
         style: Default
       - type: line
-        bounds: { x: 0, y: 40, width: 210, height: 0 }
+        bounds: { x: 0, y: 144, width: 204, height: 0 }
         color: "#000000"
         thickness: 0.5
 
-  # ====== LÍNEAS ======
   - kind: Detail
     height: 0
     elements:
       - type: table
-        bounds: { x: 0, y: 0, width: 210, height: 0 }
+        bounds: { x: 0, y: 0, width: 204, height: 0 }
         rows: "$.lineas"
         headerStyle: TableHeader
         rowStyle: TableRow
@@ -144,81 +138,67 @@ bands:
         columns:
           - { header: "Cod",    binding: "$.codigo",      width: 40,  align: left  }
           - { header: "Cant",   binding: "$.cantidad",    width: 30,  align: right }
-          - { header: "Desc",   binding: "$.descripcion", width: 80,  align: left  }
+          - { header: "Desc",   binding: "$.descripcion", width: 74,  align: left  }
           - { header: "Total",  binding: "$.total",       width: 60,  format: "N2", align: right }
 
-  # ====== TOTALES ======
+  # Totales + CAI + despedida
   - kind: ReportFooter
-    height: 90
+    height: 120
     elements:
       - type: line
-        bounds: { x: 0, y: 2, width: 210, height: 0 }
+        bounds: { x: 0, y: 2, width: 204, height: 0 }
         color: "#000000"
         thickness: 0.5
-      # Subtotal
       - type: text
         bounds: { x: 0, y: 6, width: 110, height: 12 }
         content: "Subtotal:"
         style: Default
       - type: text
-        bounds: { x: 110, y: 6, width: 100, height: 12 }
+        bounds: { x: 104, y: 6, width: 100, height: 12 }
         content: "{{ $.subtotal }}"
         style: Right
-      # ISV
       - type: text
         bounds: { x: 0, y: 20, width: 110, height: 12 }
         content: "ISV 15%:"
         style: Default
       - type: text
-        bounds: { x: 110, y: 20, width: 100, height: 12 }
+        bounds: { x: 104, y: 20, width: 100, height: 12 }
         content: "{{ $.isv }}"
         style: Right
 
-      # Separador
       - type: line
-        bounds: { x: 0, y: 36, width: 210, height: 0 }
+        bounds: { x: 0, y: 36, width: 204, height: 0 }
         color: "#000000"
         thickness: 1
 
-      # Total
       - type: text
         bounds: { x: 0, y: 40, width: 110, height: 14 }
         content: "TOTAL:"
         style: Total
       - type: text
-        bounds: { x: 110, y: 40, width: 100, height: 14 }
+        bounds: { x: 104, y: 40, width: 100, height: 14 }
         content: "{{ $.total }}"
         style: TotalRight
 
-      # Separador
       - type: line
-        bounds: { x: 0, y: 60, width: 210, height: 0 }
+        bounds: { x: 0, y: 60, width: 204, height: 0 }
         color: "#000000"
         thickness: 0.5
 
-      # CAI
       - type: text
-        bounds: { x: 0, y: 64, width: 210, height: 10 }
+        bounds: { x: 0, y: 64, width: 204, height: 10 }
         content: "CAI: {{ $.cai }}"
-        style: Default
+        style: Small
       - type: text
-        bounds: { x: 0, y: 74, width: 210, height: 10 }
+        bounds: { x: 0, y: 74, width: 204, height: 10 }
         content: "Vence: {{ $.vence }}"
         style: Default
 
-  # ====== MENSAJE FINAL ======
-  - kind: ReportFooter
-    height: 30
-    elements:
       - type: line
-        bounds: { x: 0, y: 2, width: 210, height: 0 }
+        bounds: { x: 0, y: 92, width: 204, height: 0 }
         color: "#000000"
         thickness: 0.5
       - type: text
-        bounds: { x: 0, y: 8, width: 210, height: 12 }
+        bounds: { x: 0, y: 98, width: 204, height: 12 }
         content: "Gracias por su compra"
         style: BoldCenter
-      - type: text
-        bounds: { x: 0, y: 20, width: 210, height: 10 }
-        content: "Pag. {{ pageNumber }}/{{ totalPages }}"
-        style: Center
