@@ -36,6 +36,18 @@
     .cm-host .error-gutter { width: 14px; }
     /* El elemento bajo el cursor del YAML se resalta en el preview */
     .element-overlay.yaml-cursor { outline: 2px dotted rgb(14, 165, 233); outline-offset: 1px; }
+    /* Cuadrícula: alineada al origen del contenido (márgenes), igual que bounds.x del YAML */
+    #preview.show-grid .svg-page::after {
+        content: ''; position: absolute; inset: 0; pointer-events: none;
+        background-image:
+            linear-gradient(to right, rgba(14, 165, 233, 0.16) 0.5px, transparent 0.5px),
+            linear-gradient(to bottom, rgba(14, 165, 233, 0.16) 0.5px, transparent 0.5px);
+        background-size: var(--grid-step) var(--grid-step);
+        background-position: var(--grid-ox) var(--grid-oy);
+    }
+    .smart-guide { position: absolute; pointer-events: none; z-index: 5; background: rgb(236, 72, 153); }
+    .smart-guide.v { width: 1px; top: 0; bottom: 0; }
+    .smart-guide.h { height: 1px; left: 0; right: 0; }
 </style>
 
 <div class="h-screen flex flex-col"
@@ -407,6 +419,27 @@
                                 class="w-6 h-6 flex items-center justify-center border border-slate-300 rounded bg-white text-slate-700 hover:bg-sky-50 hover:border-sky-500 disabled:opacity-40 disabled:hover:bg-white">›</button>
                     </div>
                     <span class="w-px h-5 bg-slate-300"></span>
+                    <div class="flex items-center gap-1 text-xs">
+                        <button type="button" @@click="toggleRulers()"
+                                :class="showRulers ? 'bg-slate-700 text-white border-slate-700' : 'bg-white text-slate-700 border-slate-300 hover:bg-sky-50 hover:border-sky-500'"
+                                title="Reglas (R)" class="px-1.5 h-6 border rounded leading-none">📏</button>
+                        <button type="button" @@click="toggleGrid()"
+                                :class="showGrid ? 'bg-slate-700 text-white border-slate-700' : 'bg-white text-slate-700 border-slate-300 hover:bg-sky-50 hover:border-sky-500'"
+                                title="Cuadrícula (G) — Shift al arrastrar ajusta a ella" class="px-1.5 h-6 border rounded leading-none font-mono">#</button>
+                        <select x-model.number="gridStep" @@change="applyGridToDom(); persistGuides()"
+                                title="Paso de la cuadrícula y del ajuste con Shift"
+                                class="h-6 border border-slate-300 rounded bg-white text-slate-700 text-xs px-1">
+                            <option value="5">5 pt</option>
+                            <option value="10">10 pt</option>
+                            <option value="20">20 pt</option>
+                            <option value="28.3465">1 cm</option>
+                        </select>
+                        <button type="button" @@click="smartGuides = !smartGuides; persistGuides()"
+                                :class="smartGuides ? 'bg-slate-700 text-white border-slate-700' : 'bg-white text-slate-700 border-slate-300 hover:bg-sky-50 hover:border-sky-500'"
+                                title="Guías inteligentes al arrastrar (Alt las desactiva momentáneamente)"
+                                class="px-1.5 h-6 border rounded leading-none">⌖</button>
+                    </div>
+                    <span class="w-px h-5 bg-slate-300"></span>
                     <button type="button" @@click="toggleCleanView()"
                             :class="cleanView ? 'bg-sky-600 text-white border-sky-600 hover:bg-sky-700' : 'bg-white text-slate-700 border-slate-300 hover:bg-sky-50 hover:border-sky-500'"
                             title="Vista limpia: oculta los marcos de edición para ver el reporte tal cual (V)"
@@ -421,13 +454,24 @@
                 </span>
             </div>
 
+            <div class="flex-1 min-w-0 min-h-0 grid"
+                 :style="showRulers ? 'grid-template-columns: 22px minmax(0, 1fr); grid-template-rows: 22px minmax(0, 1fr)' : 'grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr)'">
+                <button type="button" x-show="showRulers" @@click="cycleRulerUnit()"
+                        class="bg-slate-100 border-r border-b border-slate-300 text-[9px] text-slate-500 hover:text-slate-900 font-mono"
+                        title="Unidad de las reglas (clic para cambiar). El 0 es el origen del contenido (márgenes)."
+                        x-text="rulerUnit"></button>
+                <canvas id="ruler-x" x-show="showRulers" class="block w-full h-[22px] bg-slate-100 border-b border-slate-300"></canvas>
+                <canvas id="ruler-y" x-show="showRulers" class="block h-full w-[22px] bg-slate-100 border-r border-slate-300"></canvas>
             <div id="preview"
-                 class="flex-1 min-w-0 overflow-auto p-6"
+                 class="min-w-0 min-h-0 overflow-auto p-6"
                  :class="cleanView ? 'clean-view' : ''"
                  @@scroll.passive="onPreviewScroll()"
                  @@wheel="onPreviewWheel($event)"
+                 @@pointermove="onPreviewHover($event)"
+                 @@pointerleave="rulerCursor = null; drawRulers()"
                  @@pointerdown="onOverlayPointerDown($event)">
                 <p class="text-sm text-slate-500 text-center mt-8">Cargando preview…</p>
+            </div>
             </div>
 
             <!-- Drawer de propiedades del elemento seleccionado -->
@@ -940,7 +984,6 @@
             jsonPaths: [], arrayPaths: [], rowPaths: [],
             MIN_SIZE: 4,
             MAX_HISTORY: 50,
-            SNAP: 5,
             zoom: 1,
             ZOOM_LEVELS: [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4],
             ZOOM_MIN: 0.25,
@@ -981,7 +1024,9 @@
             EDITOR_MIN: 280,
             showHelp: false,
             shortcuts: [
-                ['Shift + arrastrar', 'Ajustar a la cuadrícula (5 pt)'],
+                ['Shift + arrastrar', 'Ajustar al paso de la cuadrícula'],
+                ['Alt + arrastrar', 'Sin guías inteligentes'],
+                ['R / G', 'Reglas / cuadrícula'],
                 ['← ↑ → ↓', 'Mover 1 pt (Shift: 10 pt)'],
                 ['Shift / ⌘ + clic', 'Agregar o quitar de la selección'],
                 ['Arrastrar en vacío', 'Seleccionar por marco'],
@@ -1037,7 +1082,7 @@
             },
 
             /** Reacciona a cambios de ancho del editor/preview. */
-            onLayoutChanged() { this.refreshEditors(); },
+            onLayoutChanged() { this.refreshEditors(); this.$nextTick(() => this.drawRulers()); },
 
             // === Editor de código (CodeMirror) ===
 
@@ -1224,12 +1269,14 @@
                 this.editorWidth = Math.min(this.maxEditorWidth(), Math.max(this.EDITOR_MIN, this.editorWidth));
                 window.addEventListener('resize', () => {
                     if (this.editorWidth > this.maxEditorWidth()) this.editorWidth = this.maxEditorWidth();
+                    this.drawRulers();
                 });
 
                 // Cargar zoom persistido antes de Promise.all para que el primer render salga ya escalado.
                 const stored = parseFloat(localStorage.getItem(this.ZOOM_STORAGE_KEY));
                 if (Number.isFinite(stored)) this.zoom = this.clampZoom(stored);
 
+                this.loadGuides();
                 this.initEditors();
                 // Se crean con el contenedor aún oculto (x-cloak): medir otra vez cuando ya es visible.
                 requestAnimationFrame(() => this.refreshEditors());
@@ -1263,6 +1310,220 @@
                 });
             },
 
+            // === Reglas, cuadrícula y guías ===
+
+            showRulers: true,
+            showGrid: false,
+            gridStep: 5,
+            smartGuides: true,
+            rulerUnit: 'pt',
+            rulerCursor: null,          // { x, y } en viewport-px mientras el mouse está sobre el preview
+            GUIDES_STORAGE_KEY: 'netreporter.designer.guides',
+            GUIDE_PX: 6,                // distancia de enganche, en px de pantalla
+            get SNAP() { return this.gridStep || 5; },
+
+            loadGuides() {
+                try {
+                    const g = JSON.parse(localStorage.getItem(this.GUIDES_STORAGE_KEY) || 'null');
+                    if (g) {
+                        this.showRulers = g.rulers ?? true;
+                        this.showGrid = !!g.grid;
+                        this.gridStep = +g.step || 5;
+                        this.smartGuides = g.smart ?? true;
+                        this.rulerUnit = ['pt', 'mm', 'cm', 'in'].includes(g.unit) ? g.unit : 'pt';
+                    }
+                } catch {}
+            },
+
+            persistGuides() {
+                try {
+                    localStorage.setItem(this.GUIDES_STORAGE_KEY, JSON.stringify({
+                        rulers: this.showRulers, grid: this.showGrid, step: this.gridStep,
+                        smart: this.smartGuides, unit: this.rulerUnit
+                    }));
+                } catch {}
+            },
+
+            toggleRulers() { this.showRulers = !this.showRulers; this.persistGuides(); this.$nextTick(() => this.drawRulers()); },
+            toggleGrid() { this.showGrid = !this.showGrid; this.persistGuides(); this.applyGridToDom(); },
+            cycleRulerUnit() {
+                const units = ['pt', 'mm', 'cm', 'in'];
+                this.rulerUnit = units[(units.indexOf(this.rulerUnit) + 1) % units.length];
+                this.persistGuides();
+                this.drawRulers();
+            },
+
+            pageMetrics() {
+                const root = document.querySelector('[data-preview-root]');
+                const n = k => parseFloat(root?.dataset[k]) || 0;
+                return root ? {
+                    ml: n('marginLeft'), mt: n('marginTop'), mr: n('marginRight'), mb: n('marginBottom'),
+                    w: n('pageWidth'), h: n('pageHeight')
+                } : null;
+            },
+
+            applyGridToDom() {
+                const host = document.getElementById('preview');
+                if (!host) return;
+                host.classList.toggle('show-grid', this.showGrid);
+                const m = this.pageMetrics();
+                host.style.setProperty('--grid-step', this.gridStep + 'px');
+                host.style.setProperty('--grid-ox', (m?.ml ?? 0) + 'px');
+                host.style.setProperty('--grid-oy', (m?.mt ?? 0) + 'px');
+            },
+
+            onPreviewHover(evt) {
+                if (!this.showRulers) return;
+                this.rulerCursor = { x: evt.clientX, y: evt.clientY };
+                if (!this._rulerRaf) this._rulerRaf = requestAnimationFrame(() => { this._rulerRaf = null; this.drawRulers(); });
+            },
+
+            /** Pinta ambas reglas para la página en vista: 0 = origen del contenido; margen sombreado; selección y cursor marcados. */
+            drawRulers() {
+                if (!this.showRulers) return;
+                const cx = document.getElementById('ruler-x'), cy = document.getElementById('ruler-y');
+                const host = document.getElementById('preview');
+                const page = this.pageEls()[this.currentPage - 1];
+                const m = this.pageMetrics();
+                if (!cx || !cy || !host) return;
+                const unitPt = { pt: 1, mm: 72 / 25.4, cm: 72 / 2.54, in: 72 }[this.rulerUnit];
+                const dpr = window.devicePixelRatio || 1;
+                const z = this.zoom;
+                const pr = page?.getBoundingClientRect();
+
+                // Rango de la selección (coords de página) para sombrearlo en las reglas.
+                let sel = null;
+                for (const it of this.selection) {
+                    const el = this.overlayFor(it.path);
+                    if (!el || el.closest('.svg-page') !== page) continue;
+                    const b = { x: +el.dataset.x, y: +el.dataset.y, r: +el.dataset.x + +el.dataset.w, bt: +el.dataset.y + +el.dataset.h };
+                    sel = sel ? { x: Math.min(sel.x, b.x), y: Math.min(sel.y, b.y), r: Math.max(sel.r, b.r), bt: Math.max(sel.bt, b.bt) } : b;
+                }
+
+                const draw = (canvas, horizontal) => {
+                    const rect = canvas.getBoundingClientRect();
+                    const len = horizontal ? rect.width : rect.height;
+                    const thick = horizontal ? rect.height : rect.width;
+                    if (len <= 0) return;
+                    canvas.width = Math.round(rect.width * dpr);
+                    canvas.height = Math.round(rect.height * dpr);
+                    const g = canvas.getContext('2d');
+                    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+                    g.clearRect(0, 0, rect.width, rect.height);
+                    g.fillStyle = '#f1f5f9';
+                    g.fillRect(0, 0, rect.width, rect.height);
+                    if (!pr || !m) return;
+
+                    // Posición en la regla (px) de una coordenada de página (pt).
+                    const start = horizontal ? pr.left - rect.left : pr.top - rect.top;
+                    const toPx = pt => start + pt * z;
+                    const pageLen = horizontal ? m.w : m.h;
+                    const m0 = horizontal ? m.ml : m.mt, m1 = horizontal ? m.mr : m.mb;
+                    const fill = (a, b, color) => {
+                        g.fillStyle = color;
+                        const p0 = toPx(a), p1 = toPx(b);
+                        if (horizontal) g.fillRect(p0, 0, p1 - p0, thick); else g.fillRect(0, p0, thick, p1 - p0);
+                    };
+                    fill(0, pageLen, '#ffffff');
+                    fill(0, m0, '#e2e8f0');
+                    fill(pageLen - m1, pageLen, '#e2e8f0');
+                    if (sel) fill(horizontal ? sel.x : sel.y, horizontal ? sel.r : sel.bt, 'rgba(245, 158, 11, 0.35)');
+
+                    // Paso mayor: el primero que deje ≥ 48px entre números.
+                    const steps = [1, 2, 5, 10, 20, 25, 50, 100, 200, 500, 1000];
+                    const major = steps.find(st => st * unitPt * z >= 48) ?? 1000;
+                    const minor = major / (major % 5 === 0 ? 5 : 2);
+                    const origin = toPx(m0);
+                    const from = Math.floor((-origin) / (minor * unitPt * z)) - 1;
+                    const to = Math.ceil((len - origin) / (minor * unitPt * z)) + 1;
+                    g.strokeStyle = '#94a3b8';
+                    g.fillStyle = '#475569';
+                    g.font = '9px ui-monospace, Menlo, monospace';
+                    g.lineWidth = 1;
+                    g.beginPath();
+                    for (let i = from; i <= to; i++) {
+                        const v = i * minor;                         // en unidades, relativo al origen del contenido
+                        const p = Math.round(origin + v * unitPt * z) + 0.5;
+                        if (p < 0 || p > len) continue;
+                        const isMajor = Math.abs(v / major - Math.round(v / major)) < 1e-6;
+                        const tick = isMajor ? thick * 0.55 : thick * 0.25;
+                        if (horizontal) { g.moveTo(p, thick); g.lineTo(p, thick - tick); }
+                        else { g.moveTo(thick, p); g.lineTo(thick - tick, p); }
+                        if (isMajor) {
+                            const label = String(+v.toFixed(2));
+                            if (horizontal) g.fillText(label, p + 2, 9);
+                            else { g.save(); g.translate(9, p + 2); g.rotate(Math.PI / 2); g.fillText(label, 0, 0); g.restore(); }
+                        }
+                    }
+                    g.stroke();
+
+                    if (this.rulerCursor) {
+                        const c = horizontal ? this.rulerCursor.x - rect.left : this.rulerCursor.y - rect.top;
+                        g.strokeStyle = 'rgb(236, 72, 153)';
+                        g.beginPath();
+                        if (horizontal) { g.moveTo(c + 0.5, 0); g.lineTo(c + 0.5, thick); }
+                        else { g.moveTo(0, c + 0.5); g.lineTo(thick, c + 0.5); }
+                        g.stroke();
+                    }
+                };
+                draw(cx, true);
+                draw(cy, false);
+            },
+
+            // --- Guías inteligentes ---
+
+            /** Al empezar a arrastrar: bordes y centros de los demás elementos de la página, márgenes y centro. */
+            collectGuideTargets(pageEl, movingPaths) {
+                const m = this.pageMetrics();
+                const xs = [], ys = [];
+                if (m) {
+                    xs.push(m.ml, m.w - m.mr, (m.ml + m.w - m.mr) / 2);
+                    ys.push(m.mt, m.h - m.mb, (m.mt + m.h - m.mb) / 2);
+                }
+                for (const el of pageEl.querySelectorAll('.element-overlay')) {
+                    if (movingPaths.has(el.dataset.path)) continue;
+                    const x = +el.dataset.x, y = +el.dataset.y, w = +el.dataset.w, h = +el.dataset.h;
+                    xs.push(x, x + w / 2, x + w);
+                    ys.push(y, y + h / 2, y + h);
+                }
+                return { xs, ys };
+            },
+
+            /** Ajusta (dx, dy) para que un borde o centro del grupo coincida con una guía; dibuja las guías activas. */
+            snapToGuides(drag, dx, dy) {
+                const g = drag.guides;
+                const b = drag.box;   // bbox del grupo al empezar (coords de página)
+                const tol = this.GUIDE_PX / this.zoom;
+                const best = (edges, targets) => {
+                    let hit = null;
+                    for (const e of edges) for (const t of targets) {
+                        const d = t - e;
+                        if (Math.abs(d) <= tol && (!hit || Math.abs(d) < Math.abs(hit.d))) hit = { d, at: t };
+                    }
+                    return hit;
+                };
+                const nx = b.x + dx, ny = b.y + dy;
+                const hx = best([nx, nx + b.w / 2, nx + b.w], g.xs);
+                const hy = best([ny, ny + b.h / 2, ny + b.h], g.ys);
+                if (hx) dx += hx.d;
+                if (hy) dy += hy.d;
+                this.renderGuides(drag.pageEl, hx?.at, hy?.at);
+                return [dx, dy];
+            },
+
+            renderGuides(pageEl, x, y) {
+                document.querySelectorAll('.smart-guide').forEach(e => e.remove());
+                if (!pageEl) return;
+                const add = (cls, prop, v) => {
+                    const d = document.createElement('div');
+                    d.className = 'smart-guide ' + cls;
+                    d.style[prop] = v + 'px';
+                    pageEl.appendChild(d);
+                };
+                if (x != null) add('v', 'left', x);
+                if (y != null) add('h', 'top', y);
+            },
+
             // === Navegación del preview ===
 
             pageCount: 0,
@@ -1273,6 +1534,7 @@
             pageEls() { return Array.from(document.querySelectorAll('#preview .svg-page')); },
 
             updatePageInfo() {
+                this.applyGridToDom();
                 this.pageCount = this.pageEls().length;
                 if (this.currentPage > this.pageCount) this.currentPage = Math.max(1, this.pageCount);
                 this.trackCurrentPage();
@@ -1287,11 +1549,12 @@
             trackCurrentPage() {
                 const host = document.getElementById('preview');
                 const pages = this.pageEls();
+                this.drawRulers();
                 if (!host || !pages.length) return;
                 const probe = host.getBoundingClientRect().top + host.clientHeight * 0.35;
                 let current = 1;
                 pages.forEach((p, i) => { if (p.getBoundingClientRect().top <= probe) current = i + 1; });
-                this.currentPage = current;
+                if (current !== this.currentPage) { this.currentPage = current; this.drawRulers(); }
             },
 
             goToPage(n) {
@@ -1356,6 +1619,7 @@
                 this.zoom = this.clampZoom(z);
                 try { localStorage.setItem(this.ZOOM_STORAGE_KEY, String(this.zoom)); } catch {}
                 this.applyZoomToDom();
+                this.$nextTick(() => this.drawRulers());
             },
 
             zoomIn()    { this.setZoom(this.nextZoomLevel(+1)); },
@@ -1571,6 +1835,8 @@
                     this.toggleCleanView();
                     return;
                 }
+                if ((evt.key === 'r' || evt.key === 'R') && !evt.shiftKey && !evt.altKey) { this.toggleRulers(); return; }
+                if ((evt.key === 'g' || evt.key === 'G') && !evt.shiftKey && !evt.altKey) { this.toggleGrid(); return; }
 
                 // Delete / Backspace → borrar la selección (uno o varios).
                 if (this.selection.length && (evt.key === 'Delete' || evt.key === 'Backspace')) {
@@ -2115,6 +2381,16 @@
                         el, origLeft: parseFloat(el.style.left) || 0, origTop: parseFloat(el.style.top) || 0
                     }));
                 }
+                // Caja del grupo (coords de página, sobre la misma hoja que el elemento agarrado) para las guías.
+                const pageEl = target.closest('.svg-page');
+                const moving = new Set(this.selectionPaths());
+                let box = null;
+                for (const i of items) {
+                    if (i.el.closest('.svg-page') !== pageEl) continue;
+                    const d = i.el.dataset, x = +d.x, y = +d.y, r = x + +d.w, b = y + +d.h;
+                    box = box ? { x: Math.min(box.x, x), y: Math.min(box.y, y), r: Math.max(box.r, r), b: Math.max(box.b, b) }
+                              : { x, y, r, b };
+                }
                 this.dragging = {
                     paths: this.selectionPaths(),
                     startX: evt.clientX,
@@ -2122,7 +2398,10 @@
                     dx: 0, dy: 0,
                     items,
                     el: target,
-                    moved: false
+                    moved: false,
+                    pageEl,
+                    box: box ? { x: box.x, y: box.y, w: box.r - box.x, h: box.b - box.y } : null,
+                    guides: pageEl ? this.collectGuideTargets(pageEl, moving) : null
                 };
                 target.setPointerCapture?.(evt.pointerId);
             },
@@ -2291,6 +2570,11 @@
                 if (evt.shiftKey) {
                     dx = Math.round(dx / this.SNAP) * this.SNAP;
                     dy = Math.round(dy / this.SNAP) * this.SNAP;
+                    this.renderGuides(null);
+                } else if (this.smartGuides && !evt.altKey && this.dragging.box && this.dragging.guides) {
+                    [dx, dy] = this.snapToGuides(this.dragging, dx, dy);
+                } else {
+                    this.renderGuides(null);
                 }
                 this.dragging.dx = dx; this.dragging.dy = dy;
                 if (!this.dragging.moved && (Math.abs(dx) > 2 || Math.abs(dy) > 2)) {
@@ -2385,6 +2669,7 @@
                 const drag = this.dragging;
                 if (!drag) return;
                 this.dragging = null;
+                this.renderGuides(null);
                 if (!drag.moved) return;
                 drag.items.forEach(i => i.el.classList.remove('dragging'));
 
@@ -2459,6 +2744,7 @@
                 for (const s of this.selection)
                     document.querySelectorAll(`.element-overlay[data-path="${s.path}"]`).forEach(e => e.classList.add(cls));
                 this.revealInEditor(this.selected?.path ?? null);
+                this.drawRulers();
             },
 
             setSelection(elements, primaryEl = null) {

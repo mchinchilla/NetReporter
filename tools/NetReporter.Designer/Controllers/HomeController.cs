@@ -490,6 +490,8 @@ public sealed class HomeController : Controller
                 PageHeightPt = report.Page.Size.Height,
                 MarginLeftPt = report.Page.Margins.Left,
                 MarginTopPt = report.Page.Margins.Top,
+                MarginRightPt = report.Page.Margins.Right,
+                MarginBottomPt = report.Page.Margins.Bottom,
                 YamlLines = YamlSourceMap.Build(yaml ?? string.Empty)
             };
         }

@@ -35,8 +35,12 @@ else
          style="--zoom: 1; --page-w: @(Model.PageWidthPt)px;">
     <div class="space-y-6 zoom-host"
          data-preview-root
-         data-margin-left="@Model.MarginLeftPt"
-         data-margin-top="@Model.MarginTopPt"
+         data-margin-left="@Model.MarginLeftPt.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+         data-margin-top="@Model.MarginTopPt.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+         data-margin-right="@Model.MarginRightPt.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+         data-margin-bottom="@Model.MarginBottomPt.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+         data-page-width="@Model.PageWidthPt.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+         data-page-height="@Model.PageHeightPt.ToString(System.Globalization.CultureInfo.InvariantCulture)"
          style="--zoom: 1; --page-w: @(Model.PageWidthPt)px;">
         @foreach (var pg in Model.Pages)
         {

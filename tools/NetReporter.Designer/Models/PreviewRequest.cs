@@ -186,6 +186,8 @@ public sealed class PreviewViewModel
     public double PageHeightPt { get; init; }
     public double MarginLeftPt { get; init; }
     public double MarginTopPt { get; init; }
+    public double MarginRightPt { get; init; }
+    public double MarginBottomPt { get; init; }
 }
 
 public sealed record PreviewPage(

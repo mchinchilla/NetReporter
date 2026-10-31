@@ -538,7 +538,9 @@ Path inputs suggest bindings discovered in `data.json`: array paths for `rows`, 
 | Action | Shortcut |
 |---|---|
 | Move element | Click + drag |
-| Move with snap | Shift + drag |
+| Move with snap | Shift + drag (grid step) · Alt + drag disables smart guides |
+| Rulers / grid / clean view | `R` / `G` / `V` |
+| Previous / next page | `PgUp` / `PgDn` |
 | Resize | Drag a handle (8 directions) |
 | Add / remove from selection | `Shift` / `Cmd` / `Ctrl` + click |
 | Marquee selection | Drag on an empty area of the page (Shift adds to the selection) |
@@ -594,6 +596,8 @@ Path inputs suggest bindings discovered in `data.json`: array paths for `rows`, 
 The preview header has `−` / `+` / `1:1` / `↔` buttons. Steps are `25 · 50 · 75 · 100 · 125 · 150 · 200 · 300 · 400 %`. The `↔` button fits the page width to the available preview area. The chosen level persists in `localStorage` so reloading the designer keeps it. Drag and resize coordinates are compensated for the current zoom — moving an element at 200% still moves it pt-by-pt in the YAML.
 
 `Ctrl/⌘ + wheel` (or a trackpad pinch) zooms around the cursor, and `⤢` fits the whole page. Multi-page reports get a page navigator (`‹ n de N ›`, also `PgUp` / `PgDn`); pages outside the viewport are not painted (`content-visibility: auto`), so long reports stay responsive. **Clean view** (`👁` or `V`) hides every editing overlay to see the report exactly as it prints.
+
+**Rulers, grid and smart guides.** Rulers (`📏` / `R`) measure from the content origin — the same origin as `bounds.x` in the YAML — in pt, mm, cm or in (click the corner to switch), shade the page margins and the current selection, and track the cursor. The grid (`#` / `G`) uses the step picked next to it (5 / 10 / 20 pt or 1 cm), which is also the `Shift` snap step. While dragging, smart guides (`⌖`) snap the edges and centers of the selection to other elements, the margins and the page center; hold `Alt` to drag freely.
 
 > Implementation note: the preview is scaled with `transform: scale(var(--zoom))`, not the CSS `zoom` property. `zoom` would push the scaled content into flex layout calculations, making the preview panel invade the YAML editor / toolbox. The flex items in the preview chain require `min-w-0` so the parent's `overflow-auto` actually clips the scaled content instead of letting it grow the panel.
 
