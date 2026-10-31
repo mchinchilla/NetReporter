@@ -880,6 +880,21 @@
   <data name="Printer.Failed" xml:space="preserve">
     <value>The ticket could not be printed on {printer}</value>
   </data>
+  <data name="Printer.Copies" xml:space="preserve">
+    <value>Copies</value>
+  </data>
+  <data name="Printer.OpenDrawer" xml:space="preserve">
+    <value>Open cash drawer</value>
+  </data>
+  <data name="Printer.DrawerOpened" xml:space="preserve">
+    <value>Cash drawer opened on {printer}</value>
+  </data>
+  <data name="Printer.NotAllowed" xml:space="preserve">
+    <value>Address not allowed: only printers with a private LAN IP</value>
+  </data>
+  <data name="Printer.SentNearEnd" xml:space="preserve">
+    <value>Ticket sent to {printer} ({bytes} bytes) · the paper is running out</value>
+  </data>
   <data name="Header.ElementIn" xml:space="preserve">
     <value>in {band} · #{n}</value>
   </data>

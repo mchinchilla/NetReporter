@@ -1,5 +1,4 @@
 using System.Net.Sockets;
-using RlRenderList = NetReporter.Core.RenderList.RenderList;
 
 namespace NetReporter.EscPos;
 
@@ -209,14 +208,3 @@ public sealed class EscPosTcpPrinter : IEscPosTransport, IEscPosStatusSource
     }
 }
 
-public static class EscPosTransportExtensions
-{
-    /// <summary>Renderiza el <see cref="RlRenderList"/> a ESC/POS y lo envía. Los errores de render (fuentes, etc.) saltan antes de tocar la impresora.</summary>
-    public static Task PrintAsync(this IEscPosTransport transport, RlRenderList renderList, EscPosRenderer? renderer = null, CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(transport);
-        ArgumentNullException.ThrowIfNull(renderList);
-        var bytes = (renderer ?? new EscPosRenderer()).Render(renderList, cancellationToken);
-        return transport.SendAsync(bytes, cancellationToken);
-    }
-}

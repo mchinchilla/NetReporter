@@ -149,6 +149,8 @@
                             class="block w-full text-left px-3 py-1.5 hover:bg-amber-50 disabled:opacity-50">
                         🖨 <span x-text="printer ? t('Printer.PrintOn', { printer }) : t('Printer.PrintTicket')"></span>
                     </button>
+                    <button type="button" role="menuitem" @@click="exportMenu = false; openDrawerEscPos()" :disabled="printing"
+                            class="block w-full text-left px-3 py-1.5 hover:bg-amber-50 disabled:opacity-50">🗄 @L["Printer.OpenDrawer"]</button>
                     <button type="button" role="menuitem" @@click="exportMenu = false; openPrinterDialog()"
                             class="block w-full text-left px-3 py-1.5 hover:bg-amber-50">⚙ @L["Printer.Settings"]…</button>
                 </div>
@@ -284,30 +286,18 @@
                         </select>
                     </label>
                 </div>
-                <!-- Avance y gaveta -->
+                <!-- Avance y copias -->
                 <div class="grid grid-cols-2 gap-3">
                     <label class="block">
                         <span class="block text-[11px] uppercase tracking-wide text-slate-500 mb-1">@L["Printer.Feed"]</span>
                         <input type="number" min="0" max="255" x-model.number="printerDraft.feed"
                                class="w-full h-9 border border-slate-300 rounded px-2">
                     </label>
-                    <div>
-                        <span class="block text-[11px] uppercase tracking-wide text-slate-500 mb-1">@L["Printer.DrawerGroup"]</span>
-                        <div class="flex items-center gap-3 h-9">
-                            <label class="flex items-center gap-2 whitespace-nowrap">
-                                <input type="checkbox" x-model="printerDraft.drawer" class="rounded border-slate-300">
-                                <span>@L["Printer.Drawer"]</span>
-                            </label>
-                            <label class="flex items-center gap-1 ml-auto whitespace-nowrap text-slate-600">
-                                <span>@L["Printer.DrawerPin"]</span>
-                                <select x-model.number="printerDraft.drawerPin" :disabled="!printerDraft.drawer"
-                                        class="nr-select h-8 w-16 border border-slate-300 rounded pl-2 bg-white disabled:opacity-50">
-                                    <option value="0">2</option>
-                                    <option value="1">5</option>
-                                </select>
-                            </label>
-                        </div>
-                    </div>
+                    <label class="block">
+                        <span class="block text-[11px] uppercase tracking-wide text-slate-500 mb-1">@L["Printer.Copies"]</span>
+                        <input type="number" min="1" max="10" x-model.number="printerDraft.copies"
+                               class="w-full h-9 border border-slate-300 rounded px-2">
+                    </label>
                 </div>
                 <!-- Blanco y negro -->
                 <div class="grid grid-cols-2 gap-3">
@@ -323,6 +313,24 @@
                         <input type="number" min="0" max="255" x-model.number="printerDraft.threshold"
                                class="w-full h-9 border border-slate-300 rounded px-2">
                     </label>
+                </div>
+                <!-- Gaveta -->
+                <div>
+                    <span class="block text-[11px] uppercase tracking-wide text-slate-500 mb-1">@L["Printer.DrawerGroup"]</span>
+                    <div class="flex items-center gap-3 h-9">
+                        <label class="flex items-center gap-2 whitespace-nowrap">
+                            <input type="checkbox" x-model="printerDraft.drawer" class="rounded border-slate-300">
+                            <span>@L["Printer.Drawer"]</span>
+                        </label>
+                        <label class="flex items-center gap-1 ml-auto whitespace-nowrap text-slate-600">
+                            <span>@L["Printer.DrawerPin"]</span>
+                            <select x-model.number="printerDraft.drawerPin" :disabled="!printerDraft.drawer"
+                                    class="nr-select h-8 w-16 border border-slate-300 rounded pl-2 bg-white disabled:opacity-50">
+                                <option value="0">2</option>
+                                <option value="1">5</option>
+                            </select>
+                        </label>
+                    </div>
                 </div>
                 <p class="text-[11px] text-slate-500 leading-snug">@L["Printer.Hint"]</p>
                 <div class="flex items-start gap-3 min-h-[2.25rem]">
@@ -2486,7 +2494,7 @@
             printing: false,
 
             defaultEscPosSettings() {
-                return { host: '', port: 9100, paper: 'auto', cut: 'partial', feed: 3, drawer: false, drawerPin: 0, dithering: 'threshold', threshold: 160 };
+                return { host: '', port: 9100, paper: 'auto', cut: 'partial', feed: 3, copies: 1, drawer: false, drawerPin: 0, dithering: 'threshold', threshold: 160 };
             },
             loadEscPosSettings() {
                 const defaults = this.defaultEscPosSettings();
@@ -2502,7 +2510,7 @@
                 const s = settings || this.defaultEscPosSettings();
                 return {
                     Host: s.host || '', Port: s.port || 9100, Paper: s.paper, Cut: s.cut, FeedLines: s.feed,
-                    OpenDrawer: !!s.drawer, DrawerPin: s.drawerPin || 0, Dithering: s.dithering, Threshold: s.threshold,
+                    OpenDrawer: !!s.drawer, DrawerPin: s.drawerPin || 0, Dithering: s.dithering, Threshold: s.threshold, Copies: s.copies || 1,
                 };
             },
 
@@ -2519,6 +2527,7 @@
                 d.port = Math.min(65535, Math.max(1, parseInt(d.port, 10) || 9100));
                 d.feed = Math.min(255, Math.max(0, parseInt(d.feed, 10) || 0));
                 d.threshold = Math.min(255, Math.max(0, parseInt(d.threshold, 10) || 0));
+                d.copies = Math.min(10, Math.max(1, parseInt(d.copies, 10) || 1));
                 this.escpos = { ...d };
                 try { localStorage.setItem(this.ESCPOS_STORAGE_KEY, JSON.stringify(this.escpos)); } catch {}
                 this.printerDialog = false;
@@ -2534,6 +2543,7 @@
                 const key = {
                     'paper-end': 'Printer.PaperEnd', 'cover-open': 'Printer.CoverOpen', offline: 'Printer.Offline',
                     error: 'Printer.Error', unreachable: 'Printer.Unreachable', 'invalid-printer': 'Printer.Invalid',
+                    'printer-not-allowed': 'Printer.NotAllowed',
                 }[data.error] || 'Printer.Failed';
                 return t(key, { printer });
             },
@@ -2558,6 +2568,27 @@
                 } finally { this.printerTesting = false; }
             },
 
+            /** Abre la gaveta sin imprimir, en la impresora configurada; sin impresora abre el diálogo. */
+            async openDrawerEscPos() {
+                if (this.printing) return;
+                if (!this.printer) { this.openPrinterDialog(); return; }
+                const printer = this.printer;
+                this.printing = true;
+                try {
+                    const form = new FormData();
+                    for (const [k, v] of Object.entries(this.escPosFields())) form.append(k, String(v));
+                    const res = await fetch('/Home/DrawerEscPos', { method: 'POST', body: form });
+                    if (!res.ok) throw new Error('HTTP ' + res.status);
+                    const data = await res.json();
+                    if (data.ok) { this.showToast(t('Printer.DrawerOpened', { printer })); return; }
+                    console.error('DrawerEscPos:', data);
+                    this.showToast(this.printerMessage(data, printer), 5000);
+                } catch (e) {
+                    console.error('DrawerEscPos:', e);
+                    this.showToast(t('Printer.Failed', { printer }), 5000);
+                } finally { this.printing = false; }
+            },
+
             /** Imprime el ticket actual en la impresora configurada; sin impresora abre el diálogo. */
             async printEscPos() {
                 if (this.printing) return;
@@ -2570,7 +2601,7 @@
                     const res = await fetch('/Home/PrintEscPos', { method: 'POST', body: form });
                     if (!res.ok) throw new Error('HTTP ' + res.status);
                     const data = await res.json();
-                    if (data.ok) { this.showToast(t('Printer.Sent', { printer, bytes: data.bytes.toLocaleString() })); return; }
+                    if (data.ok) { this.showToast(t(data.paperNearEnd ? 'Printer.SentNearEnd' : 'Printer.Sent', { printer, bytes: data.bytes.toLocaleString() }), data.paperNearEnd ? 5000 : 2800); return; }
                     console.error('PrintEscPos:', data);
                     this.showToast(this.printerMessage(data, printer), 5000);
                 } catch (e) {

@@ -341,8 +341,15 @@ public sealed class HomeController : Controller
         {
             options.Threshold = Math.Clamp(threshold, 0, 255);
         }
+        if (request.Copies is { } copies) options.Copies = Math.Clamp(copies, 1, 10);
         return options;
     }
+
+    /// <summary>
+    /// Misma política que el visor: el Designer solo abre conexiones a impresoras con IP privada, de loopback
+    /// o link-local (<see cref="EscPosPrinterPolicy.IsPrivateAddress"/>); otra cosa responde <c>printer-not-allowed</c>.
+    /// </summary>
+    private static bool PrinterAllowed(EscPosRequest request) => EscPosPrinterPolicy.IsPrivateAddress(request.Host, request.Port);
 
     private static EscPosTcpPrinter BuildPrinter(EscPosRequest request) => new(new EscPosTcpPrinterOptions
     {
@@ -352,6 +359,23 @@ public sealed class HomeController : Controller
         SendTimeout = TimeSpan.FromSeconds(15),
         StatusTimeout = TimeSpan.FromSeconds(2),
     });
+
+    /// <summary>Abre la gaveta sin imprimir (<see cref="EscPosControl.OpenDrawer"/>) en la impresora del diálogo.</summary>
+    [HttpPost]
+    public async Task<IActionResult> DrawerEscPos([FromForm] EscPosRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        var aborted = HttpContext.RequestAborted;
+        try
+        {
+            if (!PrinterAllowed(request)) return Json(new { error = "printer-not-allowed" });
+            await BuildPrinter(request).OpenDrawerAsync(request.DrawerPin == 1 ? 1 : 0, aborted);
+            return Json(new { ok = true });
+        }
+        catch (OperationCanceledException) when (aborted.IsCancellationRequested) { return new EmptyResult(); }
+        catch (ArgumentException ex) { return Json(new { error = "invalid-printer", detail = ex.Message }); }
+        catch (EscPosPrinterException ex) { return Json(new { error = "unreachable", detail = ex.Message }); }
+    }
 
     /// <summary>Bytes ESC/POS del ticket (raster) con los ajustes del diálogo de impresora.</summary>
     [HttpPost]
@@ -384,6 +408,7 @@ public sealed class HomeController : Controller
         var aborted = HttpContext.RequestAborted;
         try
         {
+            if (!PrinterAllowed(request)) return Json(new { error = "printer-not-allowed" });
             var status = await BuildPrinter(request).QueryStatusAsync(aborted);
             return Json(new
             {
@@ -414,18 +439,20 @@ public sealed class HomeController : Controller
         var aborted = HttpContext.RequestAborted;
         try
         {
+            if (!PrinterAllowed(request)) return Json(new { error = "printer-not-allowed" });
             var printer = BuildPrinter(request);
 
             var template = YamlReportLoader.Parse(request.Yaml ?? string.Empty);
             var report = template.Bind(request.Json ?? "{}");
             var layout = new LayoutEngine(SkiaTextMeasurer.Instance, ZXingBarcodeGenerator.Instance).Layout(report);
-            var bytes = new EscPosRenderer(BuildEscPosOptions(request, layout.Page.Size.Width)).Render(layout, aborted);
+            var options = BuildEscPosOptions(request, layout.Page.Size.Width);
+            var bytes = new EscPosRenderer(options).Render(layout, aborted);
 
             var status = await printer.QueryStatusAsync(aborted);
             if (!status.ReadyToPrint) return Json(new { error = status.Code });
 
             await printer.SendAsync(bytes, aborted);
-            return Json(new { ok = true, bytes = bytes.Length });
+            return Json(new { ok = true, bytes = bytes.Length, copies = options.Copies, paperNearEnd = status.PaperNearEnd });
         }
         catch (OperationCanceledException) when (aborted.IsCancellationRequested)
         {

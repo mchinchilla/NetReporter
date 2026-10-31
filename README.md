@@ -607,7 +607,7 @@ Path inputs suggest bindings discovered in `data.json`: array paths for `rows`, 
 2. **Edit** sample data on the `data.json` tab.
 3. **Drag** a text, **resize** a table, **add columns** from the drawer, **click the Chart tool and draw it** on the page, then pick its rows/series.
 4. **Save as…** with your own name → stored in `~/.netreporter/templates/`.
-5. **⭳ Export ▾** → PDF, HTML, XLSX or ESC/POS ticket, downloaded with the template's `fileName` (e.g. `invoice-000-001.pdf`). The same menu has **Print ticket on …** and **Printer settings…**: a dialog with IP, port, paper (auto / 80 mm / 58 mm), cut, feed lines, cash drawer and black-and-white conversion (threshold or dithering), with a **Test connection** button that reads the printer status. The settings live in the browser (`localStorage`), never in code; the ESC/POS download uses them too, and printing checks the status first and reports "out of paper", "cover open" or "unreachable" instead of failing silently.
+5. **⭳ Export ▾** → PDF, HTML, XLSX or ESC/POS ticket, downloaded with the template's `fileName` (e.g. `invoice-000-001.pdf`). The same menu has **Print ticket on …** and **Printer settings…**: a dialog with IP, port, paper (auto / 80 mm / 58 mm), cut, feed lines, copies, cash drawer and black-and-white conversion (threshold or dithering), with a **Test connection** button that reads the printer status; **Open cash drawer** opens it without printing. Like the Viewer, the Designer only talks to printers with a private LAN IP. The settings live in the browser (`localStorage`), never in code; the ESC/POS download uses them too, and printing checks the status first and reports "out of paper", "cover open" or "unreachable" instead of failing silently.
 
 ### Import files from disk
 
@@ -663,7 +663,8 @@ app.MapNetReporterViewer("/reports", async (request, ct) =>
 | `GET {prefix}/{reportId}/open?…` | Resolves and lays out the report **once**; returns title, page count, page size and URLs (JSON) |
 | `GET {prefix}/_doc/{token}/pages/{n}` | Page `n` as SVG, rendered on first request |
 | `GET {prefix}/_doc/{token}/export/{pdf\|xlsx\|html\|escpos}` | Download (`?inline=1` to display; used for printing). `escpos` only with `options.EscPos` |
-| `POST {prefix}/_doc/{token}/print` | Sends the document as ESC/POS to the browser's printer (JSON body, only with `AllowClientSettings`) or to the one `options.EscPos.Printer` resolves: 204, or `{"error": "no-printer" \| "printer-not-allowed" \| "paper-end" \| "cover-open" \| "offline" \| "error" \| "unreachable" \| "failed"}` |
+| `POST {prefix}/_doc/{token}/print` | Sends the document as ESC/POS to the browser's printer (JSON body, only with `AllowClientSettings`) or to the one `options.EscPos.Printer` resolves: `{"ok": true, "bytes", "copies", "paperNearEnd"}`, or `{"error": "no-printer" \| "printer-not-allowed" \| "paper-end" \| "cover-open" \| "offline" \| "error" \| "unreachable" \| "failed"}` |
+| `POST {prefix}/_doc/{token}/drawer` | Opens the cash drawer without printing, on the same printer resolution as `print` |
 | `POST {prefix}/_doc/{token}/printer-status` | Status (`DLE EOT`) of the printer in the JSON body, for the settings dialog's "Test connection" (only with `AllowClientSettings`) |
 | `GET {prefix}/_viewer/viewer.js` | The web component (ETag + cache) |
 
@@ -673,7 +674,7 @@ app.MapNetReporterViewer("/reports", async (request, ct) =>
   reopens it transparently.
 - **Lazy pages.** Only pages near the viewport are requested and kept in the DOM; a 300-page report doesn't download 300 SVGs. Pages are inlined SVG, so text can be selected, copied and found with Ctrl+F.
 - **Images by URL.** Each distinct image of the document is served once at `…/_doc/{token}/images/{n}` and referenced from the pages; an invoice with a 400 KB logo on every page transfers the logo once, not once per page.
-- **Thermal tickets.** `options.EscPos = new ViewerEscPosOptions()` adds the `.escpos` download; `.UseTcpPrinter("192.168.1.50")` (or a `Printer` delegate that picks the printer per user/branch/till) adds a **Print ticket** button that `POST`s to `…/print`. Before sending, the server asks the printer its status (`DLE EOT`) and answers `409` with `paper-end`, `cover-open`, `offline` or `error`, which the component shows localized; connection failures are `502 unreachable`. One click sends one ticket (the button is disabled while the request runs). `Renderer` holds the `EscPosRendererOptions` (58/80 mm, cut, drawer…).
+- **Thermal tickets.** `options.EscPos = new ViewerEscPosOptions()` adds the `.escpos` download; `.UseTcpPrinter("192.168.1.50")` (or a `Printer` delegate that picks the printer per user/branch/till) adds a **Print ticket** button that `POST`s to `…/print`. Before sending, the server asks the printer its status (`DLE EOT`) and answers `409` with `paper-end`, `cover-open`, `offline` or `error`, which the component shows localized; connection failures are `502 unreachable`. One click sends one ticket (the button is disabled while the request runs); when the printer reports the paper is running out, the success toast says so. An **Open cash drawer** button `POST`s to `…/drawer`. The component raises `nr-printed` (`{bytes, copies, paperNearEnd, printer}`), `nr-drawer-opened` and `nr-print-error` (`{action: "print" | "drawer", status, error, printer}`) so the ERP can log what happened at the till. `Renderer` holds the `EscPosRendererOptions` (58/80 mm, cut, drawer, copies…).
 - **Printer chosen at the till.** With `AllowClientSettings = true` the component shows a **⚙ Printer settings** dialog, the same one the Designer has: IP, port, paper (auto / 80 / 58 mm), cut, feed, cash drawer and black-and-white conversion, with **Test connection** (`POST …/printer-status`). The settings live in that browser's `localStorage` and travel with each print, so every POS terminal prints on its own printer without server configuration. Because this makes the server open a TCP connection to an address the browser chose, it is **off by default** and `IsPrinterAllowed(host, port)` filters the targets: the default policy accepts only literal private, loopback and link-local IP addresses (`403 printer-not-allowed` otherwise); supply your own predicate for host names or specific subnets. Without a browser printer, the server-side `Printer` is used.
 - **Viewer UI:** first/previous/next/last, go to page, thumbnails, zoom 25–400 % (fit width, fit page, Ctrl/⌘ +
   wheel or trackpad pinch anchored at the cursor), Home/End and ←/→, print (Ctrl/⌘+P), download menu,
@@ -731,7 +732,10 @@ Every setting is an option you set at runtime (and may change between prints; th
 | `Initialize`, `Prologue`, `Epilogue` | `true`, –, – | `ESC @` first; your raw bytes after it (code page, density…) and after the last cut |
 | `FeedLinesBeforeCut`, `Cut`, `CutAfterEachPage` | 3, `Partial`, `true` | Feed before `GS V`; `None` / `Partial` / `Full`; multi-page documents cut per page or once at the end |
 | `OpenCashDrawer`, `CashDrawerPin` | `false`, 0 | `ESC p` pulse on pin 2 (0) or pin 5 (1) before printing |
+| `Copies` | 1 | Copies of the document (1–10), each with its feed and cut; the drawer opens once. Pages are rasterized once and the bytes repeated |
 | TCP: `Host`, `Port`, `ConnectTimeout`, `SendTimeout`, `StatusTimeout`, `NoDelay` | –, 9100, 5 s, 30 s, 2 s, `true` | Refused connections and timeouts surface as `EscPosPrinterException` (with host and port); cancellation as `OperationCanceledException` |
+
+`EscPosControl` builds stand-alone commands (`OpenDrawer(pin)`, `Feed`, `Cut`, `Initialize`) and `transport.OpenDrawerAsync()` opens the cash drawer without printing (change, refunds). `EscPosPrinterPolicy.IsPrivateAddress(host, port)` is the address filter the Viewer and the Designer apply to client-chosen printers: private, loopback and link-local IP literals only.
 
 `EscPosTcpPrinter.QueryStatusAsync()` asks the printer `DLE EOT 1/2/4` and returns an `EscPosPrinterStatus` (`Online`, `CoverOpen`, `PaperEnd`, `PaperNearEnd`, `Error`, `ReadyToPrint`, and a stable `Code`: `ready` / `offline` / `cover-open` / `paper-end` / `error`), so a POS can say "out of paper" instead of sending a ticket that never comes out. It throws `EscPosPrinterException` when the printer (or its network adapter) does not answer within `StatusTimeout`. Verified against a real Epson-compatible 80 mm printer: the ticket below printed exactly like the PDF, and the status query answered online / cover closed / paper OK.
 
@@ -1251,10 +1255,10 @@ dotnet test
 │ NetReporter.Pdf.Tests               │   18  │
 │ NetReporter.Xlsx.Tests              │   15  │
 │ NetReporter.Barcodes.Tests          │    7  │
-│ NetReporter.Viewer.Tests            │   59  │
-│ NetReporter.EscPos.Tests            │   28  │
+│ NetReporter.Viewer.Tests            │   53  │
+│ NetReporter.EscPos.Tests            │   50  │
 ├─────────────────────────────────────┼───────┤
-│ Total                               │  554  │
+│ Total                               │  570  │
 └─────────────────────────────────────┴───────┘
 ```
 

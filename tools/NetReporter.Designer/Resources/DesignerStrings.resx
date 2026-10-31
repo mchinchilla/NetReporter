@@ -880,6 +880,21 @@
   <data name="Printer.Failed" xml:space="preserve">
     <value>No se pudo imprimir el ticket en {printer}</value>
   </data>
+  <data name="Printer.Copies" xml:space="preserve">
+    <value>Copias</value>
+  </data>
+  <data name="Printer.OpenDrawer" xml:space="preserve">
+    <value>Abrir gaveta</value>
+  </data>
+  <data name="Printer.DrawerOpened" xml:space="preserve">
+    <value>Gaveta abierta en {printer}</value>
+  </data>
+  <data name="Printer.NotAllowed" xml:space="preserve">
+    <value>Dirección no permitida: solo impresoras con IP privada de la red local</value>
+  </data>
+  <data name="Printer.SentNearEnd" xml:space="preserve">
+    <value>Ticket enviado a {printer} ({bytes} bytes) · el papel está por acabarse</value>
+  </data>
   <data name="Header.ElementIn" xml:space="preserve">
     <value>en {band} · nº {n}</value>
   </data>

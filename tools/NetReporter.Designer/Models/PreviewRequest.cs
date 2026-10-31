@@ -146,6 +146,8 @@ public sealed class EscPosRequest
     /// <summary>"threshold" o "fs" (Floyd–Steinberg).</summary>
     public string? Dithering { get; set; }
     public int? Threshold { get; set; }
+    /// <summary>Copias del ticket (1–10).</summary>
+    public int? Copies { get; set; }
 }
 
 public sealed class DeleteRequest

@@ -117,7 +117,7 @@ public sealed class ViewerClientPrinterTests : IAsyncLifetime
 
         using var res = await _client.PostAsJsonAsync(Str(doc, "printer"), Settings("192.168.1.20", 9100, paper: "58"));
 
-        Assert.Equal(HttpStatusCode.NoContent, res.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
         var printer = Assert.Single(FakePrinter.Created);
         Assert.Equal("192.168.1.20", printer.Options.Host);
         Assert.Equal(9100, printer.Options.Port);
@@ -160,7 +160,7 @@ public sealed class ViewerClientPrinterTests : IAsyncLifetime
 
         using var res = await _client.PostAsJsonAsync(Str(doc, "printer"), Settings("8.8.8.8"));
 
-        Assert.Equal(HttpStatusCode.NoContent, res.StatusCode);   // la impresora del servidor, no la del cuerpo
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);   // la impresora del servidor, no la del cuerpo
         Assert.Empty(FakePrinter.Created);
     }
 
@@ -195,22 +195,71 @@ public sealed class ViewerClientPrinterTests : IAsyncLifetime
     }
 
     [Theory]
-    [InlineData("127.0.0.1", true)]
-    [InlineData("10.1.2.3", true)]
-    [InlineData("172.16.0.9", true)]
-    [InlineData("172.32.0.9", false)]
     [InlineData("192.168.99.81", true)]
-    [InlineData("169.254.1.1", true)]
-    [InlineData("::1", true)]
-    [InlineData("fd00::1", true)]
-    [InlineData("fe80::1", true)]
-    [InlineData("2001:db8::1", false)]
     [InlineData("8.8.8.8", false)]
-    [InlineData("::ffff:192.168.1.1", true)]
     [InlineData("printer", false)]
-    public void DefaultPolicy_AllowsOnlyPrivateIpLiterals(string host, bool allowed)
+    public void DefaultPolicy_IsThePrivateAddressPolicy(string host, bool allowed)
     {
         Assert.Equal(allowed, ViewerEscPosOptions.DefaultIsPrinterAllowed(host, 9100));
-        Assert.False(ViewerEscPosOptions.DefaultIsPrinterAllowed(host, 70000));
+        Assert.Equal(EscPosPrinterPolicy.IsPrivateAddress(host, 9100), ViewerEscPosOptions.DefaultIsPrinterAllowed(host, 9100));
+    }
+
+    [Fact]
+    public async Task Print_ReportsCopiesAndPaperNearEnd()
+    {
+        FakePrinter.Created.Clear();
+        FakePrinter.NextStatus = EscPosPrinterStatus.FromBytes(0x16, 0x12, 0x1E);   // listo, papel por acabarse
+        try
+        {
+            var doc = await Open("/client");
+            using var res = await _client.PostAsJsonAsync(Str(doc, "printer"),
+                new { host = "192.168.1.20", port = 9100, paper = "80", copies = 2, cut = "full", feed = 1 });
+
+            Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+            var body = JsonDocument.Parse(await res.Content.ReadAsStringAsync()).RootElement;
+            Assert.True(body.GetProperty("ok").GetBoolean());
+            Assert.True(body.GetProperty("paperNearEnd").GetBoolean());
+            Assert.Equal(2, body.GetProperty("copies").GetInt32());
+            var sent = Assert.Single(Assert.Single(FakePrinter.Created).Sent);
+            var layout = new LayoutEngine().Layout(Ticket);
+            var expected = new EscPosRenderer(new EscPosRendererOptions { Copies = 2, Cut = EscPosCut.Full, FeedLinesBeforeCut = 1 }).Render(layout);
+            Assert.Equal(expected, sent);
+            Assert.Equal(sent.Length, body.GetProperty("bytes").GetInt32());
+        }
+        finally { FakePrinter.NextStatus = EscPosPrinterStatus.FromBytes(0x16, 0x12, 0x12); }
+    }
+
+    [Fact]
+    public async Task Drawer_OpensOnTheBrowserPrinter_WithItsPin()
+    {
+        FakePrinter.Created.Clear();
+        var doc = await Open("/client");
+        Assert.EndsWith("/drawer", Str(doc, "drawer"));
+
+        using var res = await _client.PostAsJsonAsync(Str(doc, "drawer"), new { host = "10.0.0.7", port = 9100, drawerPin = 1 });
+
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+        var printer = Assert.Single(FakePrinter.Created);
+        Assert.Equal("10.0.0.7", printer.Options.Host);
+        Assert.Equal(EscPosControl.OpenDrawer(pin: 1), Assert.Single(printer.Sent));
+    }
+
+    [Fact]
+    public async Task Drawer_RejectsDisallowedPrinters_And404WithoutAny()
+    {
+        var doc = await Open("/client");
+        using var forbidden = await _client.PostAsJsonAsync(Str(doc, "drawer"), new { host = "8.8.8.8", port = 9100 });
+        Assert.Equal(HttpStatusCode.Forbidden, forbidden.StatusCode);
+        using var none = await _client.PostAsync(Str(doc, "drawer"), content: null);
+        Assert.Equal(HttpStatusCode.NotFound, none.StatusCode);
+    }
+
+    [Fact]
+    public async Task Drawer_OnTheServerPrinter_UsesTheConfiguredPin()
+    {
+        var doc = await Open("/server-only");
+        using var res = await _client.PostAsync(Str(doc, "drawer"), content: null);
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+        Assert.True(JsonDocument.Parse(await res.Content.ReadAsStringAsync()).RootElement.GetProperty("ok").GetBoolean());
     }
 }

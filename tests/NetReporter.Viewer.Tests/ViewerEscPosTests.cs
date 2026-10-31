@@ -142,7 +142,7 @@ public sealed class ViewerEscPosTests : IAsyncLifetime
 
         using var res = await _client.PostAsync(Str(doc, "printer"), content: null);
 
-        Assert.Equal(HttpStatusCode.NoContent, res.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
         Assert.Equal(queriesBefore + 1, _printer.StatusQueries);
         var sent = Assert.Single(_printer.Sent);
         Assert.Equal([0x1B, 0x40], sent[..2]);
@@ -179,7 +179,7 @@ public sealed class ViewerEscPosTests : IAsyncLifetime
         {
             var doc = await Open("/tickets");
             using var res = await _client.PostAsync(Str(doc, "printer"), content: null);
-            Assert.Equal(HttpStatusCode.NoContent, res.StatusCode);
+            Assert.Equal(HttpStatusCode.OK, res.StatusCode);
             Assert.Single(_printer.Sent);
         }
         finally

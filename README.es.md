@@ -607,7 +607,7 @@ Los campos de path sugieren bindings descubiertos en `data.json`: paths de array
 2. **Editar** datos de prueba en el tab `data.json`.
 3. **Drag** un texto, **resize** una tabla, **agregar columnas** desde el drawer, **clic en la herramienta Gráfico y dibujarlo** en la hoja, y elegir sus filas/series.
 4. **Save as…** con un nombre propio → se guarda en `~/.netreporter/templates/`.
-5. **⭳ Exportar ▾** → PDF, HTML, XLSX o ticket ESC/POS, descargados con el `fileName` del template (e.g. `factura-000-001.pdf`). El mismo menú tiene **Imprimir ticket en …** y **Configurar impresora…**: un diálogo con IP, puerto, papel (auto / 80 mm / 58 mm), corte, líneas de alimentación, gaveta y conversión a blanco y negro (umbral o difusión), con un botón **Probar conexión** que lee el estado de la impresora. Los ajustes viven en el navegador (`localStorage`), nunca en el código; la descarga ESC/POS los usa también, y al imprimir se consulta el estado antes y se avisa "sin papel", "tapa abierta" o "no se pudo conectar" en vez de fallar en silencio.
+5. **⭳ Exportar ▾** → PDF, HTML, XLSX o ticket ESC/POS, descargados con el `fileName` del template (e.g. `factura-000-001.pdf`). El mismo menú tiene **Imprimir ticket en …** y **Configurar impresora…**: un diálogo con IP, puerto, papel (auto / 80 mm / 58 mm), corte, líneas de alimentación, copias, gaveta y conversión a blanco y negro (umbral o difusión), con un botón **Probar conexión** que lee el estado de la impresora; **Abrir gaveta** la abre sin imprimir. Como el Visor, el Designer solo habla con impresoras de IP privada de la red local. Los ajustes viven en el navegador (`localStorage`), nunca en el código; la descarga ESC/POS los usa también, y al imprimir se consulta el estado antes y se avisa "sin papel", "tapa abierta" o "no se pudo conectar" en vez de fallar en silencio.
 
 ### Importar archivos del disco
 
@@ -663,7 +663,8 @@ app.MapNetReporterViewer("/reports", async (request, ct) =>
 | `GET {prefix}/{reportId}/open?…` | Resuelve y diagrama el reporte **una vez**; devuelve título, nº de páginas, tamaño y URLs (JSON) |
 | `GET {prefix}/_doc/{token}/pages/{n}` | Página `n` en SVG, renderizada en la primera petición |
 | `GET {prefix}/_doc/{token}/export/{pdf\|xlsx\|html\|escpos}` | Descarga (`?inline=1` para mostrar; se usa al imprimir). `escpos` solo con `options.EscPos` |
-| `POST {prefix}/_doc/{token}/print` | Manda el documento como ESC/POS a la impresora del navegador (cuerpo JSON, solo con `AllowClientSettings`) o a la que `options.EscPos.Printer` resuelve: 204, o `{"error": "no-printer" \| "printer-not-allowed" \| "paper-end" \| "cover-open" \| "offline" \| "error" \| "unreachable" \| "failed"}` |
+| `POST {prefix}/_doc/{token}/print` | Manda el documento como ESC/POS a la impresora del navegador (cuerpo JSON, solo con `AllowClientSettings`) o a la que `options.EscPos.Printer` resuelve: `{"ok": true, "bytes", "copies", "paperNearEnd"}`, o `{"error": "no-printer" \| "printer-not-allowed" \| "paper-end" \| "cover-open" \| "offline" \| "error" \| "unreachable" \| "failed"}` |
+| `POST {prefix}/_doc/{token}/drawer` | Abre la gaveta sin imprimir, con la misma resolución de impresora que `print` |
 | `POST {prefix}/_doc/{token}/printer-status` | Estado (`DLE EOT`) de la impresora del cuerpo JSON, para el "Probar conexión" del diálogo (solo con `AllowClientSettings`) |
 | `GET {prefix}/_viewer/viewer.js` | El web component (ETag + caché) |
 
@@ -673,7 +674,7 @@ app.MapNetReporterViewer("/reports", async (request, ct) =>
   expira, el visor lo reabre de forma transparente.
 - **Páginas bajo demanda.** Solo se piden y se mantienen en el DOM las páginas cercanas a la vista; un reporte de 300 páginas no descarga 300 SVG. Las páginas son SVG incrustado: el texto se puede seleccionar, copiar y buscar con Ctrl+F.
 - **Imágenes por URL.** Cada imagen distinta del documento se sirve una vez en `…/_doc/{token}/images/{n}` y las páginas la referencian; una factura con un logo de 400 KB en cada página transfiere el logo una vez, no una por página.
-- **Tickets térmicos.** `options.EscPos = new ViewerEscPosOptions()` añade la descarga `.escpos`; `.UseTcpPrinter("192.168.1.50")` (o un delegado `Printer` que elija la impresora por usuario/sucursal/caja) añade un botón **Imprimir ticket** que hace `POST` a `…/print`. Antes de enviar, el servidor pregunta el estado a la impresora (`DLE EOT`) y responde `409` con `paper-end`, `cover-open`, `offline` o `error`, que el componente muestra traducido; los fallos de conexión son `502 unreachable`. Un clic manda un ticket (el botón se deshabilita mientras dura la petición). `Renderer` lleva las `EscPosRendererOptions` (58/80 mm, corte, gaveta…).
+- **Tickets térmicos.** `options.EscPos = new ViewerEscPosOptions()` añade la descarga `.escpos`; `.UseTcpPrinter("192.168.1.50")` (o un delegado `Printer` que elija la impresora por usuario/sucursal/caja) añade un botón **Imprimir ticket** que hace `POST` a `…/print`. Antes de enviar, el servidor pregunta el estado a la impresora (`DLE EOT`) y responde `409` con `paper-end`, `cover-open`, `offline` o `error`, que el componente muestra traducido; los fallos de conexión son `502 unreachable`. Un clic manda un ticket (el botón se deshabilita mientras dura la petición); si la impresora avisa que el papel está por acabarse, el aviso de éxito lo dice. Un botón **Abrir gaveta** hace `POST` a `…/drawer`. El componente emite `nr-printed` (`{bytes, copies, paperNearEnd, printer}`), `nr-drawer-opened` y `nr-print-error` (`{action: "print" | "drawer", status, error, printer}`) para que el ERP registre lo que pasó en caja. `Renderer` lleva las `EscPosRendererOptions` (58/80 mm, corte, gaveta, copias…).
 - **Impresora elegida en la caja.** Con `AllowClientSettings = true` el componente muestra el diálogo **⚙ Configurar impresora**, el mismo del Designer: IP, puerto, papel (auto / 80 / 58 mm), corte, avance, gaveta y conversión a blanco y negro, con **Probar conexión** (`POST …/printer-status`). Los ajustes viven en el `localStorage` de ese navegador y viajan con cada impresión, así cada terminal POS imprime en su propia impresora sin configuración en el servidor. Como esto hace que el servidor abra una conexión TCP a una dirección elegida por el navegador, está **apagado por defecto** y `IsPrinterAllowed(host, puerto)` filtra los destinos: la política por defecto acepta solo direcciones IP literales privadas, de loopback o link-local (`403 printer-not-allowed` en otro caso); pon tu propio predicado para nombres de host o subredes concretas. Sin impresora en el navegador se usa el `Printer` del servidor.
 - **Interfaz:** primera/anterior/siguiente/última, ir a página, miniaturas, zoom 25–400 % (ajustar al ancho, página
   completa, Ctrl/⌘ + rueda o pinch del trackpad anclado al cursor), Inicio/Fin y ←/→, imprimir (Ctrl/⌘+P), menú
@@ -732,7 +733,10 @@ Todo es una opción que fijas en tiempo de ejecución (y puedes cambiar entre im
 | `Initialize`, `Prologue`, `Epilogue` | `true`, –, – | `ESC @` primero; tus bytes tras él (página de códigos, densidad…) y tras el último corte |
 | `FeedLinesBeforeCut`, `Cut`, `CutAfterEachPage` | 3, `Partial`, `true` | Alimentación antes de `GS V`; `None` / `Partial` / `Full`; los documentos de varias páginas cortan por página o una vez al final |
 | `OpenCashDrawer`, `CashDrawerPin` | `false`, 0 | Pulso `ESC p` en el pin 2 (0) o el pin 5 (1) antes de imprimir |
+| `Copies` | 1 | Copias del documento (1–10), cada una con su alimentación y corte; la gaveta se abre una vez. Las páginas se rasterizan una vez y los bytes se repiten |
 | TCP: `Host`, `Port`, `ConnectTimeout`, `SendTimeout`, `StatusTimeout`, `NoDelay` | –, 9100, 5 s, 30 s, 2 s, `true` | Conexiones rechazadas y timeouts salen como `EscPosPrinterException` (con host y puerto); la cancelación como `OperationCanceledException` |
+
+`EscPosControl` construye comandos sueltos (`OpenDrawer(pin)`, `Feed`, `Cut`, `Initialize`) y `transport.OpenDrawerAsync()` abre la gaveta sin imprimir (cambio, devoluciones). `EscPosPrinterPolicy.IsPrivateAddress(host, puerto)` es el filtro de direcciones que el Visor y el Designer aplican a las impresoras elegidas por el cliente: solo IP literales privadas, de loopback o link-local.
 
 `EscPosTcpPrinter.QueryStatusAsync()` pregunta a la impresora `DLE EOT 1/2/4` y devuelve un `EscPosPrinterStatus` (`Online`, `CoverOpen`, `PaperEnd`, `PaperNearEnd`, `Error`, `ReadyToPrint` y un `Code` estable: `ready` / `offline` / `cover-open` / `paper-end` / `error`), para que el POS diga "sin papel" en vez de mandar un ticket que nunca sale. Lanza `EscPosPrinterException` si la impresora (o su adaptador de red) no responde en `StatusTimeout`. Verificado con una impresora real Epson-compatible de 80 mm: el ticket salió idéntico al PDF y la consulta de estado respondió en línea / tapa cerrada / papel OK.
 
@@ -1252,10 +1256,10 @@ dotnet test
 │ NetReporter.Pdf.Tests               │   18  │
 │ NetReporter.Xlsx.Tests              │   15  │
 │ NetReporter.Barcodes.Tests          │    7  │
-│ NetReporter.Viewer.Tests            │   59  │
-│ NetReporter.EscPos.Tests            │   28  │
+│ NetReporter.Viewer.Tests            │   53  │
+│ NetReporter.EscPos.Tests            │   50  │
 ├─────────────────────────────────────┼───────┤
-│ Total                               │  554  │
+│ Total                               │  570  │
 └─────────────────────────────────────┴───────┘
 ```
 

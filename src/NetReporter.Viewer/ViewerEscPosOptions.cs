@@ -1,5 +1,3 @@
-using System.Net;
-using System.Net.Sockets;
 using Microsoft.AspNetCore.Http;
 using NetReporter.EscPos;
 
@@ -73,20 +71,6 @@ public sealed class ViewerEscPosOptions
     public ViewerEscPosOptions UseTcpPrinter(string host, int port = 9100) =>
         UseTcpPrinter(new EscPosTcpPrinterOptions { Host = host, Port = port });
 
-    /// <summary>Only literal IP addresses in private (RFC 1918 / fc00::/7), loopback or link-local ranges, on a valid port.</summary>
-    public static bool DefaultIsPrinterAllowed(string host, int port)
-    {
-        if (port is < 1 or > 65535 || !IPAddress.TryParse(host, out var ip)) return false;
-        if (ip.IsIPv4MappedToIPv6) ip = ip.MapToIPv4();
-        if (IPAddress.IsLoopback(ip)) return true;
-        if (ip.AddressFamily == AddressFamily.InterNetwork)
-        {
-            var b = ip.GetAddressBytes();
-            return b[0] == 10
-                || (b[0] == 172 && b[1] >= 16 && b[1] <= 31)
-                || (b[0] == 192 && b[1] == 168)
-                || (b[0] == 169 && b[1] == 254);
-        }
-        return ip.IsIPv6LinkLocal || ip.IsIPv6UniqueLocal;
-    }
+    /// <summary>Only literal IP addresses in private (RFC 1918 / fc00::/7), loopback or link-local ranges, on a valid port (<see cref="EscPosPrinterPolicy.IsPrivateAddress"/>).</summary>
+    public static bool DefaultIsPrinterAllowed(string host, int port) => EscPosPrinterPolicy.IsPrivateAddress(host, port);
 }

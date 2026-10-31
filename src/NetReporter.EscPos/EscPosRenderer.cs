@@ -66,17 +66,33 @@ public sealed class EscPosRenderer
         var packed = ArrayPool<byte>.Shared.Rent(bytesPerRow * _options.BandRows);
         try
         {
-            for (var i = 0; i < renderList.Pages.Count; i++)
+            // Las copias se rasterizan una vez y se reescriben: el bloque raster de cada página se
+            // recuerda la primera vez (un ticket pesa decenas de KB; copiarlo es más barato que pintarlo).
+            var copies = _options.Copies;
+            var remembered = copies > 1 ? new MemoryStream[renderList.Pages.Count] : null;
+            for (var copy = 0; copy < copies; copy++)
             {
-                cancellationToken.ThrowIfCancellationRequested();
-                using var bitmap = Rasterize(renderList.Pages[i], geometry, cache);
-                WriteRaster(output, bitmap, bytesPerRow, packed, cancellationToken);
-
-                var last = i == renderList.Pages.Count - 1;
-                if (_options.CutAfterEachPage || last)
+                for (var i = 0; i < renderList.Pages.Count; i++)
                 {
-                    EscPosCommands.WriteFeedLines(output, _options.FeedLinesBeforeCut);
-                    EscPosCommands.WriteCut(output, _options.Cut);
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (remembered is not null && copy > 0)
+                    {
+                        remembered[i]!.WriteTo(output);
+                    }
+                    else
+                    {
+                        var target = remembered is null ? output : remembered[i] = new MemoryStream();
+                        using var bitmap = Rasterize(renderList.Pages[i], geometry, cache);
+                        WriteRaster(target, bitmap, bytesPerRow, packed, cancellationToken);
+                        if (remembered is not null) remembered[i]!.WriteTo(output);
+                    }
+
+                    var last = i == renderList.Pages.Count - 1;
+                    if (_options.CutAfterEachPage || last)
+                    {
+                        EscPosCommands.WriteFeedLines(output, _options.FeedLinesBeforeCut);
+                        EscPosCommands.WriteCut(output, _options.Cut);
+                    }
                 }
             }
         }
@@ -183,6 +199,6 @@ public sealed class EscPosRenderer
     {
         var geometry = GeometryFor(renderList.Page);
         var perPage = (long)(_options.DotsPerLine / 8) * geometry.HeightDots + 64;
-        return (int)Math.Min(perPage * Math.Max(1, renderList.Pages.Count) + 64, 16 * 1024 * 1024);
+        return (int)Math.Min(perPage * Math.Max(1, renderList.Pages.Count) * _options.Copies + 64, 16 * 1024 * 1024);
     }
 }

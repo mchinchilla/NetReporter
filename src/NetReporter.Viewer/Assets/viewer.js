@@ -41,6 +41,8 @@ const I18N = {
         psHint: 'Se guarda en este navegador. Antes de imprimir se consulta el estado de la impresora.',
         psTest: 'Probar conexión', psTesting: 'Consultando…', psSave: 'Guardar', psCancel: 'Cancelar',
         psSaved: 'Impresora guardada: {printer}', psSavedNone: 'Ajustes guardados (sin impresora propia)',
+        psCopies: 'Copias', openDrawer: 'Abrir gaveta', drawerOpened: 'Gaveta abierta',
+        ticketSentNearEnd: 'Ticket enviado · el papel está por acabarse',
     },
     en: {
         thumbnails: 'Thumbnails', first: 'First page', prev: 'Previous page', next: 'Next page',
@@ -66,6 +68,8 @@ const I18N = {
         psHint: 'Stored in this browser. The printer status is checked before printing.',
         psTest: 'Test connection', psTesting: 'Checking…', psSave: 'Save', psCancel: 'Cancel',
         psSaved: 'Printer saved: {printer}', psSavedNone: 'Settings saved (no printer of your own)',
+        psCopies: 'Copies', openDrawer: 'Open cash drawer', drawerOpened: 'Cash drawer opened',
+        ticketSentNearEnd: 'Ticket sent · the paper is running out',
     },
 };
 
@@ -110,6 +114,7 @@ const ICONS = {
     print: 'M6 9V3h12v6M6 18H4a1 1 0 01-1-1v-6a2 2 0 012-2h14a2 2 0 012 2v6a1 1 0 01-1 1h-2M6 14h12v7H6z',
     download: 'M12 3v12M7 10l5 5 5-5M5 21h14',
     ticket: 'M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6M9 16h4',
+    drawer: 'M3 10h18M3 10l2-5h14l2 5M3 10v9a1 1 0 001 1h16a1 1 0 001-1v-9M10 14h4',
     gear: 'M12 15a3 3 0 100-6 3 3 0 000 6zM19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z',
 };
 const icon = (name) =>
@@ -400,7 +405,7 @@ class NetReporterViewer extends HTMLElement {
     static get PRINTER_STORAGE_KEY() { return 'netreporter.viewer.escpos'; }
 
     _defaultPrinterSettings() {
-        return { host: '', port: 9100, paper: 'auto', cut: 'partial', feed: 3, drawer: false, drawerPin: 0, dithering: 'threshold', threshold: 160 };
+        return { host: '', port: 9100, paper: 'auto', cut: 'partial', feed: 3, copies: 1, drawer: false, drawerPin: 0, dithering: 'threshold', threshold: 160 };
     }
 
     /** The browser's printer settings (localStorage); defaults when nothing is stored or storage is unavailable. */
@@ -440,6 +445,7 @@ class NetReporterViewer extends HTMLElement {
             const s = this.printerSettings;
             const f = this._$psForm;
             f.host.value = s.host; f.port.value = s.port; f.paper.value = s.paper; f.cut.value = s.cut; f.feed.value = s.feed;
+            f.copies.value = s.copies || 1;
             f.drawer.checked = !!s.drawer; f.drawerPin.value = String(s.drawerPin || 0); f.drawerPin.disabled = !s.drawer;
             f.dithering.value = s.dithering; f.threshold.value = s.threshold;
             this._$psStatus.textContent = ''; this._$psStatus.className = 'status';
@@ -455,7 +461,8 @@ class NetReporterViewer extends HTMLElement {
         const num = (v, lo, hi, dflt) => { const n = parseInt(v, 10); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : dflt; };
         return {
             host: f.host.value.trim(), port: num(f.port.value, 1, 65535, 9100), paper: f.paper.value, cut: f.cut.value,
-            feed: num(f.feed.value, 0, 255, 3), drawer: f.drawer.checked, drawerPin: f.drawerPin.value === '1' ? 1 : 0,
+            feed: num(f.feed.value, 0, 255, 3), copies: num(f.copies.value, 1, 10, 1),
+            drawer: f.drawer.checked, drawerPin: f.drawerPin.value === '1' ? 1 : 0,
             dithering: f.dithering.value, threshold: num(f.threshold.value, 0, 255, 160),
         };
     }
@@ -509,19 +516,50 @@ class NetReporterViewer extends HTMLElement {
         const printer = own?.host ? `${own.host}:${own.port}` : '';
         btn.disabled = true;                                   // one click, one ticket
         try {
-            const init = { method: 'POST', credentials: 'same-origin' };
-            if (own?.host) { init.headers = { 'Content-Type': 'application/json' }; init.body = JSON.stringify(own); }
-            const res = await fetch(url, init);
-            if (res.status === 204) { this._toast(this._t.ticketSent); return; }
+            const res = await fetch(url, this._printerRequest(own));
             let data = null;
             try { data = await res.json(); } catch { /* no body */ }
+            if (res.ok && data?.ok) {
+                this._toast(data.paperNearEnd ? this._t.ticketSentNearEnd : this._t.ticketSent);
+                this.dispatchEvent(new CustomEvent('nr-printed', { detail: { bytes: data.bytes, copies: data.copies, paperNearEnd: !!data.paperNearEnd, printer } }));
+                return;
+            }
             this._toast(this._ticketMessage(data, printer));
-            this.dispatchEvent(new CustomEvent('nr-print-error', { detail: { status: res.status, error: data?.error ?? null } }));
+            this.dispatchEvent(new CustomEvent('nr-print-error', { detail: { action: 'print', status: res.status, error: data?.error ?? null, printer } }));
         } catch {
             this._toast(this._t.network);
         } finally {
             btn.disabled = false;
         }
+    }
+
+    /** Opens the cash drawer without printing (POST …/drawer) on the browser's printer or the server's. */
+    async openDrawer() {
+        const url = this._doc?.drawer;
+        const btn = this._root.querySelector('[data-act="openDrawer"]');
+        if (!url || btn.disabled) return;
+        const own = this._doc.printerSettings ? this.printerSettings : null;
+        if (own && !own.host && !this._doc.serverPrinter) { this._toast(this._t.ticketConfigure); this._togglePrinterDialog(true); return; }
+        const printer = own?.host ? `${own.host}:${own.port}` : '';
+        btn.disabled = true;
+        try {
+            const res = await fetch(url, this._printerRequest(own));
+            let data = null;
+            try { data = await res.json(); } catch { /* no body */ }
+            if (res.ok && data?.ok) { this._toast(this._t.drawerOpened); this.dispatchEvent(new CustomEvent('nr-drawer-opened', { detail: { printer } })); return; }
+            this._toast(this._ticketMessage(data, printer));
+            this.dispatchEvent(new CustomEvent('nr-print-error', { detail: { action: 'drawer', status: res.status, error: data?.error ?? null, printer } }));
+        } catch {
+            this._toast(this._t.network);
+        } finally {
+            btn.disabled = false;
+        }
+    }
+
+    _printerRequest(own) {
+        const init = { method: 'POST', credentials: 'same-origin' };
+        if (own?.host) { init.headers = { 'Content-Type': 'application/json' }; init.body = JSON.stringify(own); }
+        return init;
     }
 
     async download(format) {
@@ -569,6 +607,7 @@ class NetReporterViewer extends HTMLElement {
     <div class="group">
       <button data-act="print" title="${t.print}" aria-label="${t.print}">${icon('print')}</button>
       <button data-act="printTicket" hidden title="${t.printTicket}" aria-label="${t.printTicket}">${icon('ticket')}</button>
+      <button data-act="openDrawer" hidden title="${t.openDrawer}" aria-label="${t.openDrawer}">${icon('drawer')}</button>
       <button data-act="printerSettings" hidden title="${t.psTitle}" aria-label="${t.psTitle}">${icon('gear')}</button>
       <div class="menu">
         <button data-act="downloadMenu" title="${t.download}" aria-label="${t.download}" aria-haspopup="menu" aria-expanded="false">${icon('download')}</button>
@@ -600,17 +639,18 @@ class NetReporterViewer extends HTMLElement {
         </div>
         <div class="row">
           <label><span class="cap">${t.psFeed}</span><input name="feed" type="number" min="0" max="255"></label>
-          <div><span class="cap">${t.psDrawer}</span>
-            <div class="inline">
-              <label><input name="drawer" type="checkbox"> ${t.psDrawerOpen}</label>
-              <span class="pin">${t.psPin} <select name="drawerPin"><option value="0">2</option><option value="1">5</option></select></span>
-            </div>
-          </div>
+          <label><span class="cap">${t.psCopies}</span><input name="copies" type="number" min="1" max="10"></label>
         </div>
         <div class="row">
           <label><span class="cap">${t.psBw}</span>
             <select name="dithering"><option value="threshold">${t.psBwThreshold}</option><option value="fs">${t.psBwDither}</option></select></label>
           <label><span class="cap">${t.psThreshold}</span><input name="threshold" type="number" min="0" max="255"></label>
+        </div>
+        <div><span class="cap">${t.psDrawer}</span>
+          <div class="inline">
+            <label><input name="drawer" type="checkbox"> ${t.psDrawerOpen}</label>
+            <span class="pin">${t.psPin} <select name="drawerPin"><option value="0">2</option><option value="1">5</option></select></span>
+          </div>
         </div>
         <p class="hint">${t.psHint}</p>
         <div class="test">
@@ -727,6 +767,7 @@ class NetReporterViewer extends HTMLElement {
         this._root.querySelector('[data-act="print"]').disabled = !doc.exports?.pdf;
         this._root.querySelector('[data-act="printTicket"]').hidden = !doc.printer;
         this._root.querySelector('[data-act="printerSettings"]').hidden = !doc.printerSettings;
+        this._root.querySelector('[data-act="openDrawer"]').hidden = !doc.drawer;
 
         if (doc.pageCount === 0) { this._showOverlay('message', this._t.empty); }
 
@@ -1012,6 +1053,7 @@ class NetReporterViewer extends HTMLElement {
             case 'print': this.print(); break;
             case 'printTicket': this.printTicket(); break;
             case 'printerSettings': this._togglePrinterDialog(true); break;
+            case 'openDrawer': this.openDrawer(); break;
             case 'downloadMenu': this._toggleMenu(); e.stopPropagation(); break;
         }
     }

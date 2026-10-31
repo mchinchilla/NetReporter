@@ -69,6 +69,7 @@ public static class ViewerEndpointExtensions
         group.MapGet("/_doc/{token}/export/{format}", viewer.ServeExport);
         group.MapPost("/_doc/{token}/print", viewer.ServePrint);
         group.MapPost("/_doc/{token}/printer-status", viewer.ServePrinterStatus);
+        group.MapPost("/_doc/{token}/drawer", viewer.ServeDrawer);
         group.MapGet("/{reportId}/open", viewer.Open);
         group.MapGet("/{reportId}", viewer.ServeViewerPage);
         return group;
@@ -207,6 +208,7 @@ public static class ViewerEndpointExtensions
             if (options.EscPos is { } escPos && (escPos.Printer is not null || escPos.AllowClientSettings))
             {
                 json.WriteString("printer", docUrl + "/print");
+                json.WriteString("drawer", docUrl + "/drawer");
                 json.WriteBoolean("serverPrinter", escPos.Printer is not null);
                 if (escPos.AllowClientSettings)
                 {
@@ -287,7 +289,7 @@ public static class ViewerEndpointExtensions
         /// </summary>
         /// <summary>Printer and ticket settings a browser may send (JSON body) when <see cref="ViewerEscPosOptions.AllowClientSettings"/> is on.</summary>
         private sealed record ClientPrinterSettings(
-            string? Host, int? Port, string? Paper, string? Cut, int? Feed, bool? Drawer, int? DrawerPin, string? Dithering, int? Threshold)
+            string? Host, int? Port, string? Paper, string? Cut, int? Feed, bool? Drawer, int? DrawerPin, string? Dithering, int? Threshold, int? Copies)
         {
             public bool HasPrinter => !string.IsNullOrWhiteSpace(Host);
         }
@@ -330,7 +332,59 @@ public static class ViewerEndpointExtensions
             if (string.Equals(client.Dithering, "fs", StringComparison.OrdinalIgnoreCase)) o.Dithering = EscPosDithering.FloydSteinberg;
             else if (string.Equals(client.Dithering, "threshold", StringComparison.OrdinalIgnoreCase)) o.Dithering = EscPosDithering.Threshold;
             if (client.Threshold is { } threshold) o.Threshold = Math.Clamp(threshold, 0, 255);
+            if (client.Copies is { } copies) o.Copies = Math.Clamp(copies, 1, 10);
             return o;
+        }
+
+        /// <summary>
+        /// Printer for this request: the browser's (when allowed and sent) or the server's. Null means the
+        /// response was already written (403 not allowed / 404 no printer).
+        /// </summary>
+        private async Task<IEscPosTransport?> ResolveTransport(HttpContext ctx, ViewerDocument doc, ViewerEscPosOptions escPos, ClientPrinterSettings? client, CancellationToken aborted)
+        {
+            if (client is { HasPrinter: true })
+                return await ClientTransport(ctx, escPos, client).ConfigureAwait(false);
+            var transport = escPos.Printer is not null ? await escPos.Printer(ctx, doc.ReportId, aborted).ConfigureAwait(false) : null;
+            if (transport is null) await WriteJsonError(ctx, StatusCodes.Status404NotFound, "no-printer").ConfigureAwait(false);
+            return transport;
+        }
+
+        /// <summary>
+        /// <c>POST …/drawer</c>: opens the cash drawer without printing (<see cref="EscPosControl.OpenDrawer"/>) on the
+        /// browser's printer or the server's; the pin comes from the browser settings or <see cref="EscPosRendererOptions.CashDrawerPin"/>.
+        /// </summary>
+        public async Task ServeDrawer(HttpContext ctx)
+        {
+            var doc = store.Get((string)ctx.GetRouteValue("token")!, CurrentUser(ctx));
+            if (doc is null)
+            {
+                ctx.Response.StatusCode = StatusCodes.Status404NotFound;
+                return;
+            }
+            var escPos = options.EscPos;
+            if (escPos is null || (escPos.Printer is null && !escPos.AllowClientSettings))
+            {
+                await WriteJsonError(ctx, StatusCodes.Status404NotFound, "no-printer").ConfigureAwait(false);
+                return;
+            }
+            var aborted = ctx.RequestAborted;
+            try
+            {
+                var client = escPos.AllowClientSettings ? await ReadClientSettings(ctx, aborted).ConfigureAwait(false) : null;
+                var transport = await ResolveTransport(ctx, doc, escPos, client, aborted).ConfigureAwait(false);
+                if (transport is null) return;
+                var pin = client?.DrawerPin is { } p ? (p == 1 ? 1 : 0) : escPos.Renderer.CashDrawerPin;
+                await transport.OpenDrawerAsync(pin, aborted).ConfigureAwait(false);
+                ctx.Response.ContentType = "application/json; charset=utf-8";
+                await ctx.Response.WriteAsync("{\"ok\":true}", aborted).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (aborted.IsCancellationRequested) { return; }
+            catch (ArgumentException ex) { await WriteJsonError(ctx, StatusCodes.Status400BadRequest, "invalid-printer", ex.Message).ConfigureAwait(false); }
+            catch (EscPosPrinterException ex)
+            {
+                Logger(ctx).LogWarning(ex, "NetReporter viewer could not reach the ESC/POS printer to open the drawer");
+                await WriteJsonError(ctx, StatusCodes.Status502BadGateway, "unreachable", ex.Message).ConfigureAwait(false);
+            }
         }
 
         /// <summary>Transport for a browser-configured printer, or null (with the error already written) when it is not allowed.</summary>
@@ -439,25 +493,9 @@ public static class ViewerEndpointExtensions
             try
             {
                 var client = escPos.AllowClientSettings ? await ReadClientSettings(ctx, aborted).ConfigureAwait(false) : null;
-                IEscPosTransport? transport;
-                if (client is { HasPrinter: true })
-                {
-                    transport = await ClientTransport(ctx, escPos, client).ConfigureAwait(false);
-                    if (transport is null) return;
-                }
-                else if (escPos.Printer is not null)
-                {
-                    transport = await escPos.Printer(ctx, doc.ReportId, aborted).ConfigureAwait(false);
-                }
-                else
-                {
-                    transport = null;
-                }
-                if (transport is null)
-                {
-                    await WriteJsonError(ctx, StatusCodes.Status404NotFound, "no-printer").ConfigureAwait(false);
-                    return;
-                }
+                var transport = await ResolveTransport(ctx, doc, escPos, client, aborted).ConfigureAwait(false);
+                if (transport is null) return;
+                var paperNearEnd = false;
                 if (escPos.CheckStatusBeforePrint && transport is IEscPosStatusSource statusSource)
                 {
                     var status = await statusSource.QueryStatusAsync(aborted).ConfigureAwait(false);
@@ -466,11 +504,20 @@ public static class ViewerEndpointExtensions
                         await WriteJsonError(ctx, StatusCodes.Status409Conflict, status.Code).ConfigureAwait(false);
                         return;
                     }
+                    paperNearEnd = status.PaperNearEnd;
                 }
                 var renderer = RendererFor(escPos, client, doc.RenderList.Page.Size.Width);
                 var bytes = new EscPosRenderer(renderer).Render(doc.RenderList, aborted);
                 await transport.SendAsync(bytes, aborted).ConfigureAwait(false);
-                ctx.Response.StatusCode = StatusCodes.Status204NoContent;
+                // 200 con detalle (antes 204): el cliente avisa cuando el papel está por acabarse.
+                ctx.Response.ContentType = "application/json; charset=utf-8";
+                await using var json = new Utf8JsonWriter(ctx.Response.Body);
+                json.WriteStartObject();
+                json.WriteBoolean("ok", true);
+                json.WriteNumber("bytes", bytes.Length);
+                json.WriteNumber("copies", renderer.Copies);
+                json.WriteBoolean("paperNearEnd", paperNearEnd);
+                json.WriteEndObject();
             }
             catch (ArgumentException ex)
             {

@@ -85,6 +85,9 @@ public sealed class EscPosRendererOptions
     /// <summary>Conector de la gaveta: 0 (pin 2) o 1 (pin 5).</summary>
     public int CashDrawerPin { get; set; }
 
+    /// <summary>Copias del documento (1–10): cada una con su alimentación y corte; la gaveta se abre una sola vez.</summary>
+    public int Copies { get; set; } = 1;
+
     /// <summary>Copia superficial: para derivar opciones por petición sin tocar las compartidas.</summary>
     public EscPosRendererOptions Clone() => (EscPosRendererOptions)MemberwiseClone();
 
@@ -108,5 +111,7 @@ public sealed class EscPosRendererOptions
             throw new ArgumentOutOfRangeException(nameof(FeedLinesBeforeCut), FeedLinesBeforeCut, "FeedLinesBeforeCut va de 0 a 255.");
         if (CashDrawerPin is not (0 or 1))
             throw new ArgumentOutOfRangeException(nameof(CashDrawerPin), CashDrawerPin, "CashDrawerPin es 0 (pin 2) o 1 (pin 5).");
+        if (Copies is < 1 or > 10)
+            throw new ArgumentOutOfRangeException(nameof(Copies), Copies, "Copies va de 1 a 10.");
     }
 }
