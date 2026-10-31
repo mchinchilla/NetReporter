@@ -76,7 +76,7 @@
         <div class="flex items-center gap-2 text-xs">
             <select x-model="currentSelection"
                     @@change="onSelectionChange()"
-                    class="border border-slate-300 rounded px-2 py-1 bg-white text-slate-800 min-w-[180px]">
+                    class="nr-select border border-slate-300 rounded pl-2 py-1 bg-white text-slate-800 min-w-[180px]">
                 <option value="">@L["Header.Unsaved"]</option>
                 <optgroup label="@L["Header.Samples"]" x-show="availableSamples.length > 0">
                     <template x-for="s in availableSamples" :key="s">
@@ -166,7 +166,7 @@
             <span x-show="!selected" class="text-slate-400">@L["Header.NoSelection"]</span>
             <select x-model="language" @@change="setLanguage($event.target.value)"
                     title="@L["Header.Language"]" aria-label="@L["Header.Language"]"
-                    class="border border-slate-300 rounded px-1 py-0.5 bg-white text-slate-700 text-xs">
+                    class="nr-select border border-slate-300 rounded pl-1 py-0.5 bg-white text-slate-700 text-xs">
                 <option value="es">ES</option>
                 <option value="en">EN</option>
             </select>
@@ -366,7 +366,7 @@
 
                 <div class="mt-2">
                     <select x-model="newBandKind"
-                            class="w-full text-[11px] border border-slate-300 rounded py-0.5 px-1 mb-1 bg-white">
+                            class="nr-select w-full text-[11px] border border-slate-300 rounded py-0.5 pl-1 mb-1 bg-white">
                         <option value="ReportHeader">@L["Band.ReportHeader"]</option>
                         <option value="PageHeader">@L["Band.PageHeader"]</option>
                         <option value="Detail">@L["Band.Detail"]</option>
@@ -440,7 +440,7 @@
                                 title="@L["Preview.Grid"]" class="px-1.5 h-6 border rounded leading-none font-mono">#</button>
                         <select x-model.number="gridStep" @@change="applyGridToDom(); persistGuides()"
                                 title="@L["Preview.GridStep"]"
-                                class="h-6 border border-slate-300 rounded bg-white text-slate-700 text-xs px-1">
+                                class="nr-select h-6 border border-slate-300 rounded bg-white text-slate-700 text-xs pl-1">
                             <option value="5">5 pt</option>
                             <option value="10">10 pt</option>
                             <option value="20">20 pt</option>
@@ -675,7 +675,7 @@
                             <label class="flex flex-col text-[11px] text-slate-600">
                                 @L["Image.Fit"]
                                 <select x-model="form.fit" @@change="applyPatch({Fit: form.fit})"
-                                        class="mt-0.5 border border-slate-300 rounded px-2 py-1 text-sm bg-white">
+                                        class="nr-select mt-0.5 border border-slate-300 rounded pl-2 py-1 text-sm bg-white">
                                     <option value="contain">@L["Image.FitContain"]</option>
                                     <option value="fill">@L["Image.FitFill"]</option>
                                 </select>
@@ -689,7 +689,7 @@
                             <label class="flex flex-col text-[11px] text-slate-600">
                                 @L["Barcode.Format"]
                                 <select x-model="form.barcodeFormat" @@change="applyPatch({BarcodeFormat: form.barcodeFormat})"
-                                        class="mt-0.5 border border-slate-300 rounded px-2 py-1 text-sm bg-white">
+                                        class="nr-select mt-0.5 border border-slate-300 rounded pl-2 py-1 text-sm bg-white">
                                     <option value="qr">QR</option>
                                     <option value="code128">Code 128</option>
                                     <option value="code39">Code 39</option>
@@ -727,7 +727,7 @@
                                 <label class="flex flex-col text-[11px] text-slate-600">
                                     @L["Chart.Type"]
                                     <select x-model="form.chartType" @@change="applyPatch({ChartType: form.chartType})"
-                                            class="mt-0.5 border border-slate-300 rounded px-2 py-1 text-sm bg-white">
+                                            class="nr-select mt-0.5 border border-slate-300 rounded pl-2 py-1 text-sm bg-white">
                                         <option value="bar">@L["Chart.Bar"]</option>
                                         <option value="horizontalBar">@L["Chart.HBar"]</option>
                                         <option value="line">@L["Chart.Line"]</option>
@@ -739,7 +739,7 @@
                                 <label class="flex flex-col text-[11px] text-slate-600">
                                     @L["Chart.Legend"]
                                     <select x-model="form.legend" @@change="applyPatch({Legend: form.legend || 'auto'})"
-                                            class="mt-0.5 border border-slate-300 rounded px-2 py-1 text-sm bg-white">
+                                            class="nr-select mt-0.5 border border-slate-300 rounded pl-2 py-1 text-sm bg-white">
                                         <option value="">@L["Chart.LegendAuto"]</option>
                                         <option value="none">@L["Chart.LegendNone"]</option>
                                         <option value="top">@L["Chart.LegendTop"]</option>
@@ -838,7 +838,7 @@
                                 @L["Table.Header"]
                                 <select x-model="form.headerMode"
                                         @@change="applyPatch({HeaderMode: form.headerMode})"
-                                        class="mt-0.5 border border-slate-300 rounded px-2 py-1 text-sm bg-white">
+                                        class="nr-select mt-0.5 border border-slate-300 rounded pl-2 py-1 text-sm bg-white">
                                     <option value="RepeatOnPageBreak">@L["Table.RepeatHeader"]</option>
                                     <option value="PrintOnce">@L["Table.PrintOnce"]</option>
                                 </select>
