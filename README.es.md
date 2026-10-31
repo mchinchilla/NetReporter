@@ -69,6 +69,7 @@
 
 1. **Cambió el marcado del SVG** (el dibujo no). Las páginas empiezan con `<svg xmlns=… width height viewBox>` (sin declaración XML), el texto es `<text xml:space="preserve" x="x₁ x₂ …" y="línea base">` con una x por carácter, `font-family` lista la familia pedida, la que realmente se usó y la genérica (`"Helvetica, 'Liberation Sans', sans-serif"`) para que el navegador elija la mejor que tenga, las imágenes incrustan sus bytes **originales** (sin recodificar a PNG), solo se emite `clipPath` cuando un texto se sale de su caja, y los números llevan tres decimales. Lo que parseara la salida anterior de Skia (ids `cl_N`, `<?xml`, posiciones separadas por comas) debe actualizarse; el preview del Designer y el visor ya lo hacen.
 2. Un trazo de grosor 0 se dibuja de 0.5 pt en SVG (Skia dibujaba una línea de un píxel).
+3. **Desde la 1.4.3 los paquetes dependen entre sí con versión exacta** (`NetReporter.Pdf` 1.4.3 exige `NetReporter.Core` `[1.4.3]`, antes `>= 1.4.3`). Referenciar dos paquetes `NetReporter.*` con versiones distintas ahora es un error de restore (NU1107/NU1608) en vez de una mezcla silenciosa; actualízalos todos juntos.
 
 ---
 
@@ -417,7 +418,7 @@ O referenciar solo las piezas que necesites:
 | `NetReporter.Fonts.Liberation` | Liberation Sans/Serif/Mono embebidas, para hosts sin fuentes del sistema (no está en el meta-paquete) |
 | `NetReporter.Viewer` | Visor de reportes para apps ASP.NET Core: visor paginado, miniaturas, impresión, descargas (no está en el meta-paquete) |
 
-Todos los paquetes comparten una misma versión. Cada push a `main` publica una nueva versión **patch** mediante
+Todos los paquetes comparten una misma versión y, desde la 1.4.3, dependen entre sí con esa versión **exacta** (`[1.4.3]`), así que NuGet se niega a mezclar versiones en vez de resolver, por ejemplo, `NetReporter.Viewer` 1.4.3 con `NetReporter.Core` 1.5.0. Actualiza todos los paquetes `NetReporter.*` juntos. Cada push a `main` publica una nueva versión **patch** mediante
 [`.github/workflows/publish.yml`](.github/workflows/publish.yml); incluye `[minor]` o `[major]` en el mensaje
 del commit para subir esa parte en su lugar. Cada release queda etiquetado como `vX.Y.Z` en GitHub. (La release
 1.1.0 = el primer push después de `v1.0.3` cuyo mensaje de commit contenga `[minor]`.)

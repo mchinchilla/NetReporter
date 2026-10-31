@@ -1,0 +1,20 @@
+<Project>
+
+  <!--
+    All NetReporter.* packages are released together with one version (see .github/workflows/publish.yml).
+    By default `dotnet pack` turns a ProjectReference into a minimum-version dependency (">= 1.4.3"), which
+    lets NuGet resolve a mix such as NetReporter.Viewer 1.4.3 + NetReporter.Core 1.5.0. Pinning the
+    dependencies between our own packages to the exact version ("[1.4.3]") makes a mix a restore error
+    instead. Package references to third-party packages (SkiaSharp, ClosedXML, …) are not affected.
+  -->
+  <Target Name="NetReporterExactProjectReferenceVersions" AfterTargets="_GetProjectReferenceVersions">
+    <ItemGroup>
+      <_NetReporterExactProjectReferences Include="@(_ProjectReferencesWithVersions)">
+        <ProjectVersion>[%(_ProjectReferencesWithVersions.ProjectVersion)]</ProjectVersion>
+      </_NetReporterExactProjectReferences>
+      <_ProjectReferencesWithVersions Remove="@(_ProjectReferencesWithVersions)" />
+      <_ProjectReferencesWithVersions Include="@(_NetReporterExactProjectReferences)" />
+    </ItemGroup>
+  </Target>
+
+</Project>

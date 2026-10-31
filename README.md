@@ -69,6 +69,7 @@
 
 1. **The SVG markup changed** (the drawing didn't). Pages start with `<svg xmlns=… width height viewBox>` (no XML declaration), text is `<text xml:space="preserve" x="x₁ x₂ …" y="baseline">` with one x per character, `font-family` lists the requested family, the family that was actually used and the generic (`"Helvetica, 'Liberation Sans', sans-serif"`) so the browser picks the best it has, images embed their **original** bytes (no PNG re-encoding), a `clipPath` is only emitted when a text leaves its box, and numbers carry three decimals. Anything that parsed the old Skia output (`cl_N` clip ids, `<?xml`, comma-separated positions) needs updating; the Designer preview and the viewer already do.
 2. A stroke of thickness 0 is drawn 0.5 pt wide in SVG (Skia drew a one-pixel hairline).
+3. **Since 1.4.3 the packages depend on each other with an exact version** (`NetReporter.Pdf` 1.4.3 requires `NetReporter.Core` `[1.4.3]`, previously `>= 1.4.3`). Referencing two `NetReporter.*` packages with different versions is now a restore error (NU1107/NU1608) instead of a silent mix; update all of them together.
 
 ---
 
@@ -417,7 +418,7 @@ Or reference only the pieces you need:
 | `NetReporter.Fonts.Liberation` | Liberation Sans/Serif/Mono embedded, for hosts without system fonts (not in the meta-package) |
 | `NetReporter.Viewer` | Report viewer for ASP.NET Core apps: paginated viewer, thumbnails, print, downloads (not in the meta-package) |
 
-All packages share one version. Every push to `main` publishes a new **patch** version through
+All packages share one version, and since 1.4.3 they depend on each other with that **exact** version (`[1.4.3]`), so NuGet refuses to mix versions instead of resolving, say, `NetReporter.Viewer` 1.4.3 with `NetReporter.Core` 1.5.0. Update every `NetReporter.*` package together. Every push to `main` publishes a new **patch** version through
 [`.github/workflows/publish.yml`](.github/workflows/publish.yml); put `[minor]` or `[major]` in a commit
 message to bump that part instead. Each release is tagged `vX.Y.Z` on GitHub. (Release 1.1.0 = the first push
 after `v1.0.3` whose commit message contains `[minor]`.)

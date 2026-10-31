@@ -22,7 +22,7 @@ behavior changes before upgrading production templates.
 dotnet add package NetReporter   # meta-package: Core + Templates + every renderer + Barcodes
 ```
 
-Or reference only the pieces you need. All packages share the same version number.
+Or reference only the pieces you need. All packages share the same version number and depend on each other with that exact version, so update every `NetReporter.*` package together.
 
 | Package | Contents |
 |---|---|
