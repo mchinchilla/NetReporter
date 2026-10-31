@@ -68,6 +68,7 @@ public static class ViewerEndpointExtensions
         group.MapGet("/_doc/{token}/images/{index:int}", viewer.ServeImage);
         group.MapGet("/_doc/{token}/export/{format}", viewer.ServeExport);
         group.MapPost("/_doc/{token}/print", viewer.ServePrint);
+        group.MapPost("/_doc/{token}/printer-status", viewer.ServePrinterStatus);
         group.MapGet("/{reportId}/open", viewer.Open);
         group.MapGet("/{reportId}", viewer.ServeViewerPage);
         return group;
@@ -201,8 +202,18 @@ public static class ViewerEndpointExtensions
             if (options.Formats.HasFlag(ViewerFormats.Html)) json.WriteString("html", docUrl + "/export/html");
             if (options.EscPos is { AllowDownload: true }) json.WriteString("escpos", docUrl + "/export/escpos");
             json.WriteEndObject();
-            // Impresión directa: el componente muestra el botón solo cuando el servidor ofrece la URL.
-            if (options.EscPos?.Printer is not null) json.WriteString("printer", docUrl + "/print");
+            // Impresión directa: el componente muestra el botón solo cuando el servidor ofrece la URL; con
+            // printerSettings el navegador puede configurar su propia impresora (diálogo ⚙ + printer-status).
+            if (options.EscPos is { } escPos && (escPos.Printer is not null || escPos.AllowClientSettings))
+            {
+                json.WriteString("printer", docUrl + "/print");
+                json.WriteBoolean("serverPrinter", escPos.Printer is not null);
+                if (escPos.AllowClientSettings)
+                {
+                    json.WriteBoolean("printerSettings", true);
+                    json.WriteString("printerStatus", docUrl + "/printer-status");
+                }
+            }
             json.WriteEndObject();
         }
 
@@ -274,6 +285,141 @@ public static class ViewerEndpointExtensions
         /// JSON <c>{"error": code}</c>: 404 <c>no-printer</c>, 409 <c>paper-end</c>/<c>cover-open</c>/<c>offline</c>/<c>error</c>
         /// (status check), 502 <c>unreachable</c> (connection/timeout), 500 <c>failed</c>.
         /// </summary>
+        /// <summary>Printer and ticket settings a browser may send (JSON body) when <see cref="ViewerEscPosOptions.AllowClientSettings"/> is on.</summary>
+        private sealed record ClientPrinterSettings(
+            string? Host, int? Port, string? Paper, string? Cut, int? Feed, bool? Drawer, int? DrawerPin, string? Dithering, int? Threshold)
+        {
+            public bool HasPrinter => !string.IsNullOrWhiteSpace(Host);
+        }
+
+        private static async Task<ClientPrinterSettings?> ReadClientSettings(HttpContext ctx, CancellationToken aborted)
+        {
+            if (ctx.Request.ContentLength is 0 or null && !ctx.Request.HasJsonContentType()) return null;
+            if (!ctx.Request.HasJsonContentType()) return null;
+            try
+            {
+                return await JsonSerializer.DeserializeAsync<ClientPrinterSettings>(ctx.Request.Body,
+                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true }, aborted).ConfigureAwait(false);
+            }
+            catch (JsonException)
+            {
+                return null;
+            }
+        }
+
+        /// <summary>Renderer options for this request: the configured defaults plus the browser's paper/cut/drawer/dithering choices.</summary>
+        private static EscPosRendererOptions RendererFor(ViewerEscPosOptions escPos, ClientPrinterSettings? client, double pageWidthPt)
+        {
+            if (client is null) return escPos.Renderer;
+            var o = escPos.Renderer.Clone();
+            switch ((client.Paper ?? "").ToLowerInvariant())
+            {
+                case "58": o.DotsPerLine = 384; break;
+                case "80": o.DotsPerLine = 576; break;
+                case "auto": o.DotsPerLine = pageWidthPt <= NetReporter.Core.Primitives.Units.Mm(60) ? 384 : 576; break;
+            }
+            switch ((client.Cut ?? "").ToLowerInvariant())
+            {
+                case "partial": o.Cut = EscPosCut.Partial; break;
+                case "full": o.Cut = EscPosCut.Full; break;
+                case "none": o.Cut = EscPosCut.None; break;
+            }
+            if (client.Feed is { } feed) o.FeedLinesBeforeCut = Math.Clamp(feed, 0, 255);
+            if (client.Drawer is { } drawer) o.OpenCashDrawer = drawer;
+            if (client.DrawerPin is { } pin) o.CashDrawerPin = pin == 1 ? 1 : 0;
+            if (string.Equals(client.Dithering, "fs", StringComparison.OrdinalIgnoreCase)) o.Dithering = EscPosDithering.FloydSteinberg;
+            else if (string.Equals(client.Dithering, "threshold", StringComparison.OrdinalIgnoreCase)) o.Dithering = EscPosDithering.Threshold;
+            if (client.Threshold is { } threshold) o.Threshold = Math.Clamp(threshold, 0, 255);
+            return o;
+        }
+
+        /// <summary>Transport for a browser-configured printer, or null (with the error already written) when it is not allowed.</summary>
+        private async Task<IEscPosTransport?> ClientTransport(HttpContext ctx, ViewerEscPosOptions escPos, ClientPrinterSettings client)
+        {
+            var host = client.Host!.Trim();
+            var port = client.Port ?? 9100;
+            if (!escPos.IsPrinterAllowed(host, port))
+            {
+                await WriteJsonError(ctx, StatusCodes.Status403Forbidden, "printer-not-allowed").ConfigureAwait(false);
+                return null;
+            }
+            var defaults = escPos.ClientPrinterDefaults;
+            return escPos.TransportFactory(new EscPosTcpPrinterOptions
+            {
+                Host = host,
+                Port = port,
+                ConnectTimeout = defaults.ConnectTimeout,
+                SendTimeout = defaults.SendTimeout,
+                StatusTimeout = defaults.StatusTimeout,
+                NoDelay = defaults.NoDelay,
+            });
+        }
+
+        /// <summary>
+        /// <c>POST …/printer-status</c> (only with <see cref="ViewerEscPosOptions.AllowClientSettings"/>): asks the
+        /// browser-configured printer its status for the settings dialog's "Test connection" button.
+        /// </summary>
+        public async Task ServePrinterStatus(HttpContext ctx)
+        {
+            var doc = store.Get((string)ctx.GetRouteValue("token")!, CurrentUser(ctx));
+            var escPos = options.EscPos;
+            if (doc is null || escPos is not { AllowClientSettings: true })
+            {
+                ctx.Response.StatusCode = StatusCodes.Status404NotFound;
+                return;
+            }
+            var aborted = ctx.RequestAborted;
+            try
+            {
+                var client = await ReadClientSettings(ctx, aborted).ConfigureAwait(false);
+                if (client is not { HasPrinter: true })
+                {
+                    await WriteJsonError(ctx, StatusCodes.Status400BadRequest, "invalid-printer").ConfigureAwait(false);
+                    return;
+                }
+                var transport = await ClientTransport(ctx, escPos, client).ConfigureAwait(false);
+                if (transport is null) return;
+                if (transport is not IEscPosStatusSource statusSource)
+                {
+                    await WriteJsonError(ctx, StatusCodes.Status400BadRequest, "status-unsupported").ConfigureAwait(false);
+                    return;
+                }
+                var status = await statusSource.QueryStatusAsync(aborted).ConfigureAwait(false);
+                ctx.Response.ContentType = "application/json; charset=utf-8";
+                await using var json = new Utf8JsonWriter(ctx.Response.Body);
+                json.WriteStartObject();
+                json.WriteBoolean("ok", true);
+                json.WriteString("code", status.Code);
+                json.WriteBoolean("ready", status.ReadyToPrint);
+                json.WriteBoolean("online", status.Online);
+                json.WriteBoolean("coverOpen", status.CoverOpen);
+                json.WriteBoolean("paperEnd", status.PaperEnd);
+                json.WriteBoolean("paperNearEnd", status.PaperNearEnd);
+                json.WriteBoolean("error", status.Error);
+                json.WriteEndObject();
+            }
+            catch (OperationCanceledException) when (aborted.IsCancellationRequested)
+            {
+                return;
+            }
+            catch (ArgumentException ex)
+            {
+                await WriteJsonError(ctx, StatusCodes.Status400BadRequest, "invalid-printer", ex.Message).ConfigureAwait(false);
+            }
+            catch (EscPosPrinterException ex)
+            {
+                await WriteJsonError(ctx, StatusCodes.Status502BadGateway, "unreachable", ex.Message).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// <c>POST …/print</c>: renders the document as ESC/POS and sends it to the printer. With
+        /// <see cref="ViewerEscPosOptions.AllowClientSettings"/> a JSON body may carry the browser's printer and
+        /// ticket settings; otherwise (or without a host in the body) the printer comes from
+        /// <see cref="ViewerEscPosOptions.Printer"/>. 204 on success; otherwise a JSON <c>{"error": code}</c>:
+        /// 404 <c>no-printer</c>, 403 <c>printer-not-allowed</c>, 409 <c>paper-end</c>/<c>cover-open</c>/<c>offline</c>/<c>error</c>
+        /// (status check), 502 <c>unreachable</c> (connection/timeout), 500 <c>failed</c>.
+        /// </summary>
         public async Task ServePrint(HttpContext ctx)
         {
             var doc = store.Get((string)ctx.GetRouteValue("token")!, CurrentUser(ctx));
@@ -283,7 +429,7 @@ public static class ViewerEndpointExtensions
                 return;
             }
             var escPos = options.EscPos;
-            if (escPos?.Printer is null)
+            if (escPos is null || (escPos.Printer is null && !escPos.AllowClientSettings))
             {
                 await WriteJsonError(ctx, StatusCodes.Status404NotFound, "no-printer").ConfigureAwait(false);
                 return;
@@ -292,7 +438,21 @@ public static class ViewerEndpointExtensions
             var aborted = ctx.RequestAborted;
             try
             {
-                var transport = await escPos.Printer(ctx, doc.ReportId, aborted).ConfigureAwait(false);
+                var client = escPos.AllowClientSettings ? await ReadClientSettings(ctx, aborted).ConfigureAwait(false) : null;
+                IEscPosTransport? transport;
+                if (client is { HasPrinter: true })
+                {
+                    transport = await ClientTransport(ctx, escPos, client).ConfigureAwait(false);
+                    if (transport is null) return;
+                }
+                else if (escPos.Printer is not null)
+                {
+                    transport = await escPos.Printer(ctx, doc.ReportId, aborted).ConfigureAwait(false);
+                }
+                else
+                {
+                    transport = null;
+                }
                 if (transport is null)
                 {
                     await WriteJsonError(ctx, StatusCodes.Status404NotFound, "no-printer").ConfigureAwait(false);
@@ -307,9 +467,14 @@ public static class ViewerEndpointExtensions
                         return;
                     }
                 }
-                var bytes = new EscPosRenderer(escPos.Renderer).Render(doc.RenderList, aborted);
+                var renderer = RendererFor(escPos, client, doc.RenderList.Page.Size.Width);
+                var bytes = new EscPosRenderer(renderer).Render(doc.RenderList, aborted);
                 await transport.SendAsync(bytes, aborted).ConfigureAwait(false);
                 ctx.Response.StatusCode = StatusCodes.Status204NoContent;
+            }
+            catch (ArgumentException ex)
+            {
+                await WriteJsonError(ctx, StatusCodes.Status400BadRequest, "invalid-printer", ex.Message).ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (aborted.IsCancellationRequested)
             {

@@ -85,6 +85,9 @@ public sealed class EscPosRendererOptions
     /// <summary>Conector de la gaveta: 0 (pin 2) o 1 (pin 5).</summary>
     public int CashDrawerPin { get; set; }
 
+    /// <summary>Copia superficial: para derivar opciones por petición sin tocar las compartidas.</summary>
+    public EscPosRendererOptions Clone() => (EscPosRendererOptions)MemberwiseClone();
+
     /// <summary>Rollo de 80 mm: 576 puntos por línea.</summary>
     public static EscPosRendererOptions ForRoll80() => new();
 

@@ -34,10 +34,11 @@ app.MapNetReporterViewer("/reports", (request, _) =>
 }, options =>
 {
     options.IncludeErrorDetails = app.Environment.IsDevelopment();
-    // ESC/POS: the .escpos download is always offered; the "print ticket" button appears when a printer is
-    // configured. Here one TCP printer for everyone (NETREPORTER_PRINTER=host[:port]); a real ERP resolves
+    // ESC/POS: the .escpos download is always offered. Each browser may configure its own printer in the
+    // viewer's ⚙ dialog (AllowClientSettings; by default only private LAN addresses are accepted), and a
+    // server-side printer can be set for everyone with NETREPORTER_PRINTER=host[:port]. A real ERP resolves
     // the printer per user/branch in options.EscPos.Printer.
-    options.EscPos = new ViewerEscPosOptions();
+    options.EscPos = new ViewerEscPosOptions { AllowClientSettings = true };
     if (Environment.GetEnvironmentVariable("NETREPORTER_PRINTER") is { Length: > 0 } printer)
     {
         var parts = printer.Split(':');

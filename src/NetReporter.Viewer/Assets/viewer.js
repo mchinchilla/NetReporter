@@ -29,7 +29,18 @@ const I18N = {
         ticketNoPrinter: 'No hay impresora de tickets configurada', ticketOffline: 'La impresora está fuera de línea',
         ticketCoverOpen: 'La impresora tiene la tapa abierta', ticketPaperEnd: 'La impresora no tiene papel',
         ticketPrinterError: 'La impresora reporta un error', ticketUnreachable: 'No se pudo conectar con la impresora',
-        ticketFailed: 'No se pudo imprimir el ticket',
+        ticketFailed: 'No se pudo imprimir el ticket', ticketNotAllowed: 'El servidor no permite esa impresora',
+        ticketConfigure: 'Configura la impresora primero (⚙)', ticketInvalid: 'Dirección de impresora no válida',
+        ticketStatusReady: '{printer} lista: en línea, tapa cerrada y con papel',
+        ticketStatusNearEnd: '{printer} lista, pero el papel está por acabarse',
+        psTitle: 'Configurar impresora', psHost: 'IP o nombre', psPort: 'Puerto', psPaper: 'Papel',
+        psPaperAuto: 'Automático (por página)', psPaper80: '80 mm (576 puntos)', psPaper58: '58 mm (384 puntos)',
+        psCut: 'Corte', psCutPartial: 'Parcial', psCutFull: 'Total', psCutNone: 'Sin corte',
+        psFeed: 'Avance antes del corte (líneas)', psDrawer: 'Gaveta de dinero', psDrawerOpen: 'Abrir al imprimir', psPin: 'Pin',
+        psBw: 'Blanco y negro', psBwThreshold: 'Umbral (texto nítido)', psBwDither: 'Difusión (grises de logos)', psThreshold: 'Umbral (0–255)',
+        psHint: 'Se guarda en este navegador. Antes de imprimir se consulta el estado de la impresora.',
+        psTest: 'Probar conexión', psTesting: 'Consultando…', psSave: 'Guardar', psCancel: 'Cancelar',
+        psSaved: 'Impresora guardada: {printer}', psSavedNone: 'Ajustes guardados (sin impresora propia)',
     },
     en: {
         thumbnails: 'Thumbnails', first: 'First page', prev: 'Previous page', next: 'Next page',
@@ -43,7 +54,18 @@ const I18N = {
         ticketNoPrinter: 'No ticket printer is configured', ticketOffline: 'The printer is offline',
         ticketCoverOpen: 'The printer cover is open', ticketPaperEnd: 'The printer is out of paper',
         ticketPrinterError: 'The printer reports an error', ticketUnreachable: 'Could not reach the printer',
-        ticketFailed: 'The ticket could not be printed',
+        ticketFailed: 'The ticket could not be printed', ticketNotAllowed: 'The server does not allow that printer',
+        ticketConfigure: 'Set up the printer first (⚙)', ticketInvalid: 'Invalid printer address',
+        ticketStatusReady: '{printer} is ready: online, cover closed, paper OK',
+        ticketStatusNearEnd: '{printer} is ready, but the paper is running out',
+        psTitle: 'Printer settings', psHost: 'IP or host name', psPort: 'Port', psPaper: 'Paper',
+        psPaperAuto: 'Automatic (per page)', psPaper80: '80 mm (576 dots)', psPaper58: '58 mm (384 dots)',
+        psCut: 'Cut', psCutPartial: 'Partial', psCutFull: 'Full', psCutNone: 'No cut',
+        psFeed: 'Feed before the cut (lines)', psDrawer: 'Cash drawer', psDrawerOpen: 'Open when printing', psPin: 'Pin',
+        psBw: 'Black and white', psBwThreshold: 'Threshold (crisp text)', psBwDither: 'Dithering (logo grays)', psThreshold: 'Threshold (0–255)',
+        psHint: 'Stored in this browser. The printer status is checked before printing.',
+        psTest: 'Test connection', psTesting: 'Checking…', psSave: 'Save', psCancel: 'Cancel',
+        psSaved: 'Printer saved: {printer}', psSavedNone: 'Settings saved (no printer of your own)',
     },
 };
 
@@ -88,6 +110,7 @@ const ICONS = {
     print: 'M6 9V3h12v6M6 18H4a1 1 0 01-1-1v-6a2 2 0 012-2h14a2 2 0 012 2v6a1 1 0 01-1 1h-2M6 14h12v7H6z',
     download: 'M12 3v12M7 10l5 5 5-5M5 21h14',
     ticket: 'M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6M9 16h4',
+    gear: 'M12 15a3 3 0 100-6 3 3 0 000 6zM19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z',
 };
 const icon = (name) =>
     `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${ICONS[name]}"/></svg>`;
@@ -194,6 +217,45 @@ select.zoom option { color: #111; background: #fff; }
 :host([data-tiny]) .tiny-hide { display: none; }
 .toolbar { overflow-x: auto; scrollbar-width: none; }
 .toolbar button[hidden] { display: none; }
+/* Printer settings dialog (client-configured ESC/POS printer, kept in this browser) */
+.dialog {
+    position: absolute; inset: 0; z-index: 4; display: none; align-items: center; justify-content: center;
+    background: rgba(0,0,0,.45); padding: 16px;
+}
+.dialog.open { display: flex; }
+.dialog form {
+    width: min(520px, 100%); max-height: 100%; overflow: auto; background: #fff; color: #1f2328;
+    border-radius: 8px; box-shadow: 0 12px 40px rgba(0,0,0,.45); font-size: 13px;
+}
+.dialog header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid #e5e7eb; font-weight: 600; }
+.dialog .fields { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.dialog .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.dialog .row.wide-first { grid-template-columns: 2fr 1fr; }
+.dialog .cap { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .03em; color: #667085; margin-bottom: 4px; }
+.dialog input, .dialog select {
+    all: unset; box-sizing: border-box; display: block; width: 100%; height: 34px; padding: 0 8px;
+    border: 1px solid #cbd5e1; border-radius: 4px; background: #fff; color: #1f2328; font: inherit;
+}
+.dialog select { appearance: auto; -webkit-appearance: menulist; padding-right: 4px; }
+.dialog input[type="checkbox"] { all: revert; width: auto; height: auto; margin: 0; }
+.dialog input.mono { font-family: ui-monospace, Menlo, Consolas, monospace; }
+.dialog input:disabled, .dialog select:disabled { opacity: .5; }
+.dialog .inline { display: flex; align-items: center; gap: 10px; height: 34px; }
+.dialog .inline label { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.dialog .inline .pin { margin-left: auto; display: flex; align-items: center; gap: 6px; color: #475467; }
+.dialog .inline .pin select { width: 64px; }
+.dialog .hint { font-size: 11px; color: #667085; line-height: 1.4; }
+.dialog .test { display: flex; align-items: flex-start; gap: 12px; min-height: 34px; }
+.dialog .status { font-size: 12px; line-height: 1.4; padding-top: 8px; }
+.dialog .status.ok { color: #067647; }
+.dialog .status.bad { color: #b42318; }
+.dialog footer { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 16px; border-top: 1px solid #e5e7eb; background: #f8fafc; border-radius: 0 0 8px 8px; }
+.dialog button { all: unset; cursor: pointer; box-sizing: border-box; height: 34px; padding: 0 14px; border-radius: 4px; border: 1px solid #cbd5e1; background: #fff; color: #1f2328; font: inherit; white-space: nowrap; }
+.dialog button:hover:not(:disabled) { background: #f1f5f9; }
+.dialog button:disabled { opacity: .5; cursor: default; }
+.dialog button.primary { background: #0369a1; border-color: #0369a1; color: #fff; }
+.dialog button.primary:hover:not(:disabled) { background: #075985; }
+.dialog button.close { border: none; width: 32px; padding: 0; text-align: center; font-size: 18px; color: #667085; }
 @media print { :host { display: none; } }
 `;
 
@@ -333,26 +395,128 @@ class NetReporterViewer extends HTMLElement {
         this._printFrame = frame;
     }
 
+    // === ESC/POS printer configured in this browser (when the server allows it) ===
+
+    static get PRINTER_STORAGE_KEY() { return 'netreporter.viewer.escpos'; }
+
+    _defaultPrinterSettings() {
+        return { host: '', port: 9100, paper: 'auto', cut: 'partial', feed: 3, drawer: false, drawerPin: 0, dithering: 'threshold', threshold: 160 };
+    }
+
+    /** The browser's printer settings (localStorage); defaults when nothing is stored or storage is unavailable. */
+    get printerSettings() {
+        const defaults = this._defaultPrinterSettings();
+        try {
+            const saved = JSON.parse(localStorage.getItem(NetReporterViewer.PRINTER_STORAGE_KEY) || 'null');
+            return saved && typeof saved === 'object' ? { ...defaults, ...saved } : defaults;
+        } catch { return defaults; }
+    }
+
+    set printerSettings(value) {
+        try { localStorage.setItem(NetReporterViewer.PRINTER_STORAGE_KEY, JSON.stringify({ ...this._defaultPrinterSettings(), ...value })); } catch { /* storage unavailable */ }
+    }
+
+    /** "host:port" of the browser's printer, or '' when none is configured. */
+    get printerLabel() {
+        const s = this.printerSettings;
+        return s.host ? `${s.host}:${s.port || 9100}` : '';
+    }
+
+    _ticketMessage(data, printer) {
+        if (data?.ok && data.code) {
+            if (data.ready) return fmt(this._t[data.paperNearEnd ? 'ticketStatusNearEnd' : 'ticketStatusReady'], { printer });
+            data = { error: data.code };
+        }
+        const key = {
+            'no-printer': 'ticketNoPrinter', offline: 'ticketOffline', 'cover-open': 'ticketCoverOpen',
+            'paper-end': 'ticketPaperEnd', error: 'ticketPrinterError', unreachable: 'ticketUnreachable',
+            'printer-not-allowed': 'ticketNotAllowed', 'invalid-printer': 'ticketInvalid',
+        }[data?.error] || 'ticketFailed';
+        return fmt(this._t[key], { printer });
+    }
+
+    _togglePrinterDialog(open) {
+        if (open) {
+            const s = this.printerSettings;
+            const f = this._$psForm;
+            f.host.value = s.host; f.port.value = s.port; f.paper.value = s.paper; f.cut.value = s.cut; f.feed.value = s.feed;
+            f.drawer.checked = !!s.drawer; f.drawerPin.value = String(s.drawerPin || 0); f.drawerPin.disabled = !s.drawer;
+            f.dithering.value = s.dithering; f.threshold.value = s.threshold;
+            this._$psStatus.textContent = ''; this._$psStatus.className = 'status';
+            this._$dialog.classList.add('open');
+            f.host.focus();
+        } else {
+            this._$dialog.classList.remove('open');
+        }
+    }
+
+    _readPrinterForm() {
+        const f = this._$psForm;
+        const num = (v, lo, hi, dflt) => { const n = parseInt(v, 10); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : dflt; };
+        return {
+            host: f.host.value.trim(), port: num(f.port.value, 1, 65535, 9100), paper: f.paper.value, cut: f.cut.value,
+            feed: num(f.feed.value, 0, 255, 3), drawer: f.drawer.checked, drawerPin: f.drawerPin.value === '1' ? 1 : 0,
+            dithering: f.dithering.value, threshold: num(f.threshold.value, 0, 255, 160),
+        };
+    }
+
+    _savePrinterSettings() {
+        const s = this._readPrinterForm();
+        if (s.host && !/^[^\s:/]+$/.test(s.host)) { this._setPrinterStatus(false, this._t.ticketInvalid); return; }
+        this.printerSettings = s;
+        this._togglePrinterDialog(false);
+        this._toast(s.host ? fmt(this._t.psSaved, { printer: `${s.host}:${s.port}` }) : this._t.psSavedNone);
+    }
+
+    _setPrinterStatus(ok, text) {
+        this._$psStatus.textContent = text;
+        this._$psStatus.className = `status ${ok ? 'ok' : 'bad'}`;
+    }
+
+    /** "Test connection": asks the server to query the printer in the form (nothing is saved). */
+    async _testPrinter() {
+        const url = this._doc?.printerStatus;
+        const s = this._readPrinterForm();
+        if (!url || !s.host) return;
+        const btn = this._$psForm.querySelector('[data-ps="test"]');
+        const printer = `${s.host}:${s.port}`;
+        btn.disabled = true;
+        btn.textContent = this._t.psTesting;
+        try {
+            const res = await fetch(url, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(s) });
+            let data = null;
+            try { data = await res.json(); } catch { /* no body */ }
+            this._setPrinterStatus(!!data?.ready, this._ticketMessage(data, printer));
+        } catch {
+            this._setPrinterStatus(false, this._t.network);
+        } finally {
+            btn.disabled = false;
+            btn.textContent = this._t.psTest;
+        }
+    }
+
     /**
-     * Sends the ticket to the ESC/POS printer the server resolves for this user (POST …/print) and reports
-     * the outcome as a toast; the server's error code (paper-end, cover-open, offline…) is localized here.
+     * Sends the ticket to the ESC/POS printer (POST …/print): the browser's own printer when the server
+     * allows client settings and one is configured, otherwise the printer the server resolves for this
+     * user. The outcome is a toast; the server's error code (paper-end, cover-open, offline…) is localized here.
      */
     async printTicket() {
         const url = this._doc?.printer;
         const btn = this._root.querySelector('[data-act="printTicket"]');
         if (!url || btn.disabled) return;
+        const own = this._doc.printerSettings ? this.printerSettings : null;
+        if (own && !own.host && !this._doc.serverPrinter) { this._toast(this._t.ticketConfigure); this._togglePrinterDialog(true); return; }
+        const printer = own?.host ? `${own.host}:${own.port}` : '';
         btn.disabled = true;                                   // one click, one ticket
         try {
-            const res = await fetch(url, { method: 'POST', credentials: 'same-origin' });
+            const init = { method: 'POST', credentials: 'same-origin' };
+            if (own?.host) { init.headers = { 'Content-Type': 'application/json' }; init.body = JSON.stringify(own); }
+            const res = await fetch(url, init);
             if (res.status === 204) { this._toast(this._t.ticketSent); return; }
-            let code = null;
-            try { code = (await res.json()).error; } catch { /* no body */ }
-            const key = {
-                'no-printer': 'ticketNoPrinter', offline: 'ticketOffline', 'cover-open': 'ticketCoverOpen',
-                'paper-end': 'ticketPaperEnd', error: 'ticketPrinterError', unreachable: 'ticketUnreachable',
-            }[code] || 'ticketFailed';
-            this._toast(this._t[key]);
-            this.dispatchEvent(new CustomEvent('nr-print-error', { detail: { status: res.status, error: code } }));
+            let data = null;
+            try { data = await res.json(); } catch { /* no body */ }
+            this._toast(this._ticketMessage(data, printer));
+            this.dispatchEvent(new CustomEvent('nr-print-error', { detail: { status: res.status, error: data?.error ?? null } }));
         } catch {
             this._toast(this._t.network);
         } finally {
@@ -405,6 +569,7 @@ class NetReporterViewer extends HTMLElement {
     <div class="group">
       <button data-act="print" title="${t.print}" aria-label="${t.print}">${icon('print')}</button>
       <button data-act="printTicket" hidden title="${t.printTicket}" aria-label="${t.printTicket}">${icon('ticket')}</button>
+      <button data-act="printerSettings" hidden title="${t.psTitle}" aria-label="${t.psTitle}">${icon('gear')}</button>
       <div class="menu">
         <button data-act="downloadMenu" title="${t.download}" aria-label="${t.download}" aria-haspopup="menu" aria-expanded="false">${icon('download')}</button>
         <div class="menu-list" data-ref="menu" role="menu"></div>
@@ -419,6 +584,46 @@ class NetReporterViewer extends HTMLElement {
   </div>
   <div class="overlay" data-ref="overlay" role="status"></div>
   <div class="busy" data-ref="busy" role="status"><span class="spinner"></span><span>${t.preparing}</span></div>
+  <div class="dialog" data-ref="dialog">
+    <form data-ref="psForm" role="dialog" aria-modal="true" aria-label="${t.psTitle}">
+      <header><span>${t.psTitle}</span><button type="button" class="close" data-ps="cancel" aria-label="${t.psCancel}">×</button></header>
+      <div class="fields">
+        <div class="row wide-first">
+          <label><span class="cap">${t.psHost}</span><input name="host" class="mono" placeholder="192.168.1.50" autocomplete="off" spellcheck="false"></label>
+          <label><span class="cap">${t.psPort}</span><input name="port" class="mono" type="number" min="1" max="65535"></label>
+        </div>
+        <div class="row">
+          <label><span class="cap">${t.psPaper}</span>
+            <select name="paper"><option value="auto">${t.psPaperAuto}</option><option value="80">${t.psPaper80}</option><option value="58">${t.psPaper58}</option></select></label>
+          <label><span class="cap">${t.psCut}</span>
+            <select name="cut"><option value="partial">${t.psCutPartial}</option><option value="full">${t.psCutFull}</option><option value="none">${t.psCutNone}</option></select></label>
+        </div>
+        <div class="row">
+          <label><span class="cap">${t.psFeed}</span><input name="feed" type="number" min="0" max="255"></label>
+          <div><span class="cap">${t.psDrawer}</span>
+            <div class="inline">
+              <label><input name="drawer" type="checkbox"> ${t.psDrawerOpen}</label>
+              <span class="pin">${t.psPin} <select name="drawerPin"><option value="0">2</option><option value="1">5</option></select></span>
+            </div>
+          </div>
+        </div>
+        <div class="row">
+          <label><span class="cap">${t.psBw}</span>
+            <select name="dithering"><option value="threshold">${t.psBwThreshold}</option><option value="fs">${t.psBwDither}</option></select></label>
+          <label><span class="cap">${t.psThreshold}</span><input name="threshold" type="number" min="0" max="255"></label>
+        </div>
+        <p class="hint">${t.psHint}</p>
+        <div class="test">
+          <button type="button" data-ps="test">${t.psTest}</button>
+          <span class="status" data-ref="psStatus"></span>
+        </div>
+      </div>
+      <footer>
+        <button type="button" data-ps="cancel">${t.psCancel}</button>
+        <button type="submit" class="primary">${t.psSave}</button>
+      </footer>
+    </form>
+  </div>
 </div>`;
         const $ = (r) => this._root.querySelector(`[data-ref="${r}"]`);
         this._$rootEl = this._root.querySelector('.root');
@@ -432,8 +637,23 @@ class NetReporterViewer extends HTMLElement {
         this._$pages = $('pages');
         this._$overlay = $('overlay');
         this._$busy = $('busy');
+        this._$dialog = $('dialog');
+        this._$psForm = $('psForm');
+        this._$psStatus = $('psStatus');
         this._pageEls = [];
         this._thumbEls = [];
+
+        // Printer settings dialog: Escape / backdrop / Cancel close it, "Test connection" asks the server,
+        // submit validates and stores the settings in this browser.
+        this._$dialog.addEventListener('click', (e) => { if (e.target === this._$dialog) this._togglePrinterDialog(false); });
+        this._$psForm.addEventListener('click', (e) => {
+            const act = e.target.closest('button[data-ps]')?.dataset.ps;
+            if (act === 'cancel') this._togglePrinterDialog(false);
+            else if (act === 'test') this._testPrinter();
+        });
+        this._$psForm.addEventListener('submit', (e) => { e.preventDefault(); this._savePrinterSettings(); });
+        this._$psForm.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.stopPropagation(); this._togglePrinterDialog(false); } });
+        this._$psForm.drawer.addEventListener('change', () => { this._$psForm.drawerPin.disabled = !this._$psForm.drawer.checked; });
 
         this._root.querySelector('.toolbar').addEventListener('click', (e) => {
             const act = e.target.closest('button[data-act]')?.dataset.act;
@@ -506,6 +726,7 @@ class NetReporterViewer extends HTMLElement {
         this._root.querySelector('[data-act="downloadMenu"]').disabled = menu.length === 0;
         this._root.querySelector('[data-act="print"]').disabled = !doc.exports?.pdf;
         this._root.querySelector('[data-act="printTicket"]').hidden = !doc.printer;
+        this._root.querySelector('[data-act="printerSettings"]').hidden = !doc.printerSettings;
 
         if (doc.pageCount === 0) { this._showOverlay('message', this._t.empty); }
 
@@ -790,6 +1011,7 @@ class NetReporterViewer extends HTMLElement {
             case 'fitPage': this.setZoom('page-fit'); break;
             case 'print': this.print(); break;
             case 'printTicket': this.printTicket(); break;
+            case 'printerSettings': this._togglePrinterDialog(true); break;
             case 'downloadMenu': this._toggleMenu(); e.stopPropagation(); break;
         }
     }
@@ -877,6 +1099,9 @@ class NetReporterViewer extends HTMLElement {
 }
 
 function clampZoom(z) { return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z)); }
+
+/** "{name}" placeholders → values. */
+function fmt(text, vars) { return String(text ?? '').replace(/\{(\w+)\}/g, (m, k) => (k in vars ? vars[k] : m)); }
 
 if (!customElements.get('netreporter-viewer')) customElements.define('netreporter-viewer', NetReporterViewer);
 

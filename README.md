@@ -663,7 +663,8 @@ app.MapNetReporterViewer("/reports", async (request, ct) =>
 | `GET {prefix}/{reportId}/open?…` | Resolves and lays out the report **once**; returns title, page count, page size and URLs (JSON) |
 | `GET {prefix}/_doc/{token}/pages/{n}` | Page `n` as SVG, rendered on first request |
 | `GET {prefix}/_doc/{token}/export/{pdf\|xlsx\|html\|escpos}` | Download (`?inline=1` to display; used for printing). `escpos` only with `options.EscPos` |
-| `POST {prefix}/_doc/{token}/print` | Sends the document as ESC/POS to the printer `options.EscPos.Printer` resolves for this request: 204, or `{"error": "no-printer" \| "paper-end" \| "cover-open" \| "offline" \| "error" \| "unreachable" \| "failed"}` |
+| `POST {prefix}/_doc/{token}/print` | Sends the document as ESC/POS to the browser's printer (JSON body, only with `AllowClientSettings`) or to the one `options.EscPos.Printer` resolves: 204, or `{"error": "no-printer" \| "printer-not-allowed" \| "paper-end" \| "cover-open" \| "offline" \| "error" \| "unreachable" \| "failed"}` |
+| `POST {prefix}/_doc/{token}/printer-status` | Status (`DLE EOT`) of the printer in the JSON body, for the settings dialog's "Test connection" (only with `AllowClientSettings`) |
 | `GET {prefix}/_viewer/viewer.js` | The web component (ETag + cache) |
 
 - **One layout per open.** Pages, print and downloads reuse the same `RenderList`, so what is printed is what was
@@ -673,6 +674,7 @@ app.MapNetReporterViewer("/reports", async (request, ct) =>
 - **Lazy pages.** Only pages near the viewport are requested and kept in the DOM; a 300-page report doesn't download 300 SVGs. Pages are inlined SVG, so text can be selected, copied and found with Ctrl+F.
 - **Images by URL.** Each distinct image of the document is served once at `…/_doc/{token}/images/{n}` and referenced from the pages; an invoice with a 400 KB logo on every page transfers the logo once, not once per page.
 - **Thermal tickets.** `options.EscPos = new ViewerEscPosOptions()` adds the `.escpos` download; `.UseTcpPrinter("192.168.1.50")` (or a `Printer` delegate that picks the printer per user/branch/till) adds a **Print ticket** button that `POST`s to `…/print`. Before sending, the server asks the printer its status (`DLE EOT`) and answers `409` with `paper-end`, `cover-open`, `offline` or `error`, which the component shows localized; connection failures are `502 unreachable`. One click sends one ticket (the button is disabled while the request runs). `Renderer` holds the `EscPosRendererOptions` (58/80 mm, cut, drawer…).
+- **Printer chosen at the till.** With `AllowClientSettings = true` the component shows a **⚙ Printer settings** dialog, the same one the Designer has: IP, port, paper (auto / 80 / 58 mm), cut, feed, cash drawer and black-and-white conversion, with **Test connection** (`POST …/printer-status`). The settings live in that browser's `localStorage` and travel with each print, so every POS terminal prints on its own printer without server configuration. Because this makes the server open a TCP connection to an address the browser chose, it is **off by default** and `IsPrinterAllowed(host, port)` filters the targets: the default policy accepts only literal private, loopback and link-local IP addresses (`403 printer-not-allowed` otherwise); supply your own predicate for host names or specific subnets. Without a browser printer, the server-side `Printer` is used.
 - **Viewer UI:** first/previous/next/last, go to page, thumbnails, zoom 25–400 % (fit width, fit page, Ctrl/⌘ +
   wheel or trackpad pinch anchored at the cursor), Home/End and ←/→, print (Ctrl/⌘+P), download menu,
   responsive toolbar. Theme it with `--nr-bg`, `--nr-toolbar-bg`, `--nr-toolbar-fg`, `--nr-accent`.
@@ -1249,10 +1251,10 @@ dotnet test
 │ NetReporter.Pdf.Tests               │   18  │
 │ NetReporter.Xlsx.Tests              │   15  │
 │ NetReporter.Barcodes.Tests          │    7  │
-│ NetReporter.Viewer.Tests            │   37  │
+│ NetReporter.Viewer.Tests            │   59  │
 │ NetReporter.EscPos.Tests            │   28  │
 ├─────────────────────────────────────┼───────┤
-│ Total                               │  532  │
+│ Total                               │  554  │
 └─────────────────────────────────────┴───────┘
 ```
 

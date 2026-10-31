@@ -26,7 +26,7 @@ src/
 tests/
   NetReporter.Core.Tests/  NetReporter.Templates.Tests/  NetReporter.Html.Tests/  NetReporter.Svg.Tests/
   NetReporter.Pdf.Tests/   NetReporter.Xlsx.Tests/       NetReporter.Barcodes.Tests/
-  NetReporter.Viewer.Tests/ (TestServer)  NetReporter.EscPos.Tests/                       — 532 tests total
+  NetReporter.Viewer.Tests/ (TestServer)  NetReporter.EscPos.Tests/                       — 554 tests total
   TestAssets/Fonts/        Lato-Regular.ttf (SIL OFL) — font tests use it instead of system fonts (CI has almost none)
 tools/
   NetReporter.Designer/    ASP.NET Core MVC + Alpine.js + HTMX + Tailwind (CDN)
@@ -48,7 +48,7 @@ Solution file is `NetReporter.slnx` (the newer XML format — not classic `.sln`
 
 ```bash
 dotnet build
-dotnet test                                                # 532 tests
+dotnet test                                                # 554 tests
 dotnet run --project samples/InvoiceSample                 # → factura.pdf
 dotnet run --project samples/TemplateSample                # → 13 PDF + 13 XLSX
 dotnet run --project tools/NetReporter.Designer            # → http://localhost:5296
@@ -115,6 +115,7 @@ When the user asks for a feature that "should also work in XLSX", remember XLSX 
 - The client is one dependency-free ES module (`Assets/viewer.js`, shadow DOM, i18n es/en). It is a production UI inside the ERP: no CDN scripts, no Tailwind/Alpine. Pages load lazily via `IntersectionObserver`; a 404 on a page/export means the document expired and the component reopens it once.
 - Pages are fetched as SVG text and inlined (`DOMParser` + `importNode`) inside the component's shadow DOM — not `<img>` — so images can be referenced by URL (`…/_doc/{token}/images/{n}`, one per distinct `byte[]`, served by `ServeImage`) and text is selectable; far-away pages are unmounted again. Text uses the client's fonts but each glyph carries its x (documented). Print/download fetch the PDF/XLSX/HTML export as a blob.
 - **ESC/POS in the viewer** (`ReportViewerOptions.EscPos`, `ViewerEscPosOptions`): `export/escpos` downloads the bytes; `POST /_doc/{token}/print` resolves the transport through `Printer(ctx, reportId, ct)` (null → 404 `no-printer`), queries `IEscPosStatusSource` when `CheckStatusBeforePrint` (not ready → 409 with `EscPosPrinterStatus.Code`), renders with `Renderer` and sends; `EscPosPrinterException` → 502 `unreachable`. Errors are JSON `{error: code}` with stable codes that `viewer.js` localizes (`printTicket()`, button hidden unless the open JSON carries `printer`). Never print on GET and keep the button disabled while the request runs: one click, one ticket.
+- **Browser-configured printer** (`AllowClientSettings`, off by default): the component's ⚙ dialog stores host/port/paper/cut/feed/drawer/dithering in `localStorage` (`netreporter.viewer.escpos`) and sends them as the JSON body of `print` and `printer-status`. The server only honours them when the flag is on **and** `IsPrinterAllowed(host, port)` accepts the target (default: private/loopback/link-local IP literals only, see `DefaultIsPrinterAllowed`) → otherwise 403 `printer-not-allowed`. This is the SSRF boundary: never let a client pick arbitrary hosts without that predicate. `TransportFactory` builds the `EscPosTcpPrinter` (tests substitute a fake); `RendererFor` clones `Renderer` and applies the client's paper/cut/drawer/dithering. The open JSON carries `printerSettings`, `printerStatus` and `serverPrinter` so the client knows which path applies.
 - No browser tests: verify UI changes manually with `samples/ViewerSample` (`NETREPORTER_PRINTER=host[:port]` enables the ticket button there).
 
 ## Templates and Designer

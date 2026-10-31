@@ -663,7 +663,8 @@ app.MapNetReporterViewer("/reports", async (request, ct) =>
 | `GET {prefix}/{reportId}/open?…` | Resuelve y diagrama el reporte **una vez**; devuelve título, nº de páginas, tamaño y URLs (JSON) |
 | `GET {prefix}/_doc/{token}/pages/{n}` | Página `n` en SVG, renderizada en la primera petición |
 | `GET {prefix}/_doc/{token}/export/{pdf\|xlsx\|html\|escpos}` | Descarga (`?inline=1` para mostrar; se usa al imprimir). `escpos` solo con `options.EscPos` |
-| `POST {prefix}/_doc/{token}/print` | Manda el documento como ESC/POS a la impresora que `options.EscPos.Printer` resuelve para la petición: 204, o `{"error": "no-printer" \| "paper-end" \| "cover-open" \| "offline" \| "error" \| "unreachable" \| "failed"}` |
+| `POST {prefix}/_doc/{token}/print` | Manda el documento como ESC/POS a la impresora del navegador (cuerpo JSON, solo con `AllowClientSettings`) o a la que `options.EscPos.Printer` resuelve: 204, o `{"error": "no-printer" \| "printer-not-allowed" \| "paper-end" \| "cover-open" \| "offline" \| "error" \| "unreachable" \| "failed"}` |
+| `POST {prefix}/_doc/{token}/printer-status` | Estado (`DLE EOT`) de la impresora del cuerpo JSON, para el "Probar conexión" del diálogo (solo con `AllowClientSettings`) |
 | `GET {prefix}/_viewer/viewer.js` | El web component (ETag + caché) |
 
 - **Un layout por apertura.** Páginas, impresión y descargas reutilizan el mismo `RenderList`: lo que se imprime es
@@ -673,6 +674,7 @@ app.MapNetReporterViewer("/reports", async (request, ct) =>
 - **Páginas bajo demanda.** Solo se piden y se mantienen en el DOM las páginas cercanas a la vista; un reporte de 300 páginas no descarga 300 SVG. Las páginas son SVG incrustado: el texto se puede seleccionar, copiar y buscar con Ctrl+F.
 - **Imágenes por URL.** Cada imagen distinta del documento se sirve una vez en `…/_doc/{token}/images/{n}` y las páginas la referencian; una factura con un logo de 400 KB en cada página transfiere el logo una vez, no una por página.
 - **Tickets térmicos.** `options.EscPos = new ViewerEscPosOptions()` añade la descarga `.escpos`; `.UseTcpPrinter("192.168.1.50")` (o un delegado `Printer` que elija la impresora por usuario/sucursal/caja) añade un botón **Imprimir ticket** que hace `POST` a `…/print`. Antes de enviar, el servidor pregunta el estado a la impresora (`DLE EOT`) y responde `409` con `paper-end`, `cover-open`, `offline` o `error`, que el componente muestra traducido; los fallos de conexión son `502 unreachable`. Un clic manda un ticket (el botón se deshabilita mientras dura la petición). `Renderer` lleva las `EscPosRendererOptions` (58/80 mm, corte, gaveta…).
+- **Impresora elegida en la caja.** Con `AllowClientSettings = true` el componente muestra el diálogo **⚙ Configurar impresora**, el mismo del Designer: IP, puerto, papel (auto / 80 / 58 mm), corte, avance, gaveta y conversión a blanco y negro, con **Probar conexión** (`POST …/printer-status`). Los ajustes viven en el `localStorage` de ese navegador y viajan con cada impresión, así cada terminal POS imprime en su propia impresora sin configuración en el servidor. Como esto hace que el servidor abra una conexión TCP a una dirección elegida por el navegador, está **apagado por defecto** y `IsPrinterAllowed(host, puerto)` filtra los destinos: la política por defecto acepta solo direcciones IP literales privadas, de loopback o link-local (`403 printer-not-allowed` en otro caso); pon tu propio predicado para nombres de host o subredes concretas. Sin impresora en el navegador se usa el `Printer` del servidor.
 - **Interfaz:** primera/anterior/siguiente/última, ir a página, miniaturas, zoom 25–400 % (ajustar al ancho, página
   completa, Ctrl/⌘ + rueda o pinch del trackpad anclado al cursor), Inicio/Fin y ←/→, imprimir (Ctrl/⌘+P), menú
   de descarga, barra adaptable a pantallas angostas. Se tematiza con `--nr-bg`, `--nr-toolbar-bg`,
@@ -1250,10 +1252,10 @@ dotnet test
 │ NetReporter.Pdf.Tests               │   18  │
 │ NetReporter.Xlsx.Tests              │   15  │
 │ NetReporter.Barcodes.Tests          │    7  │
-│ NetReporter.Viewer.Tests            │   37  │
+│ NetReporter.Viewer.Tests            │   59  │
 │ NetReporter.EscPos.Tests            │   28  │
 ├─────────────────────────────────────┼───────┤
-│ Total                               │  532  │
+│ Total                               │  554  │
 └─────────────────────────────────────┴───────┘
 ```
 
