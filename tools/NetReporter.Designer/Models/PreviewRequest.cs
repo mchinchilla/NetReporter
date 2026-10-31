@@ -125,6 +125,29 @@ public sealed class AddRequest
     public double? Height { get; set; }
 }
 
+/// <summary>
+/// Exportar, imprimir o consultar una impresora ESC/POS desde el Designer. Los ajustes vienen del diálogo
+/// de impresora (guardado en el navegador); los que falten toman el valor por defecto del renderer.
+/// </summary>
+public sealed class EscPosRequest
+{
+    public string Yaml { get; set; } = string.Empty;
+    public string Json { get; set; } = string.Empty;
+    public string Host { get; set; } = string.Empty;
+    public int Port { get; set; } = 9100;
+    /// <summary>"auto" (según el ancho de la página), "80" o "58".</summary>
+    public string? Paper { get; set; }
+    /// <summary>"partial", "full" o "none".</summary>
+    public string? Cut { get; set; }
+    public int? FeedLines { get; set; }
+    public bool OpenDrawer { get; set; }
+    /// <summary>0 = pin 2, 1 = pin 5.</summary>
+    public int DrawerPin { get; set; }
+    /// <summary>"threshold" o "fs" (Floyd–Steinberg).</summary>
+    public string? Dithering { get; set; }
+    public int? Threshold { get; set; }
+}
+
 public sealed class DeleteRequest
 {
     public string Yaml { get; set; } = string.Empty;

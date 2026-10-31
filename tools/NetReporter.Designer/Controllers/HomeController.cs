@@ -13,6 +13,8 @@ using NetReporter.Svg;
 using NetReporter.Templates;
 using NetReporter.Templates.Schema;
 
+using NetReporter.EscPos;
+
 namespace NetReporter.Designer.Controllers;
 
 public sealed class HomeController : Controller
@@ -307,12 +309,53 @@ public sealed class HomeController : Controller
         }
     }
 
+    // === ESC/POS (impresoras térmicas) ===
+
     /// <summary>
-    /// Bytes ESC/POS del ticket (raster). El perfil sale del ancho de la página: hasta 60 mm → rollo de
-    /// 58 mm (384 puntos), si no → 80 mm (576 puntos). Páginas más anchas se escalan al rollo de 80 mm.
+    /// Opciones del renderer a partir del diálogo de impresora. Papel "auto": hasta 60 mm de página →
+    /// rollo de 58 mm (384 puntos), si no → 80 mm (576); páginas más anchas se escalan al rollo.
     /// </summary>
+    private static EscPosRendererOptions BuildEscPosOptions(EscPosRequest request, double pageWidthPt)
+    {
+        var options = (request.Paper ?? "auto").ToLowerInvariant() switch
+        {
+            "58" => EscPosRendererOptions.ForRoll58(),
+            "80" => EscPosRendererOptions.ForRoll80(),
+            _ => pageWidthPt <= NetReporter.Core.Primitives.Units.Mm(60) ? EscPosRendererOptions.ForRoll58() : EscPosRendererOptions.ForRoll80(),
+        };
+        options.Cut = (request.Cut ?? "partial").ToLowerInvariant() switch
+        {
+            "full" => EscPosCut.Full,
+            "none" => EscPosCut.None,
+            _ => EscPosCut.Partial,
+        };
+        if (request.FeedLines is { } feed) options.FeedLinesBeforeCut = Math.Clamp(feed, 0, 255);
+        options.OpenCashDrawer = request.OpenDrawer;
+        options.CashDrawerPin = request.DrawerPin == 1 ? 1 : 0;
+        if (string.Equals(request.Dithering, "fs", StringComparison.OrdinalIgnoreCase))
+        {
+            options.Dithering = EscPosDithering.FloydSteinberg;
+            options.Threshold = Math.Clamp(request.Threshold ?? 128, 0, 255);
+        }
+        else if (request.Threshold is { } threshold)
+        {
+            options.Threshold = Math.Clamp(threshold, 0, 255);
+        }
+        return options;
+    }
+
+    private static EscPosTcpPrinter BuildPrinter(EscPosRequest request) => new(new EscPosTcpPrinterOptions
+    {
+        Host = request.Host?.Trim() ?? string.Empty,
+        Port = request.Port,
+        ConnectTimeout = TimeSpan.FromSeconds(3),
+        SendTimeout = TimeSpan.FromSeconds(15),
+        StatusTimeout = TimeSpan.FromSeconds(2),
+    });
+
+    /// <summary>Bytes ESC/POS del ticket (raster) con los ajustes del diálogo de impresora.</summary>
     [HttpPost]
-    public IActionResult ExportEscPos([FromForm] PreviewRequest request)
+    public IActionResult ExportEscPos([FromForm] EscPosRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
         try
@@ -320,16 +363,85 @@ public sealed class HomeController : Controller
             var template = YamlReportLoader.Parse(request.Yaml ?? string.Empty);
             var report = template.Bind(request.Json ?? "{}");
             var layout = new LayoutEngine(SkiaTextMeasurer.Instance, ZXingBarcodeGenerator.Instance).Layout(report);
-            var options = layout.Page.Size.Width <= NetReporter.Core.Primitives.Units.Mm(60)
-                ? NetReporter.EscPos.EscPosRendererOptions.ForRoll58()
-                : NetReporter.EscPos.EscPosRendererOptions.ForRoll80();
-            var bytes = new NetReporter.EscPos.EscPosRenderer(options).Render(layout, HttpContext.RequestAborted);
+            var bytes = new EscPosRenderer(BuildEscPosOptions(request, layout.Page.Size.Width)).Render(layout, HttpContext.RequestAborted);
             return File(bytes, "application/octet-stream", ResolveExportFileName(report, "escpos"));
         }
         catch (Exception ex)
         {
             return Content(_l["Server.ExportError", "ESC/POS", $"{ex.GetType().Name}: {ex.Message}"].Value,
                            "text/plain", System.Text.Encoding.UTF8);
+        }
+    }
+
+    /// <summary>
+    /// Estado de la impresora (DLE EOT) para el botón "Probar conexión" del diálogo: <c>{ ok, code, ready,
+    /// online, coverOpen, paperEnd, paperNearEnd, error }</c> o <c>{ error: "unreachable" | "invalid-printer", detail }</c>.
+    /// </summary>
+    [HttpPost]
+    public async Task<IActionResult> StatusEscPos([FromForm] EscPosRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        var aborted = HttpContext.RequestAborted;
+        try
+        {
+            var status = await BuildPrinter(request).QueryStatusAsync(aborted);
+            return Json(new
+            {
+                ok = true,
+                code = status.Code,
+                ready = status.ReadyToPrint,
+                online = status.Online,
+                coverOpen = status.CoverOpen,
+                paperEnd = status.PaperEnd,
+                paperNearEnd = status.PaperNearEnd,
+                error = status.Error,
+            });
+        }
+        catch (OperationCanceledException) when (aborted.IsCancellationRequested) { return new EmptyResult(); }
+        catch (ArgumentException ex) { return Json(new { error = "invalid-printer", detail = ex.Message }); }
+        catch (EscPosPrinterException ex) { return Json(new { error = "unreachable", detail = ex.Message }); }
+    }
+
+    /// <summary>
+    /// Imprime el ticket en la impresora del diálogo: consulta su estado (DLE EOT) y, si está lista, manda
+    /// los bytes. Responde <c>{ ok, bytes }</c> o <c>{ error: código, detail }</c> con los mismos códigos
+    /// estables del visor (<c>paper-end</c>, <c>cover-open</c>, <c>offline</c>, <c>error</c>, <c>unreachable</c>, <c>failed</c>).
+    /// </summary>
+    [HttpPost]
+    public async Task<IActionResult> PrintEscPos([FromForm] EscPosRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        var aborted = HttpContext.RequestAborted;
+        try
+        {
+            var printer = BuildPrinter(request);
+
+            var template = YamlReportLoader.Parse(request.Yaml ?? string.Empty);
+            var report = template.Bind(request.Json ?? "{}");
+            var layout = new LayoutEngine(SkiaTextMeasurer.Instance, ZXingBarcodeGenerator.Instance).Layout(report);
+            var bytes = new EscPosRenderer(BuildEscPosOptions(request, layout.Page.Size.Width)).Render(layout, aborted);
+
+            var status = await printer.QueryStatusAsync(aborted);
+            if (!status.ReadyToPrint) return Json(new { error = status.Code });
+
+            await printer.SendAsync(bytes, aborted);
+            return Json(new { ok = true, bytes = bytes.Length });
+        }
+        catch (OperationCanceledException) when (aborted.IsCancellationRequested)
+        {
+            return new EmptyResult();
+        }
+        catch (ArgumentException ex)
+        {
+            return Json(new { error = "invalid-printer", detail = ex.Message });
+        }
+        catch (EscPosPrinterException ex)
+        {
+            return Json(new { error = "unreachable", detail = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            return Json(new { error = "failed", detail = $"{ex.GetType().Name}: {ex.Message}" });
         }
     }
 

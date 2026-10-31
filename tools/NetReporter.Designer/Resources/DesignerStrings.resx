@@ -760,6 +760,126 @@
   <data name="Header.ExportEscPosTitle" xml:space="preserve">
     <value>Descarga los bytes ESC/POS del ticket para una impresora térmica (rollo de 58 u 80 mm según el ancho de la página)</value>
   </data>
+  <data name="Header.Export" xml:space="preserve">
+    <value>Exportar</value>
+  </data>
+  <data name="Header.ExportEscPos" xml:space="preserve">
+    <value>Ticket ESC/POS (.escpos)</value>
+  </data>
+  <data name="Printer.Settings" xml:space="preserve">
+    <value>Configurar impresora</value>
+  </data>
+  <data name="Printer.PrintOn" xml:space="preserve">
+    <value>Imprimir ticket en {printer}</value>
+  </data>
+  <data name="Printer.PrintTicket" xml:space="preserve">
+    <value>Imprimir ticket… (configura la impresora)</value>
+  </data>
+  <data name="Printer.Host" xml:space="preserve">
+    <value>IP o nombre</value>
+  </data>
+  <data name="Printer.Port" xml:space="preserve">
+    <value>Puerto</value>
+  </data>
+  <data name="Printer.Paper" xml:space="preserve">
+    <value>Papel</value>
+  </data>
+  <data name="Printer.PaperAuto" xml:space="preserve">
+    <value>Automático (por página)</value>
+  </data>
+  <data name="Printer.Paper80" xml:space="preserve">
+    <value>80 mm (576 puntos)</value>
+  </data>
+  <data name="Printer.Paper58" xml:space="preserve">
+    <value>58 mm (384 puntos)</value>
+  </data>
+  <data name="Printer.Cut" xml:space="preserve">
+    <value>Corte</value>
+  </data>
+  <data name="Printer.CutPartial" xml:space="preserve">
+    <value>Parcial</value>
+  </data>
+  <data name="Printer.CutFull" xml:space="preserve">
+    <value>Total</value>
+  </data>
+  <data name="Printer.CutNone" xml:space="preserve">
+    <value>Sin corte</value>
+  </data>
+  <data name="Printer.Feed" xml:space="preserve">
+    <value>Avance antes del corte (líneas)</value>
+  </data>
+  <data name="Printer.Dithering" xml:space="preserve">
+    <value>Blanco y negro</value>
+  </data>
+  <data name="Printer.DitherThreshold" xml:space="preserve">
+    <value>Umbral (texto nítido)</value>
+  </data>
+  <data name="Printer.DitherFs" xml:space="preserve">
+    <value>Difusión (grises de logos)</value>
+  </data>
+  <data name="Printer.Threshold" xml:space="preserve">
+    <value>Umbral (0–255)</value>
+  </data>
+  <data name="Printer.Drawer" xml:space="preserve">
+    <value>Abrir al imprimir</value>
+  </data>
+  <data name="Printer.DrawerGroup" xml:space="preserve">
+    <value>Gaveta de dinero</value>
+  </data>
+  <data name="Printer.DrawerPin" xml:space="preserve">
+    <value>Pin</value>
+  </data>
+  <data name="Printer.Hint" xml:space="preserve">
+    <value>Se guarda en este navegador. La descarga "Ticket ESC/POS" usa los mismos ajustes; antes de imprimir se consulta el estado de la impresora.</value>
+  </data>
+  <data name="Printer.Test" xml:space="preserve">
+    <value>Probar conexión</value>
+  </data>
+  <data name="Printer.Testing" xml:space="preserve">
+    <value>Consultando…</value>
+  </data>
+  <data name="Printer.Save" xml:space="preserve">
+    <value>Guardar</value>
+  </data>
+  <data name="Printer.Cancel" xml:space="preserve">
+    <value>Cancelar</value>
+  </data>
+  <data name="Printer.Saved" xml:space="preserve">
+    <value>Impresora guardada: {printer}</value>
+  </data>
+  <data name="Printer.SavedNoPrinter" xml:space="preserve">
+    <value>Ajustes guardados (sin impresora: solo descarga)</value>
+  </data>
+  <data name="Printer.StatusReady" xml:space="preserve">
+    <value>{printer} lista: en línea, tapa cerrada y con papel</value>
+  </data>
+  <data name="Printer.StatusNearEnd" xml:space="preserve">
+    <value>{printer} lista, pero el papel está por acabarse</value>
+  </data>
+  <data name="Printer.Invalid" xml:space="preserve">
+    <value>Dirección de impresora no válida: usa IP o nombre, opcionalmente :puerto</value>
+  </data>
+  <data name="Printer.Sent" xml:space="preserve">
+    <value>Ticket enviado a {printer} ({bytes} bytes)</value>
+  </data>
+  <data name="Printer.PaperEnd" xml:space="preserve">
+    <value>La impresora {printer} no tiene papel</value>
+  </data>
+  <data name="Printer.CoverOpen" xml:space="preserve">
+    <value>La impresora {printer} tiene la tapa abierta</value>
+  </data>
+  <data name="Printer.Offline" xml:space="preserve">
+    <value>La impresora {printer} está fuera de línea</value>
+  </data>
+  <data name="Printer.Error" xml:space="preserve">
+    <value>La impresora {printer} reporta un error</value>
+  </data>
+  <data name="Printer.Unreachable" xml:space="preserve">
+    <value>No se pudo conectar con la impresora {printer}</value>
+  </data>
+  <data name="Printer.Failed" xml:space="preserve">
+    <value>No se pudo imprimir el ticket en {printer}</value>
+  </data>
   <data name="Header.ElementIn" xml:space="preserve">
     <value>en {band} · nº {n}</value>
   </data>

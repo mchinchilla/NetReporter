@@ -607,7 +607,7 @@ Los campos de path sugieren bindings descubiertos en `data.json`: paths de array
 2. **Editar** datos de prueba en el tab `data.json`.
 3. **Drag** un texto, **resize** una tabla, **agregar columnas** desde el drawer, **clic en la herramienta Gráfico y dibujarlo** en la hoja, y elegir sus filas/series.
 4. **Save as…** con un nombre propio → se guarda en `~/.netreporter/templates/`.
-5. **⭳ PDF**, **⭳ HTML**, **⭳ XLSX** o **⭳ ESC/POS** → descarga con el `fileName` del template (e.g. `factura-000-001.pdf`; los bytes ESC/POS usan el perfil de 58 u 80 mm según el ancho de la página).
+5. **⭳ Exportar ▾** → PDF, HTML, XLSX o ticket ESC/POS, descargados con el `fileName` del template (e.g. `factura-000-001.pdf`). El mismo menú tiene **Imprimir ticket en …** y **Configurar impresora…**: un diálogo con IP, puerto, papel (auto / 80 mm / 58 mm), corte, líneas de alimentación, gaveta y conversión a blanco y negro (umbral o difusión), con un botón **Probar conexión** que lee el estado de la impresora. Los ajustes viven en el navegador (`localStorage`), nunca en el código; la descarga ESC/POS los usa también, y al imprimir se consulta el estado antes y se avisa "sin papel", "tapa abierta" o "no se pudo conectar" en vez de fallar en silencio.
 
 ### Importar archivos del disco
 

@@ -126,27 +126,33 @@
                     class="px-2 py-1 border border-slate-300 rounded bg-white text-slate-700">
                 @L["Header.Delete"]
             </button>
-            <button type="button"
-                    @@click="exportPdf()"
-                    class="px-2 py-1 border border-sky-600 rounded bg-sky-600 text-white hover:bg-sky-700">
-                ⭳ PDF
-            </button>
-            <button type="button"
-                    @@click="exportHtml()"
-                    class="px-2 py-1 border border-slate-700 rounded bg-slate-700 text-white hover:bg-slate-800">
-                ⭳ HTML
-            </button>
-            <button type="button"
-                    @@click="exportXlsx()"
-                    class="px-2 py-1 border border-emerald-700 rounded bg-emerald-700 text-white hover:bg-emerald-800">
-                ⭳ XLSX
-            </button>
-            <button type="button"
-                    @@click="exportEscPos()"
-                    title="@L["Header.ExportEscPosTitle"]"
-                    class="px-2 py-1 border border-amber-700 rounded bg-amber-700 text-white hover:bg-amber-800">
-                ⭳ ESC/POS
-            </button>
+            <!-- Exportar e imprimir en un solo menú: cuatro botones más la impresora ya no cabían en la cabecera -->
+            <div class="relative" @@click.outside="exportMenu = false">
+                <button type="button" @@click="exportMenu = !exportMenu"
+                        :aria-expanded="exportMenu" aria-haspopup="menu"
+                        class="px-2 py-1 border border-sky-600 rounded bg-sky-600 text-white hover:bg-sky-700 inline-flex items-center gap-1">
+                    ⭳ @L["Header.Export"] <span class="text-[9px] opacity-80">▼</span>
+                </button>
+                <div x-show="exportMenu" x-cloak x-transition.opacity role="menu"
+                     class="absolute left-0 top-8 z-50 w-72 bg-white border border-slate-200 rounded-lg shadow-xl py-1 text-xs text-slate-700 whitespace-normal">
+                    <button type="button" role="menuitem" @@click="exportMenu = false; exportPdf()"
+                            class="block w-full text-left px-3 py-1.5 hover:bg-sky-50">📄 PDF</button>
+                    <button type="button" role="menuitem" @@click="exportMenu = false; exportHtml()"
+                            class="block w-full text-left px-3 py-1.5 hover:bg-sky-50">🌐 HTML</button>
+                    <button type="button" role="menuitem" @@click="exportMenu = false; exportXlsx()"
+                            class="block w-full text-left px-3 py-1.5 hover:bg-sky-50">📊 XLSX</button>
+                    <button type="button" role="menuitem" @@click="exportMenu = false; exportEscPos()"
+                            title="@L["Header.ExportEscPosTitle"]"
+                            class="block w-full text-left px-3 py-1.5 hover:bg-sky-50">🧾 @L["Header.ExportEscPos"]</button>
+                    <div class="my-1 border-t border-slate-200"></div>
+                    <button type="button" role="menuitem" @@click="exportMenu = false; printEscPos()" :disabled="printing"
+                            class="block w-full text-left px-3 py-1.5 hover:bg-amber-50 disabled:opacity-50">
+                        🖨 <span x-text="printer ? t('Printer.PrintOn', { printer }) : t('Printer.PrintTicket')"></span>
+                    </button>
+                    <button type="button" role="menuitem" @@click="exportMenu = false; openPrinterDialog()"
+                            class="block w-full text-left px-3 py-1.5 hover:bg-amber-50">⚙ @L["Printer.Settings"]…</button>
+                </div>
+            </div>
         </div>
         <div class="text-xs text-slate-500 flex items-center gap-3 whitespace-nowrap shrink-0">
             <div class="flex items-center gap-1">
@@ -230,6 +236,113 @@
         <div class="absolute inset-0 border-2 border-dashed border-sky-500 bg-sky-500/10 rounded-sm"></div>
         <div class="absolute left-0 -top-6 whitespace-nowrap bg-sky-600 text-white text-xs rounded px-2 py-0.5 shadow"
              x-text="ghostLabel()"></div>
+    </div>
+
+    <!-- Diálogo de impresora ESC/POS: se guarda en localStorage de este navegador -->
+    <div x-show="printerDialog" x-cloak x-transition.opacity
+         class="fixed inset-0 z-50 bg-slate-900/40 flex items-center justify-center p-4"
+         @@keydown.escape.window="printerDialog = false"
+         @@click.self="printerDialog = false">
+        <form @@submit.prevent="savePrinterSettings()"
+              class="bg-white rounded-lg shadow-xl border border-slate-200 w-full max-w-lg text-sm flex flex-col"
+              role="dialog" aria-modal="true" aria-label="@L["Printer.Settings"]">
+            <header class="flex items-center justify-between px-4 py-3 border-b border-slate-200 bg-slate-50 rounded-t-lg">
+                <div class="font-semibold text-slate-800">🖨 @L["Printer.Settings"]</div>
+                <button type="button" @@click="printerDialog = false" class="text-slate-400 hover:text-slate-700 text-lg leading-none" aria-label="@L["Printer.Cancel"]">×</button>
+            </header>
+            <template x-if="printerDraft">
+            <div class="p-5 space-y-4">
+                <!-- Conexión -->
+                <div class="grid grid-cols-3 gap-3">
+                    <label class="col-span-2 block">
+                        <span class="block text-[11px] uppercase tracking-wide text-slate-500 mb-1">@L["Printer.Host"]</span>
+                        <input type="text" x-model.trim="printerDraft.host" placeholder="192.168.1.50" autocomplete="off" spellcheck="false"
+                               class="w-full h-9 border border-slate-300 rounded px-2 font-mono">
+                    </label>
+                    <label class="block">
+                        <span class="block text-[11px] uppercase tracking-wide text-slate-500 mb-1">@L["Printer.Port"]</span>
+                        <input type="number" min="1" max="65535" x-model.number="printerDraft.port"
+                               class="w-full h-9 border border-slate-300 rounded px-2 font-mono">
+                    </label>
+                </div>
+                <!-- Papel y corte -->
+                <div class="grid grid-cols-2 gap-3">
+                    <label class="block">
+                        <span class="block text-[11px] uppercase tracking-wide text-slate-500 mb-1">@L["Printer.Paper"]</span>
+                        <select x-model="printerDraft.paper" class="nr-select w-full h-9 border border-slate-300 rounded pl-2 bg-white">
+                            <option value="auto">@L["Printer.PaperAuto"]</option>
+                            <option value="80">@L["Printer.Paper80"]</option>
+                            <option value="58">@L["Printer.Paper58"]</option>
+                        </select>
+                    </label>
+                    <label class="block">
+                        <span class="block text-[11px] uppercase tracking-wide text-slate-500 mb-1">@L["Printer.Cut"]</span>
+                        <select x-model="printerDraft.cut" class="nr-select w-full h-9 border border-slate-300 rounded pl-2 bg-white">
+                            <option value="partial">@L["Printer.CutPartial"]</option>
+                            <option value="full">@L["Printer.CutFull"]</option>
+                            <option value="none">@L["Printer.CutNone"]</option>
+                        </select>
+                    </label>
+                </div>
+                <!-- Avance y gaveta -->
+                <div class="grid grid-cols-2 gap-3">
+                    <label class="block">
+                        <span class="block text-[11px] uppercase tracking-wide text-slate-500 mb-1">@L["Printer.Feed"]</span>
+                        <input type="number" min="0" max="255" x-model.number="printerDraft.feed"
+                               class="w-full h-9 border border-slate-300 rounded px-2">
+                    </label>
+                    <div>
+                        <span class="block text-[11px] uppercase tracking-wide text-slate-500 mb-1">@L["Printer.DrawerGroup"]</span>
+                        <div class="flex items-center gap-3 h-9">
+                            <label class="flex items-center gap-2 whitespace-nowrap">
+                                <input type="checkbox" x-model="printerDraft.drawer" class="rounded border-slate-300">
+                                <span>@L["Printer.Drawer"]</span>
+                            </label>
+                            <label class="flex items-center gap-1 ml-auto whitespace-nowrap text-slate-600">
+                                <span>@L["Printer.DrawerPin"]</span>
+                                <select x-model.number="printerDraft.drawerPin" :disabled="!printerDraft.drawer"
+                                        class="nr-select h-8 w-16 border border-slate-300 rounded pl-2 bg-white disabled:opacity-50">
+                                    <option value="0">2</option>
+                                    <option value="1">5</option>
+                                </select>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <!-- Blanco y negro -->
+                <div class="grid grid-cols-2 gap-3">
+                    <label class="block">
+                        <span class="block text-[11px] uppercase tracking-wide text-slate-500 mb-1">@L["Printer.Dithering"]</span>
+                        <select x-model="printerDraft.dithering" class="nr-select w-full h-9 border border-slate-300 rounded pl-2 bg-white">
+                            <option value="threshold">@L["Printer.DitherThreshold"]</option>
+                            <option value="fs">@L["Printer.DitherFs"]</option>
+                        </select>
+                    </label>
+                    <label class="block">
+                        <span class="block text-[11px] uppercase tracking-wide text-slate-500 mb-1">@L["Printer.Threshold"]</span>
+                        <input type="number" min="0" max="255" x-model.number="printerDraft.threshold"
+                               class="w-full h-9 border border-slate-300 rounded px-2">
+                    </label>
+                </div>
+                <p class="text-[11px] text-slate-500 leading-snug">@L["Printer.Hint"]</p>
+                <div class="flex items-start gap-3 min-h-[2.25rem]">
+                    <button type="button" @@click="testPrinter()" :disabled="printerTesting || !printerDraft.host"
+                            class="h-9 px-3 border border-slate-300 rounded bg-white text-slate-700 hover:bg-sky-50 hover:border-sky-500 disabled:opacity-50 whitespace-nowrap shrink-0">
+                        <span x-text="printerTesting ? t('Printer.Testing') : t('Printer.Test')"></span>
+                    </button>
+                    <span x-show="printerStatus" x-cloak class="text-xs leading-snug pt-2"
+                          :class="printerStatus?.ok ? 'text-emerald-700' : 'text-red-700'"
+                          x-text="printerStatus?.text"></span>
+                </div>
+            </div>
+            </template>
+            <footer class="flex items-center justify-end gap-2 px-4 py-3 border-t border-slate-200 bg-slate-50 rounded-b-lg">
+                <button type="button" @@click="printerDialog = false"
+                        class="px-3 py-1 border border-slate-300 rounded bg-white text-slate-700 hover:bg-slate-100">@L["Printer.Cancel"]</button>
+                <button type="submit"
+                        class="px-3 py-1 border border-sky-600 rounded bg-sky-600 text-white hover:bg-sky-700">@L["Printer.Save"]</button>
+            </footer>
+        </form>
     </div>
 
     <!-- Aviso breve (soltar fuera de la hoja, herramienta elegida, errores) -->
@@ -1341,6 +1454,7 @@
                     this.syncPreviewDecorations();
                 });
                 this.loadGuides();
+                this.loadEscPosSettings();
                 this.initEditors();
                 // Se crean con el contenedor aún oculto (x-cloak): medir otra vez cuando ya es visible.
                 requestAnimationFrame(() => this.refreshEditors());
@@ -2358,9 +2472,114 @@
             exportPdf() { this.exportTo('/Home/ExportPdf'); },
             exportHtml() { this.exportTo('/Home/ExportHtml'); },
             exportXlsx() { this.exportTo('/Home/ExportXlsx'); },
-            exportEscPos() { this.exportTo('/Home/ExportEscPos'); },
+            exportEscPos() { this.exportTo('/Home/ExportEscPos', this.escPosFields()); },
+            exportMenu: false,
 
-            exportTo(action) {
+            // === Impresora ESC/POS: ajustes en localStorage de este navegador, usados al exportar y al imprimir ===
+
+            ESCPOS_STORAGE_KEY: 'netreporter.designer.escpos',
+            escpos: null,            // ajustes guardados (ver defaultEscPosSettings)
+            printerDialog: false,
+            printerDraft: null,      // copia que edita el diálogo; se aplica al guardar
+            printerStatus: null,     // { ok, text } de "Probar conexión"
+            printerTesting: false,
+            printing: false,
+
+            defaultEscPosSettings() {
+                return { host: '', port: 9100, paper: 'auto', cut: 'partial', feed: 3, drawer: false, drawerPin: 0, dithering: 'threshold', threshold: 160 };
+            },
+            loadEscPosSettings() {
+                const defaults = this.defaultEscPosSettings();
+                try {
+                    const saved = JSON.parse(localStorage.getItem(this.ESCPOS_STORAGE_KEY) || 'null');
+                    this.escpos = saved && typeof saved === 'object' ? { ...defaults, ...saved } : defaults;
+                } catch { this.escpos = defaults; }
+            },
+            /** "IP:puerto" para los menús, o '' si no hay impresora configurada. */
+            get printer() { return this.escpos?.host ? `${this.escpos.host}:${this.escpos.port || 9100}` : ''; },
+            /** Campos de formulario que entienden ExportEscPos / StatusEscPos / PrintEscPos. */
+            escPosFields(settings = this.escpos) {
+                const s = settings || this.defaultEscPosSettings();
+                return {
+                    Host: s.host || '', Port: s.port || 9100, Paper: s.paper, Cut: s.cut, FeedLines: s.feed,
+                    OpenDrawer: !!s.drawer, DrawerPin: s.drawerPin || 0, Dithering: s.dithering, Threshold: s.threshold,
+                };
+            },
+
+            openPrinterDialog() {
+                this.printerDraft = { ...this.defaultEscPosSettings(), ...(this.escpos || {}) };
+                this.printerStatus = null;
+                this.printerDialog = true;
+            },
+            savePrinterSettings() {
+                const d = this.printerDraft;
+                if (!d) return;
+                d.host = (d.host || '').trim();
+                if (d.host && !/^[^\s:/]+$/.test(d.host)) { this.showToast(t('Printer.Invalid'), 4000); return; }
+                d.port = Math.min(65535, Math.max(1, parseInt(d.port, 10) || 9100));
+                d.feed = Math.min(255, Math.max(0, parseInt(d.feed, 10) || 0));
+                d.threshold = Math.min(255, Math.max(0, parseInt(d.threshold, 10) || 0));
+                this.escpos = { ...d };
+                try { localStorage.setItem(this.ESCPOS_STORAGE_KEY, JSON.stringify(this.escpos)); } catch {}
+                this.printerDialog = false;
+                this.showToast(this.printer ? t('Printer.Saved', { printer: this.printer }) : t('Printer.SavedNoPrinter'));
+            },
+
+            /** Texto localizado para una respuesta de StatusEscPos / PrintEscPos. */
+            printerMessage(data, printer) {
+                if (data.ok && data.code) {
+                    if (data.ready) return t(data.paperNearEnd ? 'Printer.StatusNearEnd' : 'Printer.StatusReady', { printer });
+                    data = { error: data.code };
+                }
+                const key = {
+                    'paper-end': 'Printer.PaperEnd', 'cover-open': 'Printer.CoverOpen', offline: 'Printer.Offline',
+                    error: 'Printer.Error', unreachable: 'Printer.Unreachable', 'invalid-printer': 'Printer.Invalid',
+                }[data.error] || 'Printer.Failed';
+                return t(key, { printer });
+            },
+
+            /** "Probar conexión": consulta el estado con los datos del diálogo (sin guardarlos). */
+            async testPrinter() {
+                const d = this.printerDraft;
+                if (!d?.host || this.printerTesting) return;
+                const printer = `${d.host.trim()}:${d.port || 9100}`;
+                this.printerTesting = true;
+                this.printerStatus = null;
+                try {
+                    const form = new FormData();
+                    for (const [k, v] of Object.entries(this.escPosFields(d))) form.append(k, String(v));
+                    const res = await fetch('/Home/StatusEscPos', { method: 'POST', body: form });
+                    if (!res.ok) throw new Error('HTTP ' + res.status);
+                    const data = await res.json();
+                    this.printerStatus = { ok: !!data.ready, text: this.printerMessage(data, printer) };
+                } catch (e) {
+                    console.error('StatusEscPos:', e);
+                    this.printerStatus = { ok: false, text: t('Printer.Failed', { printer }) };
+                } finally { this.printerTesting = false; }
+            },
+
+            /** Imprime el ticket actual en la impresora configurada; sin impresora abre el diálogo. */
+            async printEscPos() {
+                if (this.printing) return;
+                if (!this.printer) { this.openPrinterDialog(); return; }
+                const printer = this.printer;
+                this.printing = true;
+                try {
+                    const form = this.buildFormData();
+                    for (const [k, v] of Object.entries(this.escPosFields())) form.append(k, String(v));
+                    const res = await fetch('/Home/PrintEscPos', { method: 'POST', body: form });
+                    if (!res.ok) throw new Error('HTTP ' + res.status);
+                    const data = await res.json();
+                    if (data.ok) { this.showToast(t('Printer.Sent', { printer, bytes: data.bytes.toLocaleString() })); return; }
+                    console.error('PrintEscPos:', data);
+                    this.showToast(this.printerMessage(data, printer), 5000);
+                } catch (e) {
+                    console.error('PrintEscPos:', e);
+                    this.showToast(t('Printer.Failed', { printer }), 5000);
+                } finally { this.printing = false; }
+            },
+
+            exportTo(action, extra = {}) {
                 // Form POST con target _blank → el browser abre/descarga la respuesta.
                 // OJO: usar <textarea> (no <input>) para preservar newlines del YAML;
                 // <input type="text"> los normaliza a espacios y rompe el parse.
@@ -2377,6 +2596,12 @@
                 const json = document.createElement('textarea');
                 json.name = 'Json'; json.value = this.getEditorText('json');
                 form.appendChild(json);
+
+                for (const [name, value] of Object.entries(extra)) {
+                    const input = document.createElement('input');
+                    input.type = 'hidden'; input.name = name; input.value = String(value);
+                    form.appendChild(input);
+                }
 
                 document.body.appendChild(form);
                 form.submit();

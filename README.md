@@ -607,7 +607,7 @@ Path inputs suggest bindings discovered in `data.json`: array paths for `rows`, 
 2. **Edit** sample data on the `data.json` tab.
 3. **Drag** a text, **resize** a table, **add columns** from the drawer, **click the Chart tool and draw it** on the page, then pick its rows/series.
 4. **Save as…** with your own name → stored in `~/.netreporter/templates/`.
-5. **⭳ PDF**, **⭳ HTML**, **⭳ XLSX** or **⭳ ESC/POS** → downloads with the template's `fileName` (e.g. `invoice-000-001.pdf`; the ESC/POS bytes use the 58 or 80 mm profile depending on the page width).
+5. **⭳ Export ▾** → PDF, HTML, XLSX or ESC/POS ticket, downloaded with the template's `fileName` (e.g. `invoice-000-001.pdf`). The same menu has **Print ticket on …** and **Printer settings…**: a dialog with IP, port, paper (auto / 80 mm / 58 mm), cut, feed lines, cash drawer and black-and-white conversion (threshold or dithering), with a **Test connection** button that reads the printer status. The settings live in the browser (`localStorage`), never in code; the ESC/POS download uses them too, and printing checks the status first and reports "out of paper", "cover open" or "unreachable" instead of failing silently.
 
 ### Import files from disk
 
