@@ -277,7 +277,7 @@ public static class SkiaFonts
         return null;
     }
 
-    private static string GenericFamily(string family)
+    internal static string GenericFamily(string family)
     {
         var name = family.ToLowerInvariant();
         if (name.Contains("mono") || name.Contains("courier") || name.Contains("consolas") || name.Contains("menlo"))

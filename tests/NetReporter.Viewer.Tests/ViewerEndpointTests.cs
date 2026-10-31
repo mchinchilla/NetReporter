@@ -12,6 +12,8 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NetReporter.Core.Definition;
+using NetReporter.Core.Primitives;
+using NetReporter.Core.RenderList;
 using NetReporter.Templates;
 
 namespace NetReporter.Viewer.Tests;
@@ -20,6 +22,27 @@ public sealed class ViewerEndpointTests : IAsyncLifetime
 {
     private static readonly TemplateReport Template =
         YamlReportLoader.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Assets", "report.yaml")));
+
+    private static readonly byte[] Logo = TestImages.Png(12, 6);
+    private static readonly ReportDefinition ReportWithLogo = YamlReportLoader.Parse($$"""
+        name: ConLogo
+        page: { size: Letter }
+        styles:
+          Default: { fontFamily: Helvetica, fontSize: 10 }
+        bands:
+          - kind: PageHeader
+            height: 40
+            elements:
+              - type: image
+                bounds: { x: 0, y: 0, width: 120, height: 30 }
+                source: "data:image/png;base64,{{Convert.ToBase64String(Logo)}}"
+          - kind: Detail
+            height: 20
+            elements:
+              - type: text
+                bounds: { x: 0, y: 0, width: 200, height: 12 }
+                content: "hola"
+        """).Bind("{}");
 
     private WebApplication _app = null!;
     private HttpClient _client = null!;
@@ -58,6 +81,7 @@ public sealed class ViewerEndpointTests : IAsyncLifetime
         });
         _app.MapNetReporterViewer("/pdf-only", (_, _) => ValueTask.FromResult<ReportDefinition?>(BuildReport(3)),
             o => { o.Formats = ViewerFormats.Pdf; o.IncludeErrorDetails = true; });
+        _app.MapNetReporterViewer("/img", (_, _) => ValueTask.FromResult<ReportDefinition?>(ReportWithLogo));
 
         await _app.StartAsync();
         _client = _app.GetTestClient();
@@ -107,7 +131,7 @@ public sealed class ViewerEndpointTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.OK, page.StatusCode);
         Assert.Equal("image/svg+xml", page.Content.Headers.ContentType!.MediaType);
         Assert.Contains("nosniff", page.Headers.GetValues("X-Content-Type-Options"));
-        Assert.StartsWith("<?xml", (await page.Content.ReadAsStringAsync()).TrimStart());
+        Assert.StartsWith("<svg xmlns=\"http://www.w3.org/2000/svg\"", await page.Content.ReadAsStringAsync());
 
         Assert.Equal(HttpStatusCode.NotFound, (await _client.GetAsync(pageUrl + "0")).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await _client.GetAsync(pageUrl + (pageCount + 1))).StatusCode);
@@ -215,11 +239,43 @@ public sealed class ViewerEndpointTests : IAsyncLifetime
         using var res = await _client.GetAsync("/reports/_viewer/viewer.js");
         Assert.Equal(HttpStatusCode.OK, res.StatusCode);
         Assert.Contains("customElements.define('netreporter-viewer'", await res.Content.ReadAsStringAsync());
+        Assert.Equal("no-cache", res.Headers.CacheControl!.ToString());   // plain URL: revalidate on every load
+        using var versioned = await _client.GetAsync("/reports/_viewer/viewer.js?v=" + ViewerEndpointExtensions.ScriptVersion);
+        Assert.Contains("immutable", versioned.Headers.CacheControl!.ToString());
 
         using var again = new HttpRequestMessage(HttpMethod.Get, "/reports/_viewer/viewer.js");
         again.Headers.TryAddWithoutValidation("If-None-Match", res.Headers.ETag!.Tag);
         using var cached = await _client.SendAsync(again);
         Assert.Equal(HttpStatusCode.NotModified, cached.StatusCode);
+    }
+
+    [Fact]
+    public async Task Images_AreServedByUrl_AndPagesReferenceThemInsteadOfEmbedding()
+    {
+        var png = Logo;
+        var doc = await Open("/img/x/open", user: "ana");
+        using var pageReq = new HttpRequestMessage(HttpMethod.Get, doc.GetProperty("pageUrl").GetString() + "1");
+        pageReq.Headers.Add("X-User", "ana");
+        var svg = await (await _client.SendAsync(pageReq)).Content.ReadAsStringAsync();
+
+        var imagesUrl = doc.GetProperty("pageUrl").GetString()!.Replace("/pages/", "/images/");
+        Assert.Contains($"href=\"{imagesUrl}0\"", svg);
+        Assert.DoesNotContain("data:image", svg);
+
+        async Task<HttpResponseMessage> Get(string url, string? user)
+        {
+            var req = new HttpRequestMessage(HttpMethod.Get, url);
+            if (user is not null) req.Headers.Add("X-User", user);
+            return await _client.SendAsync(req);
+        }
+
+        using var image = await Get(imagesUrl + "0", "ana");
+        Assert.Equal(HttpStatusCode.OK, image.StatusCode);
+        Assert.Equal("image/png", image.Content.Headers.ContentType!.MediaType);
+        Assert.Equal(png, await image.Content.ReadAsByteArrayAsync());
+        Assert.Contains("nosniff", image.Headers.GetValues("X-Content-Type-Options"));
+        Assert.Equal(HttpStatusCode.NotFound, (await Get(imagesUrl + "1", "ana")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await Get(imagesUrl + "0", "luis")).StatusCode);
     }
 
     [Fact]
@@ -272,20 +328,67 @@ public sealed class ViewerDocumentStoreTests
     public void RenderSvgPage_StillWorksAfterTheDocumentIsDisposed()
     {
         var doc = Doc();
-        var before = doc.RenderSvgPage(0);
+        var before = doc.RenderSvgPage(0, CancellationToken.None);
         doc.Dispose();
-        Assert.Equal(Normalize(before), Normalize(doc.RenderSvgPage(0)));
+        Assert.Equal(before, doc.RenderSvgPage(0, CancellationToken.None));
     }
 
     [Fact]
-    public void RenderSvgPage_SharedCacheProducesTheSameSvgAsSvgRenderer()
+    public void RenderSvgPage_SharedContextProducesTheSameSvgAsSvgRenderer()
     {
         using var doc = Doc();
         var expected = new NetReporter.Svg.SvgRenderer().Render(doc.RenderList);
         for (int i = 0; i < doc.PageCount; i++)
-            Assert.Equal(Normalize(expected[i]), Normalize(doc.RenderSvgPage(i)));
+            Assert.Equal(expected[i], doc.RenderSvgPage(i, CancellationToken.None));
     }
 
-    /// <summary>Skia numbers clip paths with a process-wide counter (cl_3, cl_11…): compare the drawing, not the ids.</summary>
-    private static string Normalize(string svg) => System.Text.RegularExpressions.Regex.Replace(svg, @"cl_\w+", "cl_N");
+    [Fact]
+    public void RenderSvgPage_Cancelled_Throws()
+    {
+        using var doc = Doc();
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+        Assert.Throws<OperationCanceledException>(() => doc.RenderSvgPage(0, cts.Token));
+    }
+
+    [Fact]
+    public void Images_AreIndexedOncePerDistinctArray_AndReferencedByUrlOnceItIsKnown()
+    {
+        var logo = TestImages.Png(8, 8);
+        var other = TestImages.Png(4, 4);
+        var template = Doc();
+        var pages = new RenderPage[]
+        {
+            new(1, [new DrawImageCommand(new Rect(0, 0, 50, 50), logo, "image/png"), new DrawImageCommand(new Rect(0, 60, 50, 50), other, "image/png")]),
+            new(2, [new DrawImageCommand(new Rect(0, 0, 50, 50), logo, "image/png")]),
+        };
+        using var doc = new ViewerDocument("r", template.Report, template.RenderList with { Pages = pages }, owner: null);
+
+        Assert.Equal(2, doc.ImageCount);
+        Assert.Same(logo, doc.Image(0)!.Value.Data);
+        Assert.Same(other, doc.Image(1)!.Value.Data);
+        Assert.Null(doc.Image(2));
+        Assert.Null(doc.Image(-1));
+
+        Assert.Contains("href=\"data:image/png;base64,", doc.RenderSvgPage(0, CancellationToken.None));
+
+        doc.SetImagesUrl("/r/_doc/t/images");
+        var page1 = doc.RenderSvgPage(0, CancellationToken.None);
+        Assert.Contains("href=\"/r/_doc/t/images/0\"", page1);
+        Assert.Contains("href=\"/r/_doc/t/images/1\"", page1);
+        Assert.Contains("href=\"/r/_doc/t/images/0\"", doc.RenderSvgPage(1, CancellationToken.None));
+        Assert.DoesNotContain("data:", page1);
+    }
+}
+
+internal static class TestImages
+{
+    public static byte[] Png(int width, int height)
+    {
+        using var bitmap = new SkiaSharp.SKBitmap(width, height, SkiaSharp.SKColorType.Rgba8888, SkiaSharp.SKAlphaType.Opaque);
+        bitmap.Erase(SkiaSharp.SKColors.CornflowerBlue);
+        using var image = SkiaSharp.SKImage.FromBitmap(bitmap);
+        using var data = image.Encode(SkiaSharp.SKEncodedImageFormat.Png, 100);
+        return data.ToArray();
+    }
 }

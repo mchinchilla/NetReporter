@@ -9,6 +9,9 @@
 // Events:     nr-load {title, pageCount}, nr-error {status, error, detail}, nr-pagechange {page}.
 // Methods:    reload(), goToPage(n), setZoom(z | "page-width" | "page-fit"), print(), download(format).
 // Theming:    --nr-bg, --nr-toolbar-bg, --nr-toolbar-fg, --nr-accent, --nr-font on the element.
+//
+// Pages are SVG documents fetched from the server and inlined (not <img>): text stays selectable and
+// searchable, and images are referenced by URL, so a logo repeated on every page is downloaded once.
 
 const I18N = {
     es: {
@@ -79,7 +82,7 @@ button:hover:not(:disabled) { background: rgba(255,255,255,.12); }
 button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--nr-accent); outline-offset: 1px; }
 button:disabled { opacity: .35; cursor: default; }
 button[aria-pressed="true"] { background: rgba(255,255,255,.18); }
-svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.toolbar svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 input.page-input {
     width: 44px; height: 26px; text-align: center; border: none; border-radius: 4px;
     background: rgba(0,0,0,.35); color: inherit; font: inherit;
@@ -106,8 +109,8 @@ select.zoom option { color: #111; background: #fff; }
 }
 .root.thumbs-open .thumbs { display: flex; }
 .thumb { all: unset; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 11px; opacity: .85; }
-.thumb .frame { background: #fff; border: 3px solid transparent; border-radius: 2px; box-shadow: 0 1px 3px rgba(0,0,0,.4); }
-.thumb img { display: block; width: 100%; height: 100%; }
+.thumb .frame { background: #fff; border: 3px solid transparent; border-radius: 2px; box-shadow: 0 1px 3px rgba(0,0,0,.4); overflow: hidden; }
+.thumb .frame svg { display: block; width: 100%; height: 100%; pointer-events: none; }
 .thumb.current { opacity: 1; }
 .thumb.current .frame { border-color: var(--nr-accent); }
 .thumb:focus-visible .frame { outline: 2px solid var(--nr-accent); }
@@ -117,14 +120,11 @@ select.zoom option { color: #111; background: #fff; }
     width: max-content; min-width: 100%;
 }
 .page {
-    position: relative; flex: none; background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,.45);
+    position: relative; flex: none; background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,.45); color: #000;
     width: calc(var(--pw) * var(--z)); height: calc(var(--ph) * var(--z));
 }
-.page img {
-    position: absolute; inset: 0; width: 100%; height: 100%; user-select: none; -webkit-user-drag: none;
-    opacity: 0; transition: opacity .15s;
-}
-.page.ready img { opacity: 1; }
+.page > svg { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; transition: opacity .15s; }
+.page.ready > svg { opacity: 1; }
 .page:not(.ready):not(.failed)::before {
     content: ''; position: absolute; left: 50%; top: min(120px, 40%); width: 24px; height: 24px; margin-left: -12px;
     border-radius: 50%; border: 3px solid #e5e7eb; border-top-color: #9ca3af; animation: spin .8s linear infinite;
@@ -174,6 +174,7 @@ class NetReporterViewer extends HTMLElement {
         this._reopening = null;
         this._printFrame = null;
         this._connected = false;
+        this._svg = new Map();      // page number → Promise<string> (the page's SVG markup)
         this.addEventListener('keydown', (e) => this._onKey(e));
     }
 
@@ -383,13 +384,18 @@ class NetReporterViewer extends HTMLElement {
         }, { passive: true });
         this._$scroller.addEventListener('wheel', (e) => this._onWheel(e), { passive: false });
 
+        // Pages near the viewport are mounted; pages that scroll far away are unmounted again (their
+        // markup stays cached), so a 300-page report never holds 300 pages of DOM.
         this._io?.disconnect();
         this._io = new IntersectionObserver((entries) => {
-            for (const en of entries) if (en.isIntersecting) this._loadPage(en.target);
+            for (const en of entries) {
+                if (en.isIntersecting) this._mountPage(en.target);
+                else this._unmountPage(en.target);
+            }
         }, { root: this._$scroller, rootMargin: '150% 0px' });
         this._thumbIo?.disconnect();
         this._thumbIo = new IntersectionObserver((entries) => {
-            for (const en of entries) if (en.isIntersecting) this._loadThumb(en.target);
+            for (const en of entries) if (en.isIntersecting) this._mountThumb(en.target);
         }, { root: this._$thumbs, rootMargin: '100% 0px' });
 
         this._ro?.disconnect();
@@ -409,6 +415,7 @@ class NetReporterViewer extends HTMLElement {
     _setDocument(doc, keepPage) {
         const reopened = this._doc && this._doc.pageCount === doc.pageCount;
         this._doc = doc;
+        this._svg.clear();
         this._hideOverlay();
         if (this.hasAttribute('set-title') && doc.title) document.title = doc.title;
         this._$title.textContent = doc.title || '';
@@ -426,9 +433,9 @@ class NetReporterViewer extends HTMLElement {
         this._$pages.style.setProperty('--ph', `${doc.pageHeight * PT_TO_PX}px`);
 
         if (reopened) {
-            // Same document shape: swap the image URLs in place, without losing scroll.
-            this._pageEls.forEach((el) => { el.dataset.loaded = ''; el.classList.remove('failed', 'ready'); el.querySelector('img')?.remove(); this._io.unobserve(el); this._io.observe(el); });
-            this._thumbEls.forEach((el) => { el.dataset.loaded = ''; el.querySelector('img')?.remove(); this._thumbIo.unobserve(el); this._thumbIo.observe(el); });
+            // Same document shape: refetch the pages in place, without losing scroll.
+            this._pageEls.forEach((el) => { this._unmountPage(el); this._io.unobserve(el); this._io.observe(el); });
+            this._thumbEls.forEach((el) => { el.dataset.loaded = ''; el.querySelector('.frame').replaceChildren(); this._thumbIo.unobserve(el); this._thumbIo.observe(el); });
         } else {
             this._buildPages(doc);
         }
@@ -451,6 +458,8 @@ class NetReporterViewer extends HTMLElement {
             const p = document.createElement('div');
             p.className = 'page';
             p.dataset.page = n;
+            p.setAttribute('role', 'img');
+            p.setAttribute('aria-label', this._t.pageAlt.replace('{n}', n));
             pages.appendChild(p);
             this._pageEls.push(p);
 
@@ -472,28 +481,67 @@ class NetReporterViewer extends HTMLElement {
 
     _pageUrl(n) { return `${this._doc.pageUrl}${n}`; }
 
-    _loadPage(el) {
-        if (el.dataset.loaded) return;
-        el.dataset.loaded = '1';
-        const n = +el.dataset.page;
-        const img = new Image();
-        img.alt = this._t.pageAlt.replace('{n}', n);
-        img.decoding = 'async';
-        img.draggable = false;
-        img.onload = () => img.decode().catch(() => {}).then(() => el.classList.add('ready'));
-        img.onerror = () => { el.classList.add('failed'); this._reopenExpired(); };
-        img.src = this._pageUrl(n);
-        el.appendChild(img);
+    /** The page's SVG markup, fetched once per document; the page and its thumbnail share it. */
+    _fetchPage(n) {
+        let p = this._svg.get(n);
+        if (!p) {
+            p = fetch(this._pageUrl(n), { credentials: 'same-origin', headers: { Accept: 'image/svg+xml' } }).then(async (res) => {
+                if (!res.ok) throw Object.assign(new Error(`page ${n}: ${res.status}`), { status: res.status });
+                return res.text();
+            });
+            p.catch(() => { if (this._svg.get(n) === p) this._svg.delete(n); });
+            this._svg.set(n, p);
+        }
+        return p;
     }
 
-    _loadThumb(el) {
+    /** Parses the markup into an <svg> element that scales to its container. */
+    _svgElement(markup) {
+        const doc = new DOMParser().parseFromString(markup, 'image/svg+xml');
+        const root = doc.documentElement;
+        if (!root || root.localName !== 'svg' || doc.querySelector('parsererror')) throw new Error('invalid svg');
+        const svg = document.importNode(root, true);
+        svg.setAttribute('width', '100%');
+        svg.setAttribute('height', '100%');
+        svg.setAttribute('focusable', 'false');
+        return svg;
+    }
+
+    async _mountPage(el) {
         if (el.dataset.loaded) return;
         el.dataset.loaded = '1';
-        const img = new Image();
-        img.alt = '';
-        img.decoding = 'async';
-        img.src = this._pageUrl(+el.dataset.page);
-        el.querySelector('.frame').appendChild(img);
+        el.classList.remove('failed', 'ready');
+        const doc = this._doc;
+        try {
+            const markup = await this._fetchPage(+el.dataset.page);
+            if (!el.dataset.loaded || this._doc !== doc) return;   // unmounted or reopened meanwhile
+            el.replaceChildren(this._svgElement(markup));
+            el.classList.add('ready');
+        } catch (err) {
+            if (!el.dataset.loaded || this._doc !== doc) return;
+            el.classList.add('failed');
+            if (err?.status === 404) this._reopenExpired();
+        }
+    }
+
+    _unmountPage(el) {
+        if (!el.dataset.loaded) return;
+        el.dataset.loaded = '';
+        el.classList.remove('ready', 'failed');
+        el.replaceChildren();
+    }
+
+    async _mountThumb(el) {
+        if (el.dataset.loaded) return;
+        el.dataset.loaded = '1';
+        const doc = this._doc;
+        try {
+            const markup = await this._fetchPage(+el.dataset.page);
+            if (this._doc !== doc) return;
+            el.querySelector('.frame').replaceChildren(this._svgElement(markup));
+        } catch {
+            // The page itself reports the failure; thumbnails stay blank.
+        }
     }
 
     /** The server forgets documents after a while: reopen once and reload the visible pages. */
@@ -727,6 +775,7 @@ class NetReporterViewer extends HTMLElement {
 
     _fail(status, key, detail) {
         this._doc = null;
+        this._svg.clear();
         this._$pages.replaceChildren();
         this._$thumbs.replaceChildren();
         this._pageEls = [];

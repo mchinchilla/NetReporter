@@ -28,27 +28,45 @@
 
 ## 📚 Table of contents
 
-1. [What's new in 1.3](#-whats-new-in-13)
-2. [What's new in 1.2](#-whats-new-in-12)
-3. [What's new in 1.1](#-whats-new-in-11)
-4. [Philosophy and architecture](#-philosophy-and-architecture)
-5. [Features](#-features)
-6. [Visual pipeline](#-visual-pipeline)
-7. [Tech stack](#-tech-stack)
-8. [Repository layout](#-repository-layout)
-9. [Quick start](#-quick-start)
-10. [Visual designer](#-visual-designer)
-11. [Report viewer](#️-report-viewer-netreporterviewer)
-12. [YAML template syntax](#-yaml-template-syntax)
-13. [Expressions (DSL)](#-expressions-dsl)
-14. [Charts](#-charts)
-15. [Available renderers](#-available-renderers)
-16. [Page sizes](#-page-sizes)
-17. [Tests](#-tests)
-18. [Known limitations](#-known-limitations)
-19. [Completed](#-completed)
-20. [Roadmap](#-roadmap)
-21. [Licenses](#-licenses)
+1. [What's new in 1.4](#-whats-new-in-14)
+2. [What's new in 1.3](#-whats-new-in-13)
+3. [What's new in 1.2](#-whats-new-in-12)
+4. [What's new in 1.1](#-whats-new-in-11)
+5. [Philosophy and architecture](#-philosophy-and-architecture)
+6. [Features](#-features)
+7. [Visual pipeline](#-visual-pipeline)
+8. [Tech stack](#-tech-stack)
+9. [Repository layout](#-repository-layout)
+10. [Quick start](#-quick-start)
+11. [Visual designer](#-visual-designer)
+12. [Report viewer](#️-report-viewer-netreporterviewer)
+13. [YAML template syntax](#-yaml-template-syntax)
+14. [Expressions (DSL)](#-expressions-dsl)
+15. [Charts](#-charts)
+16. [Available renderers](#-available-renderers)
+17. [Page sizes](#-page-sizes)
+18. [Tests](#-tests)
+19. [Known limitations](#-known-limitations)
+20. [Completed](#-completed)
+21. [Roadmap](#-roadmap)
+22. [Licenses](#-licenses)
+
+---
+
+## 🆕 What's new in 1.4
+
+**A report viewer for your application, and an SVG writer that scales.**
+
+| Change | Detail |
+|---|---|
+| 🖥️ **`NetReporter.Viewer`** (new package, opt-in) | `app.MapNetReporterViewer("/reports", …)` serves a paginated, zoomable viewer for end users of an ASP.NET Core app: page navigation, thumbnails, print, PDF/XLSX/HTML download. Pages are SVG written on demand and inlined by the `<netreporter-viewer>` web component (no CDN), so text is selectable and searchable; images are referenced by URL, so a logo on every page is downloaded once. See [Report viewer](#️-report-viewer-netreporterviewer) |
+| ⚡ **SVG written directly** | `SvgRenderer` no longer draws through Skia's SVG canvas, which rebuilt the whole glyph→Unicode table of the font for every text (cost proportional to the font's glyph count, under a global lock) and re-encoded every image as PNG on every page. An 18-page, 600-row document went from 96 ms to 9.7 ms on Linux (358 → 10 ms on macOS), and 8 threads now render 1 060 docs/s instead of 12.6. Same geometry as the PDF (`PageGeometry` is shared with the PDF painter, a test checks every glyph position against Skia's canvas) |
+| 🎨 **Designer** | Resizable/collapsible editor, CodeMirror editors with error lines and element ↔ YAML linking, page navigator, clean view, zoom around the cursor, rulers, grid and smart guides. See [Visual designer](#-visual-designer) |
+
+### ⚠️ Behavior changes in 1.4
+
+1. **The SVG markup changed** (the drawing didn't). Pages start with `<svg xmlns=… width height viewBox>` (no XML declaration), text is `<text xml:space="preserve" x="x₁ x₂ …" y="baseline">` with one x per character, `font-family` lists the requested family, the family that was actually used and the generic (`"Helvetica, 'Liberation Sans', sans-serif"`) so the browser picks the best it has, images embed their **original** bytes (no PNG re-encoding), a `clipPath` is only emitted when a text leaves its box, and numbers carry three decimals. Anything that parsed the old Skia output (`cl_N` clip ids, `<?xml`, comma-separated positions) needs updating; the Designer preview and the viewer already do.
+2. A stroke of thickness 0 is drawn 0.5 pt wide in SVG (Skia drew a one-pixel hairline).
 
 ---
 
@@ -186,7 +204,7 @@ NetReporter splits the report into four layers with clear interfaces. **The temp
 |---|---|
 | 🚫 **No reflection** in hot paths | Data binding with typed `Func<TRow,TValue>`; expressions with `Func<IEvaluationContext,T>`; tables dispatch their row type through a visitor (`ITableVisitor<T>`) |
 | 🎨 **No CSS / Tailwind for reports** | Native styling via `StyleSheet` + `StyleRef` (zero-alloc struct) and inheritance through `BasedOn` |
-| 🧪 **One painter for SVG and PDF** | `SkiaPagePainter` draws every page on any `SKCanvas`: `SKSvgCanvas` for SVG, `SKDocument` (Skia's PDF backend) for PDF. No third-party PDF library |
+| 🧪 **One geometry for SVG and PDF** | `SkiaPagePainter` draws the PDF on `SKDocument` (Skia's PDF backend); `SvgPageWriter` writes the SVG directly from the same `PageGeometry` and font tables, glyph by glyph. No third-party PDF library |
 | 🔄 **Single IR, multiple outputs** | The `RenderList` is computed once; N renderers consume it |
 | 📦 **Editable templates without recompiling** | YAML + JSON wired with JSON Path — and, since 1.1, logic too (expression DSL compiled once to delegates) |
 
@@ -304,7 +322,7 @@ flowchart TB
 | Expressions | Pure C# | Hand-written lexer + recursive-descent parser → delegate chain (no Roslyn, no `eval`) |
 | YAML parser | **YamlDotNet** 18.1 | CamelCase naming, ignore unmatched, default values handling |
 | PDF backend | **SkiaSharp** `SKDocument` | Skia's PDF backend + NetReporter's own TrueType subsetter; no third-party PDF library |
-| 2D drawing | **SkiaSharp** 4.152 | `SKSvgCanvas` to emit SVG; Linux natives included via `SkiaSharp.NativeAssets.Linux` |
+| 2D drawing | **SkiaSharp** 4.154 | PDF backend, font resolution, glyph advances and image decoding; Linux natives included via `SkiaSharp.NativeAssets.Linux` |
 | Web UI | **ASP.NET Core MVC** (.NET 10) | Interactive designer |
 | Frontend reactivity | **Alpine.js** 3.14 (CDN) | State + reactivity, no build pipeline |
 | Network reactivity | **HTMX** 2.0 (CDN) | Live preview with debounce |
@@ -324,7 +342,7 @@ NetReporter/
 │   ├── NetReporter.Core/        🧠 IR, Primitives, Styles, Layout (+ ChartLayout), RenderList
 │   ├── NetReporter.Templates/   📝 YAML loader/rewriter, JSON Path, template strings, expression DSL
 │   ├── NetReporter.Pdf/         📄 PdfRenderer (SKDocument) + TrueType font subsetter
-│   ├── NetReporter.Svg/         🖼️ SvgRenderer (SKSvgCanvas), SkiaPagePainter (shared with PDF), SkiaFonts, SkiaTextMeasurer
+│   ├── NetReporter.Svg/         🖼️ SvgRenderer + SvgPageWriter (own SVG writer), SkiaPagePainter (PDF), PageGeometry (shared), SkiaFonts, SkiaTextMeasurer
 │   ├── NetReporter.Html/        🌐 HtmlRenderer (paginated HTML/CSS)
 │   ├── NetReporter.Xlsx/        📊 XlsxRenderer semantic (ClosedXML, native tables)
 │   ├── NetReporter.Barcodes/    ▦ ZXing-based barcode/QR generator (opt-in)
@@ -335,7 +353,7 @@ NetReporter/
 │   ├── NetReporter.Core.Tests/        Primitives, styles, word wrap, auto-height, KeepTogether (report + detail bands), grouped/nested/multi-page tables, table styling, charts, visibility
 │   ├── NetReporter.Templates.Tests/   JSON Path, template strings, expression DSL, YAML loader (v1.1 schema), rewriter (single + multi-element + clipboard), file names
 │   ├── NetReporter.Html.Tests/        HtmlRendererTests
-│   ├── NetReporter.Svg.Tests/         SvgRendererTests, SkiaFontsTests
+│   ├── NetReporter.Svg.Tests/         SvgPageWriterTests (geometry vs Skia's canvas), SvgRendererTests, SkiaFontsTests, GlyphAdvancesTests
 │   ├── NetReporter.Pdf.Tests/         PdfRendererTests, TrueTypeSubsetterTests
 │   ├── NetReporter.Xlsx.Tests/        XlsxRendererTests
 │   ├── NetReporter.Barcodes.Tests/    ZXingBarcodeGeneratorTests
@@ -647,7 +665,8 @@ app.MapNetReporterViewer("/reports", async (request, ct) =>
   shown. Documents live in memory under an unguessable token (`DocumentLifetime`, sliding, default 10 min;
   `MaxCachedDocuments`, default 100) and are bound to the user who opened them; when one expires the viewer
   reopens it transparently.
-- **Lazy pages.** Only pages near the viewport are requested; a 300-page report doesn't download 300 SVGs.
+- **Lazy pages.** Only pages near the viewport are requested and kept in the DOM; a 300-page report doesn't download 300 SVGs. Pages are inlined SVG, so text can be selected, copied and found with Ctrl+F.
+- **Images by URL.** Each distinct image of the document is served once at `…/_doc/{token}/images/{n}` and referenced from the pages; an invoice with a 400 KB logo on every page transfers the logo once, not once per page.
 - **Viewer UI:** first/previous/next/last, go to page, thumbnails, zoom 25–400 % (fit width, fit page, Ctrl/⌘ +
   wheel or trackpad pinch anchored at the cursor), Home/End and ←/→, print (Ctrl/⌘+P), download menu,
   responsive toolbar. Theme it with `--nr-bg`, `--nr-toolbar-bg`, `--nr-toolbar-fg`, `--nr-accent`.
@@ -656,8 +675,9 @@ app.MapNetReporterViewer("/reports", async (request, ct) =>
   `goToPage(n)`, `setZoom(z)`, `print()`, `download(format)`.
 - Errors return `{ "error": "not-found" | "render-failed" }`; the exception message is only included with
   `IncludeErrorDetails = true` (development).
-- SVG pages draw text with the **browser's** fonts. Install the report fonts on client machines or rely on the
-  PDF (fonts embedded) when exact typography matters.
+- SVG pages draw text with the **browser's** fonts, but every glyph is positioned where the server measured it, so
+  lines and columns stay where the PDF puts them. Install the report fonts on client machines or rely on the PDF
+  (fonts embedded) when the exact glyph shapes matter.
 - Not in the `NetReporter` meta-package (it brings in ASP.NET Core). Demo: `dotnet run --project samples/ViewerSample` → `http://localhost:5297`.
 
 ---
@@ -1075,7 +1095,7 @@ string html = new HtmlRenderer().Render(renderList, new HtmlRenderOptions
 
 ### 🖼️ SVG — `NetReporter.Svg`
 
-One SVG string per page, drawn by the same `SkiaPagePainter` as the PDF. Used by the designer's live preview.
+One SVG string per page, written directly from the `RenderList` with the same geometry and fonts as the PDF (`PageGeometry`, `SkiaFonts`, `GlyphAdvances`): every glyph carries its x position, so the browser keeps the layout even when it substitutes the font, and `font-family` names the requested family, the one actually used and the generic. Images embed their original bytes. No Skia canvas is involved, so rendering costs microseconds per text and scales linearly across threads. Used by the designer's live preview and by the viewer.
 
 ```csharp
 IReadOnlyList<string> svgs = new SvgRenderer().Render(renderList);
@@ -1146,13 +1166,13 @@ dotnet test
 │ NetReporter.Core.Tests              │  117  │
 │ NetReporter.Templates.Tests         │  204  │
 │ NetReporter.Html.Tests              │   20  │
-│ NetReporter.Svg.Tests               │   33  │
+│ NetReporter.Svg.Tests               │   61  │
 │ NetReporter.Pdf.Tests               │   18  │
 │ NetReporter.Xlsx.Tests              │   15  │
 │ NetReporter.Barcodes.Tests          │    7  │
-│ NetReporter.Viewer.Tests            │   16  │
+│ NetReporter.Viewer.Tests            │   19  │
 ├─────────────────────────────────────┼───────┤
-│ Total                               │  430  │
+│ Total                               │  461  │
 └─────────────────────────────────────┴───────┘
 ```
 
@@ -1161,7 +1181,7 @@ dotnet test
 - 🧠 **Core**: hex color parsing, PageSetup transformations, StyleSheet (inheritance + cycles + cache), BorderSet factories, **word-wrap algorithm**, **band auto-height**, **KeepTogether on report and detail bands (dry-run measurement)**, **nested groups + summary + min/max**, **group-header keep-with-next**, **multi-page tables with repeating PageHeader**, **table outer border / header rule / row separators / typed row styles**, **table `bounds.y` offset**, **rounded rectangles**, **charts (bar/line/area/pie/donut/horizontal, legend, labels inside bounds)**, **visible / dynamic style**, **page chrome with `totalPages`**.
 - 📝 **Templates**: JSON Path, TemplateString (placeholders + literals + escape + `:format`), **expression DSL (operators, functions, errors with position, format splitting)**, **v1.1 YAML schema (charts, groups, visible, dynamic style, text flags, band flags)**, YamlReportRewriter (every mutation method, **multi-element moves/deletes, clipboard copy/paste, image/barcode/chart patches, series editor**), FileName resolution, `cornerRadius` / `roundedCorners` parsing.
 - 🌐 **Html**: valid HTML, special-char escaping, fonts, alignments, lines, rectangles (incl. rounded corners), **paths as inline SVG**, multi-page, print CSS, fragment mode, opt-in zoom bar.
-- 🖼️ **Svg**: rounded and square rectangles, **filled and stroked paths**, **font resolution that keeps the requested weight**, **per-character fallback runs**, **linear (unhinted) metrics**.
+- 🖼️ **Svg**: the SVG writer (glyph positions equal to the advance table and to Skia's canvas painted by the PDF painter, alignment, clipping only on overflow, escaping, fallback runs, rounded-corner radii equal to `SKRoundRect`, image fit, `data:` vs URL images, cancellation), **font resolution that keeps the requested weight**, **per-character fallback runs**, **linear (unhinted) metrics**.
 - 📄 **Pdf**: one PDF page per `RenderPage` with the page size, **lossless image embedding**, **TrueType subsetter** (glyph IDs and advances kept, composite glyphs, checksums, `.ttc` collections, CFF / license / truncated-font rejection), subset-font mapping.
 - 📊 **Xlsx**: text → cells, tables → ranges, native Excel Tables, **nested groups with outline + summary**, **charts as data tables**, **dynamic styles**, page setup mapping, sheet-name sanitation, image embedding, per-culture formatting.
 - ▦ **Barcodes**: QR finder patterns, Code 128 bar density, EAN-13 strict validation, edge cases (empty/null/throwing fallback).

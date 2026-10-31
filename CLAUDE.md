@@ -15,7 +15,7 @@ src/
   NetReporter.Core/        IR, Primitives, Styles, Layout (LayoutEngine + ChartLayout), RenderList, ITextMeasurer
   NetReporter.Templates/   YAML loader/rewriter, JSON Path, template strings, expression DSL, fileName
   NetReporter.Pdf/         PdfRenderer (SKDocument), FontSubsetPlan + TrueTypeSubsetter
-  NetReporter.Svg/         SvgRenderer (SKSvgCanvas), SkiaPagePainter (shared with PDF), SkiaFonts, SkiaTextMeasurer
+  NetReporter.Svg/         SvgRenderer → SvgPageWriter (own SVG writer), SkiaPagePainter (PDF), PageGeometry (shared), SkiaFonts, SkiaTextMeasurer
   NetReporter.Html/        HtmlRenderer (paginated HTML/CSS @page)
   NetReporter.Xlsx/        XlsxRenderer — semantic, consumes ReportDefinition directly
   NetReporter.Barcodes/    ZXing-based QR/Code128/Code39/EAN-13 (opt-in)
@@ -25,7 +25,7 @@ src/
 tests/
   NetReporter.Core.Tests/  NetReporter.Templates.Tests/  NetReporter.Html.Tests/  NetReporter.Svg.Tests/
   NetReporter.Pdf.Tests/   NetReporter.Xlsx.Tests/       NetReporter.Barcodes.Tests/
-  NetReporter.Viewer.Tests/ (TestServer)                                                 — 430 tests total
+  NetReporter.Viewer.Tests/ (TestServer)                                                 — 461 tests total
   TestAssets/Fonts/        Lato-Regular.ttf (SIL OFL) — font tests use it instead of system fonts (CI has almost none)
 tools/
   NetReporter.Designer/    ASP.NET Core MVC + Alpine.js + HTMX + Tailwind (CDN)
@@ -47,7 +47,7 @@ Solution file is `NetReporter.slnx` (the newer XML format — not classic `.sln`
 
 ```bash
 dotnet build
-dotnet test                                                # 430 tests
+dotnet test                                                # 461 tests
 dotnet run --project samples/InvoiceSample                 # → factura.pdf
 dotnet run --project samples/TemplateSample                # → 13 PDF + 13 XLSX
 dotnet run --project tools/NetReporter.Designer            # → http://localhost:5296
@@ -58,7 +58,7 @@ dotnet run --project samples/ViewerSample                  # → http://localhos
 
 The pipeline is **IR → LayoutEngine → RenderList → Renderer** (PDF/HTML/SVG). XLSX is the **semantic** exception: it consumes `ReportDefinition` directly, bypassing `LayoutEngine`/`RenderList`, because spreadsheet cells map to elements, not pixels.
 
-1. **One painter for SVG and PDF.** All positioning is done by `LayoutEngine`, which emits absolute `DrawText/DrawLine/DrawRectangle/…` commands. `SkiaPagePainter.Draw(SKCanvas, RenderPage)` paints them on any canvas: `SvgRenderer` passes an `SKSvgCanvas`, `PdfRenderer` passes the page canvas of an `SKDocument.CreatePdf` document. Renderers never lay anything out.
+1. **One geometry for SVG and PDF.** All positioning is done by `LayoutEngine`, which emits absolute `DrawText/DrawLine/DrawRectangle/…` commands. `SkiaPagePainter.Draw(SKCanvas, RenderPage)` paints them for the PDF (`SKDocument.CreatePdf` page canvas); `SvgPageWriter` writes them as SVG text directly. Both take text start/baseline/clip, image fit and rounded-corner radii from `PageGeometry`, and fonts/advances from `SkiaFonts`/`GlyphAdvances`, so they agree by construction (`SvgPageWriterTests` compares every glyph position with Skia's SVG canvas painted by the painter). **Never route SVG text through `SKSvgCanvas` again**: Skia's SVG device rebuilds the font's glyph→Unicode map per text under a global lock (7–37× slower than PDF, anti-scales with threads) and re-encodes images per page. Renderers never lay anything out.
 
 2. **No reflection in hot paths.** Data binding is `IDataBinding<TRow,TValue>` wrapping a typed `Func<TRow,TValue>`. Expressions are `IExpression<T>` with `Func<IEvaluationContext,T>`. Never do `row.GetType()` or `PropertyInfo.GetValue`. Code that needs a table's row type dispatches through `ITableElement.Accept(ITableVisitor<T>)` (layout engine and XLSX emitter both do) — never `MakeGenericMethod`. The YAML expression DSL (`NetReporter.Templates/Expressions`) compiles text → delegate chain once at load; don't add runtime parsing or reflection to it.
 
@@ -83,11 +83,12 @@ The pipeline is **IR → LayoutEngine → RenderList → Renderer** (PDF/HTML/SV
 |---|---|---|---|
 | `PdfRenderer` | `RenderList` | `SkiaPagePainter` on `SKDocument` (Skia's PDF backend) | Vector, selectable text, fonts embedded as subsets |
 | `HtmlRenderer` | `RenderList` | HTML/CSS `@page` | Self-contained, printable |
-| `SvgRenderer` | `RenderList` | `SkiaPagePainter` on `SKSvgCanvas` | One SVG string per page; used by the Designer preview |
+| `SvgRenderer` | `RenderList` | `SvgPageWriter` (own writer; `PageGeometry` + `SkiaFonts` + `GlyphAdvances`) | One SVG string per page; used by the Designer preview and the Viewer. No Skia canvas |
 | `XlsxRenderer` | `ReportDefinition` (not RenderList) | ClosedXML | Semantic — text → cells, tables → native Excel Tables (grouped tables → outline), charts → data tables. Lines/rectangles/barcodes are intentionally skipped |
 
 ### Fonts (SVG / PDF / measurer) — keep these in sync
 
+- `SvgPageWriter` keeps per-document state in `SvgWriterContext` (fonts/metrics via `SkiaPaintCache`, image header + base64 once per `byte[]`, pooled `StringBuilder`, optional `ImageHref` resolver used by the viewer to reference images by URL). Hot path per text: `ContainsGlyphs` + `GetGlyphs` (cmap) + `GlyphAdvances` + number formatting; no Skia drawing. A `clipPath` is emitted only when the text leaves `PageGeometry.TextClip`.
 - `SkiaFonts` is the single source of truth: `Resolve(style)` picks the typeface and `SplitRuns` splits text into per-typeface runs when the font lacks a character (fallback font). `SkiaTextMeasurer`, `SkiaPagePainter` and `FontSubsetPlan` all go through it, so what is measured is what is drawn and embedded. Don't call `SKTypeface.FromFamilyName` directly elsewhere.
 - Every `SKFont` that measures or draws must come from `SkiaFonts.CreateFont` (no hinting, linear metrics). Default `SKFont`s on Linux round advances to whole points (~5% wider text at small sizes); macOS is unaffected, so this only shows up in CI/Linux.
 - `SkiaPagePainter` takes its `SKFont`s, decoded `SKImage`s and `SKPaint`s from a `SkiaPaintCache` that `PdfRenderer`/`SvgRenderer` create **once per document**. Don't `new SKFont`/`new SKPaint` per command inside the painter: every SkiaSharp object registers in a global handle dictionary under a lock. Sharing the `SKImage` instance across pages is also what makes Skia's PDF backend embed a repeated image (logo in a page header) once instead of once per page.
@@ -108,7 +109,7 @@ When the user asks for a feature that "should also work in XLSX", remember XLSX 
 - `ViewerDocumentStore` has no `SizeLimit`: `MemoryCache` rejects entries over it *and* runs the eviction callback, which disposes the document. `Add` compacts to make room, then `Set` always stores; the eviction callback disposes the document's `SkiaPaintCache`.
 - Each `ViewerDocument` owns one `SkiaPaintCache` (the per-document rule above), guarded by a lock because the browser fetches pages in parallel; SVG strings are not retained (a page with an image is hundreds of KB, and the browser caches it). `SvgRenderer.RenderPage(page, w, h, cache)` is internal and visible to the viewer for this.
 - The client is one dependency-free ES module (`Assets/viewer.js`, shadow DOM, i18n es/en). It is a production UI inside the ERP: no CDN scripts, no Tailwind/Alpine. Pages load lazily via `IntersectionObserver`; a 404 on a page/export means the document expired and the component reopens it once.
-- Page images are SVG `<img>`s, so text uses the client's fonts (documented). Print/download fetch the PDF/XLSX/HTML export as a blob.
+- Pages are fetched as SVG text and inlined (`DOMParser` + `importNode`) inside the component's shadow DOM — not `<img>` — so images can be referenced by URL (`…/_doc/{token}/images/{n}`, one per distinct `byte[]`, served by `ServeImage`) and text is selectable; far-away pages are unmounted again. Text uses the client's fonts but each glyph carries its x (documented). Print/download fetch the PDF/XLSX/HTML export as a blob.
 - No browser tests: verify UI changes manually with `samples/ViewerSample`.
 
 ## Templates and Designer

@@ -2,26 +2,31 @@ using System.Buffers.Text;
 using System.Security.Cryptography;
 using Microsoft.Extensions.Caching.Memory;
 using NetReporter.Core.Definition;
+using NetReporter.Core.RenderList;
 using NetReporter.Svg;
 using RlRenderList = NetReporter.Core.RenderList.RenderList;
 
 namespace NetReporter.Viewer;
 
 /// <summary>
-/// A report that was laid out once when the viewer opened it. Pages are rendered to SVG on request and
+/// A report that was laid out once when the viewer opened it. Pages are written to SVG on request and
 /// exports reuse the same <see cref="RenderList"/>, so what is downloaded or printed is exactly what was shown.
 /// <para>
-/// One <see cref="SkiaPaintCache"/> per document, like <c>SvgRenderer.Render</c>: fonts, paints and decoded
-/// images are created once, not once per page. The cache isn't thread-safe and a browser asks for several
+/// One <see cref="SvgWriterContext"/> per document, like <c>SvgRenderer.Render</c>: fonts, metrics and image
+/// headers are resolved once, not once per page. The context isn't thread-safe and a browser asks for several
 /// pages at once, so page renders of one document are serialized (different documents still render in
-/// parallel). The SVG itself is not kept: the browser caches it, and a page with an embedded image weighs
-/// hundreds of KB.
+/// parallel). Images are not embedded in the pages: each distinct image gets an index and the pages reference
+/// <c>{ImagesUrl}/{index}</c>, so a logo repeated on every page is downloaded once. The SVG itself is not kept:
+/// the browser caches it.
 /// </para>
 /// </summary>
 internal sealed class ViewerDocument : IDisposable
 {
-    private readonly SkiaPaintCache _paintCache = new();
+    private readonly SvgWriterContext _svg;
     private readonly Lock _gate = new();
+    private readonly Dictionary<byte[], int> _imageIndex = new(ReferenceEqualityComparer.Instance);
+    private readonly List<(byte[] Data, string? MimeHint)> _images = [];
+    private volatile string? _imagesUrl;
     private bool _disposed;
 
     public ViewerDocument(string reportId, ReportDefinition report, RlRenderList renderList, string? owner)
@@ -30,6 +35,14 @@ internal sealed class ViewerDocument : IDisposable
         Report = report;
         RenderList = renderList;
         Owner = owner;
+
+        // The layout emits the same byte[] instance for an element on every page it appears on.
+        foreach (var page in renderList.Pages)
+            foreach (var cmd in page.Commands)
+                if (cmd is DrawImageCommand { Data.Length: > 0 } image && _imageIndex.TryAdd(image.Data, _images.Count))
+                    _images.Add((image.Data, image.MimeType));
+
+        _svg = new SvgWriterContext(ResolveImageHref);
     }
 
     public string ReportId { get; }
@@ -41,18 +54,44 @@ internal sealed class ViewerDocument : IDisposable
 
     public int PageCount => RenderList.Pages.Count;
 
-    /// <summary>SVG of page <paramref name="index"/> (0-based).</summary>
-    public string RenderSvgPage(int index)
+    /// <summary>Distinct images of the document, in the order the pages reference them.</summary>
+    public int ImageCount => _images.Count;
+
+    /// <summary>Bytes and declared MIME type of image <paramref name="index"/>, or null when out of range.</summary>
+    public (byte[] Data, string? MimeHint)? Image(int index) =>
+        index >= 0 && index < _images.Count ? _images[index] : null;
+
+    /// <summary>
+    /// Base URL of the image endpoint (<c>…/_doc/{token}/images</c>). Until it is set, pages embed images
+    /// as <c>data:</c> URIs; the store sets it right after assigning the token, before any page is served.
+    /// </summary>
+    public void SetImagesUrl(string url) => _imagesUrl = url;
+
+    private string? ResolveImageHref(byte[] data, string mime)
+    {
+        var baseUrl = _imagesUrl;
+        return baseUrl is not null && _imageIndex.TryGetValue(data, out var index) ? $"{baseUrl}/{index}" : null;
+    }
+
+    /// <summary>
+    /// SVG of page <paramref name="index"/> (0-based). Throws <see cref="OperationCanceledException"/> when
+    /// <paramref name="cancellationToken"/> is cancelled before the page is written.
+    /// </summary>
+    public string RenderSvgPage(int index, CancellationToken cancellationToken)
     {
         var page = RenderList.Pages[index];
         var size = RenderList.Page.Size;
+        cancellationToken.ThrowIfCancellationRequested();
         lock (_gate)
         {
+            // Waiting for the lock may have outlived the request.
+            cancellationToken.ThrowIfCancellationRequested();
             if (!_disposed)
-                return SvgRenderer.RenderPage(page, (float)size.Width, (float)size.Height, _paintCache);
+                return SvgRenderer.RenderPage(page, (float)size.Width, (float)size.Height, _svg);
         }
-        // Evicted while this request held it: render with a throwaway cache.
-        return new SvgRenderer().RenderPage(page, (float)size.Width, (float)size.Height);
+        // Evicted while this request held it: write with a throwaway context (same image URLs).
+        using var context = new SvgWriterContext(ResolveImageHref);
+        return SvgRenderer.RenderPage(page, (float)size.Width, (float)size.Height, context);
     }
 
     public void Dispose()
@@ -61,7 +100,7 @@ internal sealed class ViewerDocument : IDisposable
         {
             if (_disposed) return;
             _disposed = true;
-            _paintCache.Dispose();
+            _svg.Dispose();
         }
     }
 }

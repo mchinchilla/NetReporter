@@ -28,27 +28,45 @@
 
 ## 📚 Tabla de contenidos
 
-1. [Novedades de la 1.3](#-novedades-de-la-13)
-2. [Novedades de la 1.2](#-novedades-de-la-12)
-3. [Novedades de la 1.1](#-novedades-de-la-11)
-4. [Filosofía y arquitectura](#-filosofía-y-arquitectura)
-5. [Características](#-características)
-6. [Pipeline visual](#-pipeline-visual)
-7. [Stack tecnológico](#-stack-tecnológico)
-8. [Estructura del repo](#-estructura-del-repo)
-9. [Quick start](#-quick-start)
-10. [Designer visual](#-designer-visual)
-11. [Visor de reportes](#️-visor-de-reportes-netreporterviewer)
-12. [Sintaxis del template YAML](#-sintaxis-del-template-yaml)
-13. [Expresiones (DSL)](#-expresiones-dsl)
-14. [Gráficos](#-gráficos)
-15. [Renderers disponibles](#-renderers-disponibles)
-16. [Tamaños de papel](#-tamaños-de-papel)
-17. [Tests](#-tests)
-18. [Limitaciones conocidas](#-limitaciones-conocidas)
-19. [Completado](#-completado)
-20. [Roadmap](#-roadmap)
-21. [Licencias](#-licencias)
+1. [Novedades de la 1.4](#-novedades-de-la-14)
+2. [Novedades de la 1.3](#-novedades-de-la-13)
+3. [Novedades de la 1.2](#-novedades-de-la-12)
+4. [Novedades de la 1.1](#-novedades-de-la-11)
+5. [Filosofía y arquitectura](#-filosofía-y-arquitectura)
+6. [Características](#-características)
+7. [Pipeline visual](#-pipeline-visual)
+8. [Stack tecnológico](#-stack-tecnológico)
+9. [Estructura del repo](#-estructura-del-repo)
+10. [Quick start](#-quick-start)
+11. [Designer visual](#-designer-visual)
+12. [Visor de reportes](#️-visor-de-reportes-netreporterviewer)
+13. [Sintaxis del template YAML](#-sintaxis-del-template-yaml)
+14. [Expresiones (DSL)](#-expresiones-dsl)
+15. [Gráficos](#-gráficos)
+16. [Renderers disponibles](#-renderers-disponibles)
+17. [Tamaños de papel](#-tamaños-de-papel)
+18. [Tests](#-tests)
+19. [Limitaciones conocidas](#-limitaciones-conocidas)
+20. [Completado](#-completado)
+21. [Roadmap](#-roadmap)
+22. [Licencias](#-licencias)
+
+---
+
+## 🆕 Novedades de la 1.4
+
+**Un visor de reportes para tu aplicación, y un escritor de SVG que escala.**
+
+| Cambio | Detalle |
+|---|---|
+| 🖥️ **`NetReporter.Viewer`** (paquete nuevo, opt-in) | `app.MapNetReporterViewer("/reports", …)` sirve un visor paginado y con zoom para los usuarios finales de una app ASP.NET Core: navegación de páginas, miniaturas, impresión, descarga en PDF/XLSX/HTML. Las páginas son SVG escritos bajo demanda e incrustados por el web component `<netreporter-viewer>` (sin CDN), así que el texto se puede seleccionar y buscar; las imágenes van por URL, así que un logo en todas las páginas se descarga una vez. Ver [Visor de reportes](#️-visor-de-reportes-netreporterviewer) |
+| ⚡ **SVG escrito directamente** | `SvgRenderer` ya no dibuja a través del canvas SVG de Skia, que reconstruía la tabla glifo→Unicode de toda la fuente en cada texto (coste proporcional al número de glifos, bajo un lock global) y recodificaba cada imagen en PNG en cada página. Un documento de 18 páginas y 600 filas pasó de 96 ms a 9.7 ms en Linux (358 → 10 ms en macOS), y 8 hilos renderizan 1 060 docs/s en vez de 12.6. Misma geometría que el PDF (`PageGeometry` se comparte con el pintor del PDF; un test compara cada posición de glifo con el canvas de Skia) |
+| 🎨 **Designer** | Editor redimensionable/plegable, editores CodeMirror con líneas de error y enlace elemento ↔ YAML, navegador de páginas, vista limpia, zoom alrededor del cursor, reglas, cuadrícula y guías inteligentes. Ver [Designer visual](#-designer-visual) |
+
+### ⚠️ Cambios de comportamiento en la 1.4
+
+1. **Cambió el marcado del SVG** (el dibujo no). Las páginas empiezan con `<svg xmlns=… width height viewBox>` (sin declaración XML), el texto es `<text xml:space="preserve" x="x₁ x₂ …" y="línea base">` con una x por carácter, `font-family` lista la familia pedida, la que realmente se usó y la genérica (`"Helvetica, 'Liberation Sans', sans-serif"`) para que el navegador elija la mejor que tenga, las imágenes incrustan sus bytes **originales** (sin recodificar a PNG), solo se emite `clipPath` cuando un texto se sale de su caja, y los números llevan tres decimales. Lo que parseara la salida anterior de Skia (ids `cl_N`, `<?xml`, posiciones separadas por comas) debe actualizarse; el preview del Designer y el visor ya lo hacen.
+2. Un trazo de grosor 0 se dibuja de 0.5 pt en SVG (Skia dibujaba una línea de un píxel).
 
 ---
 
@@ -186,7 +204,7 @@ NetReporter separa el reporte en cuatro capas con interfaces claras. **El templa
 |---|---|
 | 🚫 **Sin reflection** en hot paths | Data binding con `Func<TRow,TValue>` tipados; expresiones con `Func<IEvaluationContext,T>`; las tablas despachan su tipo de fila con un visitor (`ITableVisitor<T>`) |
 | 🎨 **Sin CSS / Tailwind para reportes** | Styling nativo con `StyleSheet` + `StyleRef` (struct zero-alloc) y herencia con `BasedOn` |
-| 🧪 **Un solo pintor para SVG y PDF** | `SkiaPagePainter` dibuja cada página sobre cualquier `SKCanvas`: `SKSvgCanvas` para SVG, `SKDocument` (backend PDF de Skia) para PDF. Sin librerías PDF de terceros |
+| 🧪 **Una sola geometría para SVG y PDF** | `SkiaPagePainter` dibuja el PDF sobre `SKDocument` (backend PDF de Skia); `SvgPageWriter` escribe el SVG directamente desde la misma `PageGeometry` y las mismas tablas de fuentes, glifo a glifo. Sin librerías PDF de terceros |
 | 🔄 **Mismo IR, múltiples outputs** | El `RenderList` se calcula una vez y N renderers lo consumen |
 | 📦 **Templates editables sin recompilar** | YAML + JSON enlazados con JSON Path — y, desde la 1.1, también la lógica (DSL de expresiones compilado una vez a delegates) |
 
@@ -304,7 +322,7 @@ flowchart TB
 | Expresiones | C# puro | Lexer propio + parser de descenso recursivo → cadena de delegates (sin Roslyn, sin `eval`) |
 | YAML parser | **YamlDotNet** 18.1 | CamelCase naming, ignore unmatched, default values handling |
 | PDF backend | **SkiaSharp** `SKDocument` | Backend PDF de Skia + recortador TrueType propio de NetReporter; sin librerías PDF de terceros |
-| 2D drawing | **SkiaSharp** 4.152 | `SKSvgCanvas` para emitir SVG; binarios nativos de Linux vía `SkiaSharp.NativeAssets.Linux` |
+| 2D drawing | **SkiaSharp** 4.154 | Backend PDF, resolución de fuentes, avances de glifos y decodificación de imágenes; binarios nativos de Linux vía `SkiaSharp.NativeAssets.Linux` |
 | Web UI | **ASP.NET Core MVC** (.NET 10) | Designer interactivo |
 | Frontend interactivo | **Alpine.js** 3.14 (CDN) | State + reactivity sin build pipeline |
 | Network reactividad | **HTMX** 2.0 (CDN) | Live preview con debounce |
@@ -324,7 +342,7 @@ NetReporter/
 │   ├── NetReporter.Core/        🧠 IR, Primitives, Styles, Layout (+ ChartLayout), RenderList
 │   ├── NetReporter.Templates/   📝 YAML loader/rewriter, JSON Path, template strings, DSL de expresiones
 │   ├── NetReporter.Pdf/         📄 PdfRenderer (SKDocument) + recortador de fuentes TrueType
-│   ├── NetReporter.Svg/         🖼️ SvgRenderer (SKSvgCanvas), SkiaPagePainter (compartido con PDF), SkiaFonts, SkiaTextMeasurer
+│   ├── NetReporter.Svg/         🖼️ SvgRenderer + SvgPageWriter (escritor SVG propio), SkiaPagePainter (PDF), PageGeometry (compartida), SkiaFonts, SkiaTextMeasurer
 │   ├── NetReporter.Html/        🌐 HtmlRenderer (HTML/CSS paginado)
 │   ├── NetReporter.Xlsx/        📊 XlsxRenderer semántico (ClosedXML, Excel Tables nativas)
 │   ├── NetReporter.Barcodes/    ▦ Generador de barcode/QR vía ZXing (opt-in)
@@ -335,7 +353,7 @@ NetReporter/
 │   ├── NetReporter.Core.Tests/        Primitives, estilos, word wrap, auto-height, KeepTogether (report + detail), tablas agrupadas/anidadas/multipágina, estilos de tabla, gráficos, visibilidad
 │   ├── NetReporter.Templates.Tests/   JSON Path, template strings, DSL de expresiones, loader YAML (schema 1.1), rewriter (simple + multi-elemento + clipboard), file names
 │   ├── NetReporter.Html.Tests/        HtmlRendererTests
-│   ├── NetReporter.Svg.Tests/         SvgRendererTests, SkiaFontsTests
+│   ├── NetReporter.Svg.Tests/         SvgPageWriterTests (geometría vs canvas de Skia), SvgRendererTests, SkiaFontsTests, GlyphAdvancesTests
 │   ├── NetReporter.Pdf.Tests/         PdfRendererTests, TrueTypeSubsetterTests
 │   ├── NetReporter.Xlsx.Tests/        XlsxRendererTests
 │   ├── NetReporter.Barcodes.Tests/    ZXingBarcodeGeneratorTests
@@ -647,7 +665,8 @@ app.MapNetReporterViewer("/reports", async (request, ct) =>
   lo que se vio. Los documentos viven en memoria bajo un token imposible de adivinar (`DocumentLifetime`, deslizante,
   10 min por defecto; `MaxCachedDocuments`, 100 por defecto) y quedan ligados al usuario que los abrió; si uno
   expira, el visor lo reabre de forma transparente.
-- **Páginas bajo demanda.** Solo se piden las páginas cercanas a la vista; un reporte de 300 páginas no descarga 300 SVG.
+- **Páginas bajo demanda.** Solo se piden y se mantienen en el DOM las páginas cercanas a la vista; un reporte de 300 páginas no descarga 300 SVG. Las páginas son SVG incrustado: el texto se puede seleccionar, copiar y buscar con Ctrl+F.
+- **Imágenes por URL.** Cada imagen distinta del documento se sirve una vez en `…/_doc/{token}/images/{n}` y las páginas la referencian; una factura con un logo de 400 KB en cada página transfiere el logo una vez, no una por página.
 - **Interfaz:** primera/anterior/siguiente/última, ir a página, miniaturas, zoom 25–400 % (ajustar al ancho, página
   completa, Ctrl/⌘ + rueda o pinch del trackpad anclado al cursor), Inicio/Fin y ←/→, imprimir (Ctrl/⌘+P), menú
   de descarga, barra adaptable a pantallas angostas. Se tematiza con `--nr-bg`, `--nr-toolbar-bg`,
@@ -657,8 +676,9 @@ app.MapNetReporterViewer("/reports", async (request, ct) =>
   `goToPage(n)`, `setZoom(z)`, `print()`, `download(format)`.
 - Los errores devuelven `{ "error": "not-found" | "render-failed" }`; el mensaje de la excepción solo se incluye con
   `IncludeErrorDetails = true` (desarrollo).
-- Las páginas SVG dibujan el texto con las fuentes **del navegador**. Instala las fuentes del reporte en los equipos
-  cliente o usa el PDF (fuentes embebidas) cuando la tipografía exacta importe.
+- Las páginas SVG dibujan el texto con las fuentes **del navegador**, pero cada glifo va colocado donde lo midió el
+  servidor, así que líneas y columnas quedan donde las pone el PDF. Instala las fuentes del reporte en los equipos
+  cliente o usa el PDF (fuentes embebidas) cuando importe la forma exacta de los glifos.
 - No está en el meta-paquete `NetReporter` (trae ASP.NET Core). Demo: `dotnet run --project samples/ViewerSample` → `http://localhost:5297`.
 
 ---
@@ -1076,7 +1096,7 @@ string html = new HtmlRenderer().Render(renderList, new HtmlRenderOptions
 
 ### 🖼️ SVG — `NetReporter.Svg`
 
-Una cadena SVG por página, dibujada con el mismo `SkiaPagePainter` que el PDF. La usa el live preview del Designer.
+Una cadena SVG por página, escrita directamente desde el `RenderList` con la misma geometría y fuentes que el PDF (`PageGeometry`, `SkiaFonts`, `GlyphAdvances`): cada glifo lleva su posición x, así que el navegador conserva la maquetación aunque sustituya la fuente, y `font-family` nombra la familia pedida, la usada realmente y la genérica. Las imágenes incrustan sus bytes originales. No interviene ningún canvas de Skia: cada texto cuesta microsegundos y el render escala linealmente entre hilos. Lo usan el preview del designer y el visor.
 
 ```csharp
 IReadOnlyList<string> svgs = new SvgRenderer().Render(renderList);
@@ -1144,15 +1164,16 @@ dotnet test
 ┌─────────────────────────────────────┬───────┐
 │ Proyecto                            │ Tests │
 ├─────────────────────────────────────┼───────┤
-│ NetReporter.Core.Tests              │  114  │
+│ NetReporter.Core.Tests              │  117  │
 │ NetReporter.Templates.Tests         │  204  │
 │ NetReporter.Html.Tests              │   20  │
-│ NetReporter.Svg.Tests               │   11  │
-│ NetReporter.Pdf.Tests               │   12  │
+│ NetReporter.Svg.Tests               │   61  │
+│ NetReporter.Pdf.Tests               │   18  │
 │ NetReporter.Xlsx.Tests              │   15  │
 │ NetReporter.Barcodes.Tests          │    7  │
+│ NetReporter.Viewer.Tests            │   19  │
 ├─────────────────────────────────────┼───────┤
-│ Total                               │  383  │
+│ Total                               │  461  │
 └─────────────────────────────────────┴───────┘
 ```
 

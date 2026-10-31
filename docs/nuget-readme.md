@@ -29,7 +29,7 @@ Or reference only the pieces you need. All packages share the same version numbe
 | `NetReporter.Core` | Report IR (bands, elements, styles, charts), typed data bindings, layout engine, `RenderList` |
 | `NetReporter.Templates` | YAML templates, JSON Path bindings (`$.client.name`), template strings (`{{ pageNumber }}`), expression DSL |
 | `NetReporter.Pdf` | PDF renderer (vector, selectable text, subset-embedded fonts) via SkiaSharp's PDF backend |
-| `NetReporter.Svg` | SVG renderer via SkiaSharp, one document per page |
+| `NetReporter.Svg` | SVG renderer, one document per page, written directly with the PDF's geometry and fonts (no Skia canvas: microseconds per text, scales across threads) |
 | `NetReporter.Html` | Paginated, self-contained HTML/CSS `@page` renderer |
 | `NetReporter.Xlsx` | Semantic XLSX renderer via ClosedXML: text becomes cells, tables become native Excel Tables |
 | `NetReporter.Barcodes` | QR / Code 128 / Code 39 / EAN-13 via ZXing.Net (opt-in) |

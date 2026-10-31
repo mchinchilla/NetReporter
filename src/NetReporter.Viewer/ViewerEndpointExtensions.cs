@@ -64,6 +64,7 @@ public static class ViewerEndpointExtensions
         var group = endpoints.MapGroup(prefix);
         group.MapGet("/_viewer/viewer.js", ServeScript);
         group.MapGet("/_doc/{token}/pages/{page:int}", viewer.ServePage);
+        group.MapGet("/_doc/{token}/images/{index:int}", viewer.ServeImage);
         group.MapGet("/_doc/{token}/export/{format}", viewer.ServeExport);
         group.MapGet("/{reportId}/open", viewer.Open);
         group.MapGet("/{reportId}", viewer.ServeViewerPage);
@@ -74,7 +75,12 @@ public static class ViewerEndpointExtensions
     {
         var (bytes, etag) = ViewerScript.Value;
         ctx.Response.Headers.ETag = etag;
-        ctx.Response.Headers.CacheControl = "public, max-age=86400";
+        // Apps embed the component with a plain URL, so a long max-age would keep an old script alive after an
+        // upgrade: revalidate every time (a 304 is cheap). The full-page viewer links it with ?v=<hash>, which
+        // can be cached for good.
+        ctx.Response.Headers.CacheControl = ctx.Request.Query.ContainsKey("v")
+            ? "public, max-age=31536000, immutable"
+            : "no-cache";
         if (ctx.Request.Headers.IfNoneMatch == etag)
         {
             ctx.Response.StatusCode = StatusCodes.Status304NotModified;
@@ -173,6 +179,7 @@ public static class ViewerEndpointExtensions
             var doc = new ViewerDocument(reportId, report, layout, CurrentUser(ctx));
             var token = store.Add(doc);
             var docUrl = $"{BaseUrl(ctx)}/_doc/{token}";
+            doc.SetImagesUrl(docUrl + "/images");
 
             ctx.Response.ContentType = "application/json; charset=utf-8";
             await using var json = new Utf8JsonWriter(ctx.Response.Body);
@@ -191,7 +198,7 @@ public static class ViewerEndpointExtensions
             json.WriteEndObject();
         }
 
-        public Task ServePage(HttpContext ctx)
+        public async Task ServePage(HttpContext ctx)
         {
             var doc = store.Get((string)ctx.GetRouteValue("token")!, CurrentUser(ctx));
             var pageOk = int.TryParse(ctx.GetRouteValue("page")?.ToString(),
@@ -199,16 +206,58 @@ public static class ViewerEndpointExtensions
             if (doc is null || !pageOk || page < 1 || page > doc.PageCount)
             {
                 ctx.Response.StatusCode = StatusCodes.Status404NotFound;
-                return Task.CompletedTask;
+                return;
             }
 
-            var svg = doc.RenderSvgPage(page - 1);
+            var aborted = ctx.RequestAborted;
+            string svg;
+            try
+            {
+                svg = doc.RenderSvgPage(page - 1, aborted);
+            }
+            catch (OperationCanceledException) when (aborted.IsCancellationRequested)
+            {
+                return;
+            }
+            catch (Exception ex)
+            {
+                Logger(ctx).LogError(ex, "NetReporter viewer could not render page {Page} of report {ReportId}", page, doc.ReportId);
+                ctx.Response.StatusCode = StatusCodes.Status500InternalServerError;
+                return;
+            }
+
             ctx.Response.ContentType = "image/svg+xml; charset=utf-8";
             ctx.Response.Headers.CacheControl = "private, max-age=3600";
             ctx.Response.Headers.XContentTypeOptions = "nosniff";
-            // The SVG is only ever used as an image; forbid scripts if someone opens it directly.
-            ctx.Response.Headers.ContentSecurityPolicy = "default-src 'none'; img-src data:; style-src 'unsafe-inline'";
-            return ctx.Response.WriteAsync(svg, Encoding.UTF8);
+            // The page only references its own images; no scripts or external resources if someone opens it directly.
+            ctx.Response.Headers.ContentSecurityPolicy = "default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'";
+            await ctx.Response.WriteAsync(svg, Encoding.UTF8, aborted);
+        }
+
+        /// <summary>One of the document's images, referenced from its pages so a repeated logo is downloaded once.</summary>
+        public async Task ServeImage(HttpContext ctx)
+        {
+            var doc = store.Get((string)ctx.GetRouteValue("token")!, CurrentUser(ctx));
+            var indexOk = int.TryParse(ctx.GetRouteValue("index")?.ToString(),
+                System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var index);
+            if (doc is null || !indexOk || doc.Image(index) is not { } image)
+            {
+                ctx.Response.StatusCode = StatusCodes.Status404NotFound;
+                return;
+            }
+
+            ctx.Response.ContentType = ImageMime.Resolve(image.Data, image.MimeHint);
+            ctx.Response.ContentLength = image.Data.Length;
+            ctx.Response.Headers.CacheControl = "private, max-age=3600";
+            ctx.Response.Headers.XContentTypeOptions = "nosniff";
+            ctx.Response.Headers.ContentSecurityPolicy = "default-src 'none'";
+            try
+            {
+                await ctx.Response.Body.WriteAsync(image.Data, ctx.RequestAborted);
+            }
+            catch (OperationCanceledException) when (ctx.RequestAborted.IsCancellationRequested)
+            {
+            }
         }
 
         public async Task ServeExport(HttpContext ctx)

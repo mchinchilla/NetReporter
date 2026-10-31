@@ -1,14 +1,14 @@
-using System.Text;
 using NetReporter.Core.RenderList;
-using SkiaSharp;
 using RlRenderList = NetReporter.Core.RenderList.RenderList;
 
 namespace NetReporter.Svg;
 
 /// <summary>
-/// Renderer SVG que consume <see cref="RlRenderList"/> y emite una cadena SVG por página
-/// usando SkiaSharp (<see cref="SKSvgCanvas"/>). El dibujo lo hace <see cref="SkiaPagePainter"/>,
-/// el mismo que usa el PdfRenderer.
+/// Renderer SVG: una cadena SVG por página, escrita por <see cref="SvgPageWriter"/> con la misma
+/// geometría y las mismas fuentes que el PDF (<see cref="PageGeometry"/>, <see cref="SkiaFonts"/>,
+/// <see cref="GlyphAdvances"/>), pero sin pasar por el canvas SVG de Skia, cuyo coste por texto crecía
+/// con el tamaño de la fuente y serializaba a los hilos. Cada glifo lleva su posición, así que el
+/// navegador respeta la maquetación aunque sustituya la fuente.
 /// </summary>
 public sealed class SvgRenderer
 {
@@ -26,37 +26,26 @@ public sealed class SvgRenderer
         var pageWidth = (float)renderList.Page.Size.Width;
         var pageHeight = (float)renderList.Page.Size.Height;
 
-        // Un cache para todo el documento: las fuentes e imágenes se crean una vez, no por página.
-        using var cache = new SkiaPaintCache();
+        // Un contexto para todo el documento: fuentes, métricas y el base64 de cada imagen se calculan una vez.
+        using var context = new SvgWriterContext();
         var result = new string[renderList.Pages.Count];
         for (int i = 0; i < renderList.Pages.Count; i++)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            result[i] = RenderPage(renderList.Pages[i], pageWidth, pageHeight, cache);
+            result[i] = SvgPageWriter.Write(renderList.Pages[i], pageWidth, pageHeight, context);
         }
 
         return result;
     }
 
+    /// <summary>Renderiza una página aislada. Para varias páginas del mismo documento, <see cref="Render(RlRenderList)"/> reutiliza fuentes e imágenes.</summary>
     public string RenderPage(RenderPage page, float width, float height)
     {
-        using var cache = new SkiaPaintCache();
-        return RenderPage(page, width, height, cache);
+        using var context = new SvgWriterContext();
+        return SvgPageWriter.Write(page, width, height, context);
     }
 
-    /// <summary>Renderiza una página con un cache provisto por el llamador (uno por documento; no thread-safe).</summary>
-    internal static string RenderPage(RenderPage page, float width, float height, SkiaPaintCache cache)
-    {
-        ArgumentNullException.ThrowIfNull(page);
-
-        using var ms = new MemoryStream();
-        var bounds = new SKRect(0, 0, width, height);
-
-        using (var canvas = SKSvgCanvas.Create(bounds, ms))
-        {
-            SkiaPagePainter.Draw(canvas, page, cache);
-        }
-
-        return Encoding.UTF8.GetString(ms.ToArray());
-    }
+    /// <summary>Renderiza una página con un contexto provisto por el llamador (uno por documento; no thread-safe).</summary>
+    internal static string RenderPage(RenderPage page, float width, float height, SvgWriterContext context) =>
+        SvgPageWriter.Write(page, width, height, context);
 }

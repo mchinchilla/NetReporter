@@ -2,7 +2,7 @@ using NetReporter.Core.Primitives;
 using NetReporter.Core.RenderList;
 using SkiaSharp;
 using NrColor = NetReporter.Core.Primitives.Color;
-using NrTextAlignment = NetReporter.Core.Styles.TextAlignment;
+
 
 namespace NetReporter.Svg;
 
@@ -77,41 +77,10 @@ public static class SkiaPagePainter
         var image = cache.Image(cmd.Data);
         if (image is null) return;     // datos inválidos
 
-        var dest = new SKRect(
-            (float)cmd.Bounds.X,
-            (float)cmd.Bounds.Y,
-            (float)cmd.Bounds.Right,
-            (float)cmd.Bounds.Bottom);
-
+        // Fill estira a la caja; Contain preserva la proporción centrando (PageGeometry, compartida con el SVG).
+        var target = PageGeometry.ImageTarget(cmd, image.Width, image.Height);
         var sampling = new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear);
-
-        if (cmd.Fit == NetReporter.Core.Elements.ImageFit.Fill)
-        {
-            canvas.DrawImage(image, dest, sampling);
-        }
-        else
-        {
-            // Contain: preserva aspect ratio, centrando dentro del rect.
-            var imgRatio = (double)image.Width / image.Height;
-            var dstRatio = cmd.Bounds.Width / cmd.Bounds.Height;
-            SKRect target;
-            if (imgRatio > dstRatio)
-            {
-                // Limitado por ancho
-                var h = cmd.Bounds.Width / imgRatio;
-                var top = cmd.Bounds.Y + (cmd.Bounds.Height - h) / 2;
-                target = new SKRect((float)cmd.Bounds.X, (float)top,
-                                    (float)cmd.Bounds.Right, (float)(top + h));
-            }
-            else
-            {
-                var w = cmd.Bounds.Height * imgRatio;
-                var left = cmd.Bounds.X + (cmd.Bounds.Width - w) / 2;
-                target = new SKRect((float)left, (float)cmd.Bounds.Y,
-                                    (float)(left + w), (float)cmd.Bounds.Bottom);
-            }
-            canvas.DrawImage(image, target, sampling);
-        }
+        canvas.DrawImage(image, target, sampling);
     }
 
     private static void DrawText(SKCanvas canvas, DrawTextCommand cmd, SkiaPaintCache cache, Func<SKTypeface, SKTypeface>? mapTypeface)
@@ -139,37 +108,13 @@ public static class SkiaPagePainter
 
         var metrics = cache.Metrics(primary, size);
 
-        float x = cmd.Style.TextAlign switch
-        {
-            NrTextAlignment.Center => (float)(cmd.Bounds.X + (cmd.Bounds.Width - textWidth) / 2),
-            NrTextAlignment.Right  => (float)(cmd.Bounds.Right - textWidth),
-            _                      => (float)cmd.Bounds.X
-        };
-
-        // Vertical placement of the (single) line within the cell box: baseline = top + topOffset + ascent.
-        // Center / Bottom push it down by the leftover height; Top (default) keeps the old behaviour.
-        var lineHeight = metrics.Descent - metrics.Ascent;
-        float topOffset = cmd.Style.VerticalAlign switch
-        {
-            NetReporter.Core.Styles.VerticalAlignment.Center => (float)Math.Max(0, (cmd.Bounds.Height - lineHeight) / 2),
-            NetReporter.Core.Styles.VerticalAlignment.Bottom => (float)Math.Max(0, cmd.Bounds.Height - lineHeight),
-            _                                                => 0f
-        };
-        float y = (float)cmd.Bounds.Y + topOffset + (-metrics.Ascent);
-
-        // El recorte evita que el texto desborde a lo ancho. En vertical se deja un margen de ~0.35em:
-        // los acentos de las mayúsculas (Á, Í, Ó, Ñ…) sobresalen del ascent de la fuente y, con un
-        // recorte exacto a la caja, se perdían ("MARÍA" se veía como "MARIA").
-        var verticalSlack = (float)(cmd.Style.FontSize * 0.35);
-        var clipRect = new SKRect(
-            (float)cmd.Bounds.X,
-            (float)cmd.Bounds.Y - verticalSlack,
-            (float)cmd.Bounds.Right,
-            (float)cmd.Bounds.Bottom + verticalSlack);
+        // Alineación, línea base y recorte: PageGeometry, la misma que escribe el SVG.
+        float x = PageGeometry.TextStartX(cmd, textWidth);
+        float y = PageGeometry.TextBaseline(cmd, metrics);
 
         var paint = cache.Fill(ToSk(cmd.Style.Foreground));
         canvas.Save();
-        canvas.ClipRect(clipRect);
+        canvas.ClipRect(PageGeometry.TextClip(cmd));
         for (var i = 0; i < runs.Count; i++)
         {
             if (glyphs[i].Length > 0)
@@ -207,9 +152,11 @@ public static class SkiaPagePainter
         var r = (float)cmd.CornerRadius;
 
         // Un solo SKRoundRect para relleno y borde: si no hay radio (o ninguna esquina
-        // seleccionada) se cae al rectángulo recto de siempre.
-        using var rounded = r > 0 && cmd.Corners != RectCorners.None
-            ? BuildRoundRect(rect, r, cmd.Corners)
+        // seleccionada) se cae al rectángulo recto de siempre. Los radios ya vienen ajustados a
+        // la caja por PageGeometry, los mismos que escribe el SVG.
+        Span<float> radii = stackalloc float[4];
+        using var rounded = PageGeometry.RoundRectRadii(rect, r, cmd.Corners, radii)
+            ? BuildRoundRect(rect, radii)
             : null;
 
         if (cmd.Fill is { } fill && fill.A > 0)
@@ -246,21 +193,18 @@ public static class SkiaPagePainter
     }
 
     /// <summary>
-    /// Rectángulo con radio aplicado solo a las esquinas pedidas. El orden de los radios que
-    /// espera Skia es superior-izq, superior-der, inferior-der, inferior-izq.
+    /// Rectángulo con los radios de <see cref="PageGeometry.RoundRectRadii"/>: superior-izq,
+    /// superior-der, inferior-der, inferior-izq (el orden que espera Skia).
     /// </summary>
-    private static SKRoundRect BuildRoundRect(SKRect rect, float radius, RectCorners corners)
+    private static SKRoundRect BuildRoundRect(SKRect rect, ReadOnlySpan<float> radii)
     {
-        SKPoint R(RectCorners corner) =>
-            corners.HasFlag(corner) ? new SKPoint(radius, radius) : SKPoint.Empty;
-
         var rounded = new SKRoundRect();
         rounded.SetRectRadii(rect,
         [
-            R(RectCorners.TopLeft),
-            R(RectCorners.TopRight),
-            R(RectCorners.BottomRight),
-            R(RectCorners.BottomLeft)
+            new SKPoint(radii[0], radii[0]),
+            new SKPoint(radii[1], radii[1]),
+            new SKPoint(radii[2], radii[2]),
+            new SKPoint(radii[3], radii[3])
         ]);
         return rounded;
     }

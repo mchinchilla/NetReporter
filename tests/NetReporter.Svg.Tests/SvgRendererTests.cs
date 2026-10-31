@@ -21,23 +21,25 @@ public sealed class SvgRendererTests
         var squareSvg  = new SvgRenderer().Render(square);
 
         Assert.Single(roundedSvg);
-        Assert.False(string.IsNullOrWhiteSpace(roundedSvg[0]));
-        // Skia's SVG canvas emits rounded corners either as rx/ry on the <rect> or as a
-        // <path>; in both cases the rounded output differs from the square one. Assert the
-        // difference (robust) plus the rounded marker when present.
-        Assert.NotEqual(squareSvg[0], roundedSvg[0]);
+        Assert.Contains("rx=\"6\"", roundedSvg[0]);
+        Assert.DoesNotContain("rx=", squareSvg[0]);
     }
 
     [Fact]
-    public void Render_SquareRectangle_DoesNotThrow()
+    public void Render_OnePageStringPerPage_InOrder()
     {
-        var fill = Color.FromHex("#E3F1F4");
-        var list = BuildList(new DrawRectangleCommand(new Rect(10, 10, 100, 50), fill, null));
+        var list = new RlRenderList(PageSetup.A4,
+        [
+            new RenderPage(1, [new DrawLineCommand(new Point(0, 1), new Point(10, 1), 1, Color.Black)]),
+            new RenderPage(2, [new DrawLineCommand(new Point(0, 2), new Point(10, 2), 1, Color.Black)]),
+        ]);
 
         var svg = new SvgRenderer().Render(list);
 
-        Assert.Single(svg);
-        Assert.False(string.IsNullOrWhiteSpace(svg[0]));
+        Assert.Equal(2, svg.Count);
+        Assert.Contains("y1=\"1\"", svg[0]);
+        Assert.Contains("y1=\"2\"", svg[1]);
+        Assert.All(svg, s => Assert.Contains("width=\"595.276\" height=\"841.89\"", s));
     }
 
     [Fact]
@@ -62,8 +64,8 @@ public sealed class SvgRendererTests
         var svg = new SvgRenderer().Render(list)[0];
 
         Assert.Contains("<path", svg);
-        Assert.Contains("stroke", svg);
-        Assert.Contains("F59E0B", svg, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("fill=\"none\"", svg);
+        Assert.Contains("stroke=\"#F59E0B\"", svg);
     }
 
     [Fact]
@@ -72,5 +74,14 @@ public sealed class SvgRendererTests
         var list = BuildList(DrawPathCommand.Create(new[] { new Point(1, 1) }, closed: true, Color.Black, null));
         var svg = new SvgRenderer().Render(list)[0];
         Assert.DoesNotContain("<path", svg);
+    }
+
+    [Fact]
+    public void RenderPage_StandsAlone_AndEqualsTheDocumentRender()
+    {
+        var list = BuildList(new DrawRectangleCommand(new Rect(1, 2, 3, 4), Color.Black, null));
+        var renderer = new SvgRenderer();
+
+        Assert.Equal(renderer.Render(list)[0], renderer.RenderPage(list.Pages[0], 612, 792));
     }
 }
