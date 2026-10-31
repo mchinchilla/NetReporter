@@ -8,6 +8,7 @@
     <ProjectReference Include="..\..\src\NetReporter.Html\NetReporter.Html.csproj" />
     <ProjectReference Include="..\..\src\NetReporter.Barcodes\NetReporter.Barcodes.csproj" />
     <ProjectReference Include="..\..\src\NetReporter.Xlsx\NetReporter.Xlsx.csproj" />
+    <ProjectReference Include="..\..\src\NetReporter.EscPos\NetReporter.EscPos.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -21,6 +21,7 @@
     <ProjectReference Include="..\NetReporter.Html\NetReporter.Html.csproj" />
     <ProjectReference Include="..\NetReporter.Xlsx\NetReporter.Xlsx.csproj" />
     <ProjectReference Include="..\NetReporter.Barcodes\NetReporter.Barcodes.csproj" />
+    <ProjectReference Include="..\NetReporter.EscPos\NetReporter.EscPos.csproj" />
   </ItemGroup>
 
   <ItemGroup>

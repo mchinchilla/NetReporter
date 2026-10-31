@@ -757,6 +757,9 @@
   <data name="Msg.AddError" xml:space="preserve">
     <value>No se pudo insertar el elemento</value>
   </data>
+  <data name="Header.ExportEscPosTitle" xml:space="preserve">
+    <value>Descarga los bytes ESC/POS del ticket para una impresora térmica (rollo de 58 u 80 mm según el ancho de la página)</value>
+  </data>
   <data name="Header.ElementIn" xml:space="preserve">
     <value>en {band} · nº {n}</value>
   </data>

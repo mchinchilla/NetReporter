@@ -69,4 +69,10 @@ public sealed class ReportViewerOptions
 
     /// <summary>Options for the XLSX download.</summary>
     public XlsxRenderOptions? XlsxOptions { get; set; }
+
+    /// <summary>
+    /// ESC/POS for thermal printers: <c>null</c> (default) offers nothing; an instance enables the
+    /// <c>.escpos</c> download and, with <see cref="ViewerEscPosOptions.Printer"/>, <c>POST …/print</c>.
+    /// </summary>
+    public ViewerEscPosOptions? EscPos { get; set; }
 }

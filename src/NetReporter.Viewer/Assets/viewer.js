@@ -24,7 +24,12 @@ const I18N = {
         loading: 'Cargando reporte…', preparing: 'Preparando…', retry: 'Reintentar',
         notFound: 'El reporte no existe o no tienes acceso.', failed: 'No se pudo generar el reporte.',
         network: 'No se pudo conectar con el servidor.', empty: 'El reporte no tiene páginas.',
-        pdf: 'PDF', xlsx: 'Excel (XLSX)', html: 'HTML', pageAlt: 'Página {n}',
+        pdf: 'PDF', xlsx: 'Excel (XLSX)', html: 'HTML', escpos: 'Ticket ESC/POS', pageAlt: 'Página {n}',
+        printTicket: 'Imprimir ticket', ticketSent: 'Ticket enviado a la impresora',
+        ticketNoPrinter: 'No hay impresora de tickets configurada', ticketOffline: 'La impresora está fuera de línea',
+        ticketCoverOpen: 'La impresora tiene la tapa abierta', ticketPaperEnd: 'La impresora no tiene papel',
+        ticketPrinterError: 'La impresora reporta un error', ticketUnreachable: 'No se pudo conectar con la impresora',
+        ticketFailed: 'No se pudo imprimir el ticket',
     },
     en: {
         thumbnails: 'Thumbnails', first: 'First page', prev: 'Previous page', next: 'Next page',
@@ -33,7 +38,12 @@ const I18N = {
         loading: 'Loading report…', preparing: 'Preparing…', retry: 'Retry',
         notFound: 'The report does not exist or you do not have access to it.', failed: 'The report could not be generated.',
         network: 'Could not reach the server.', empty: 'The report has no pages.',
-        pdf: 'PDF', xlsx: 'Excel (XLSX)', html: 'HTML', pageAlt: 'Page {n}',
+        pdf: 'PDF', xlsx: 'Excel (XLSX)', html: 'HTML', escpos: 'ESC/POS ticket', pageAlt: 'Page {n}',
+        printTicket: 'Print ticket', ticketSent: 'Ticket sent to the printer',
+        ticketNoPrinter: 'No ticket printer is configured', ticketOffline: 'The printer is offline',
+        ticketCoverOpen: 'The printer cover is open', ticketPaperEnd: 'The printer is out of paper',
+        ticketPrinterError: 'The printer reports an error', ticketUnreachable: 'Could not reach the printer',
+        ticketFailed: 'The ticket could not be printed',
     },
 };
 
@@ -77,6 +87,7 @@ const ICONS = {
     fitPage: 'M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5',
     print: 'M6 9V3h12v6M6 18H4a1 1 0 01-1-1v-6a2 2 0 012-2h14a2 2 0 012 2v6a1 1 0 01-1 1h-2M6 14h12v7H6z',
     download: 'M12 3v12M7 10l5 5 5-5M5 21h14',
+    ticket: 'M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6M9 16h4',
 };
 const icon = (name) =>
     `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${ICONS[name]}"/></svg>`;
@@ -182,6 +193,7 @@ select.zoom option { color: #111; background: #fff; }
 :host([data-narrow]) .toolbar { gap: 0; padding: 0 4px; }
 :host([data-tiny]) .tiny-hide { display: none; }
 .toolbar { overflow-x: auto; scrollbar-width: none; }
+.toolbar button[hidden] { display: none; }
 @media print { :host { display: none; } }
 `;
 
@@ -321,6 +333,33 @@ class NetReporterViewer extends HTMLElement {
         this._printFrame = frame;
     }
 
+    /**
+     * Sends the ticket to the ESC/POS printer the server resolves for this user (POST …/print) and reports
+     * the outcome as a toast; the server's error code (paper-end, cover-open, offline…) is localized here.
+     */
+    async printTicket() {
+        const url = this._doc?.printer;
+        const btn = this._root.querySelector('[data-act="printTicket"]');
+        if (!url || btn.disabled) return;
+        btn.disabled = true;                                   // one click, one ticket
+        try {
+            const res = await fetch(url, { method: 'POST', credentials: 'same-origin' });
+            if (res.status === 204) { this._toast(this._t.ticketSent); return; }
+            let code = null;
+            try { code = (await res.json()).error; } catch { /* no body */ }
+            const key = {
+                'no-printer': 'ticketNoPrinter', offline: 'ticketOffline', 'cover-open': 'ticketCoverOpen',
+                'paper-end': 'ticketPaperEnd', error: 'ticketPrinterError', unreachable: 'ticketUnreachable',
+            }[code] || 'ticketFailed';
+            this._toast(this._t[key]);
+            this.dispatchEvent(new CustomEvent('nr-print-error', { detail: { status: res.status, error: code } }));
+        } catch {
+            this._toast(this._t.network);
+        } finally {
+            btn.disabled = false;
+        }
+    }
+
     async download(format) {
         if (!this._doc?.exports?.[format]) return;
         const blob = await this._fetchExport(format);
@@ -365,6 +404,7 @@ class NetReporterViewer extends HTMLElement {
     <span class="spacer"></span>
     <div class="group">
       <button data-act="print" title="${t.print}" aria-label="${t.print}">${icon('print')}</button>
+      <button data-act="printTicket" hidden title="${t.printTicket}" aria-label="${t.printTicket}">${icon('ticket')}</button>
       <div class="menu">
         <button data-act="downloadMenu" title="${t.download}" aria-label="${t.download}" aria-haspopup="menu" aria-expanded="false">${icon('download')}</button>
         <div class="menu-list" data-ref="menu" role="menu"></div>
@@ -461,10 +501,11 @@ class NetReporterViewer extends HTMLElement {
         this._$title.title = doc.title || '';
         this._$total.textContent = `${this._t.of} ${doc.pageCount}`;
 
-        const menu = ['pdf', 'xlsx', 'html'].filter((f) => doc.exports?.[f]);
+        const menu = ['pdf', 'xlsx', 'html', 'escpos'].filter((f) => doc.exports?.[f]);
         this._$menu.innerHTML = menu.map((f) => `<button role="menuitem" data-format="${f}">${this._t[f]}</button>`).join('');
         this._root.querySelector('[data-act="downloadMenu"]').disabled = menu.length === 0;
         this._root.querySelector('[data-act="print"]').disabled = !doc.exports?.pdf;
+        this._root.querySelector('[data-act="printTicket"]').hidden = !doc.printer;
 
         if (doc.pageCount === 0) { this._showOverlay('message', this._t.empty); }
 
@@ -748,6 +789,7 @@ class NetReporterViewer extends HTMLElement {
             case 'fitWidth': this.setZoom('page-width'); break;
             case 'fitPage': this.setZoom('page-fit'); break;
             case 'print': this.print(); break;
+            case 'printTicket': this.printTicket(); break;
             case 'downloadMenu': this._toggleMenu(); e.stopPropagation(); break;
         }
     }

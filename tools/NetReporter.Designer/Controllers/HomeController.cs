@@ -307,6 +307,32 @@ public sealed class HomeController : Controller
         }
     }
 
+    /// <summary>
+    /// Bytes ESC/POS del ticket (raster). El perfil sale del ancho de la página: hasta 60 mm → rollo de
+    /// 58 mm (384 puntos), si no → 80 mm (576 puntos). Páginas más anchas se escalan al rollo de 80 mm.
+    /// </summary>
+    [HttpPost]
+    public IActionResult ExportEscPos([FromForm] PreviewRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        try
+        {
+            var template = YamlReportLoader.Parse(request.Yaml ?? string.Empty);
+            var report = template.Bind(request.Json ?? "{}");
+            var layout = new LayoutEngine(SkiaTextMeasurer.Instance, ZXingBarcodeGenerator.Instance).Layout(report);
+            var options = layout.Page.Size.Width <= NetReporter.Core.Primitives.Units.Mm(60)
+                ? NetReporter.EscPos.EscPosRendererOptions.ForRoll58()
+                : NetReporter.EscPos.EscPosRendererOptions.ForRoll80();
+            var bytes = new NetReporter.EscPos.EscPosRenderer(options).Render(layout, HttpContext.RequestAborted);
+            return File(bytes, "application/octet-stream", ResolveExportFileName(report, "escpos"));
+        }
+        catch (Exception ex)
+        {
+            return Content(_l["Server.ExportError", "ESC/POS", $"{ex.GetType().Name}: {ex.Message}"].Value,
+                           "text/plain", System.Text.Encoding.UTF8);
+        }
+    }
+
     [HttpPost]
     public IActionResult ExportHtml([FromForm] PreviewRequest request)
     {

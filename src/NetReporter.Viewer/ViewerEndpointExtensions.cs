@@ -10,6 +10,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Net.Http.Headers;
 using NetReporter.Barcodes;
 using NetReporter.Core.Definition;
+using NetReporter.EscPos;
 using NetReporter.Core.Layout;
 using NetReporter.Html;
 using NetReporter.Pdf;
@@ -66,6 +67,7 @@ public static class ViewerEndpointExtensions
         group.MapGet("/_doc/{token}/pages/{page:int}", viewer.ServePage);
         group.MapGet("/_doc/{token}/images/{index:int}", viewer.ServeImage);
         group.MapGet("/_doc/{token}/export/{format}", viewer.ServeExport);
+        group.MapPost("/_doc/{token}/print", viewer.ServePrint);
         group.MapGet("/{reportId}/open", viewer.Open);
         group.MapGet("/{reportId}", viewer.ServeViewerPage);
         return group;
@@ -197,7 +199,10 @@ public static class ViewerEndpointExtensions
             if (options.Formats.HasFlag(ViewerFormats.Pdf)) json.WriteString("pdf", docUrl + "/export/pdf");
             if (options.Formats.HasFlag(ViewerFormats.Xlsx)) json.WriteString("xlsx", docUrl + "/export/xlsx");
             if (options.Formats.HasFlag(ViewerFormats.Html)) json.WriteString("html", docUrl + "/export/html");
+            if (options.EscPos is { AllowDownload: true }) json.WriteString("escpos", docUrl + "/export/escpos");
             json.WriteEndObject();
+            // Impresión directa: el componente muestra el botón solo cuando el servidor ofrece la URL.
+            if (options.EscPos?.Printer is not null) json.WriteString("printer", docUrl + "/print");
             json.WriteEndObject();
         }
 
@@ -263,6 +268,76 @@ public static class ViewerEndpointExtensions
             }
         }
 
+        /// <summary>
+        /// <c>POST …/print</c>: renders the document as ESC/POS and sends it to the printer that
+        /// <see cref="ViewerEscPosOptions.Printer"/> resolves for this request. 204 on success; otherwise a
+        /// JSON <c>{"error": code}</c>: 404 <c>no-printer</c>, 409 <c>paper-end</c>/<c>cover-open</c>/<c>offline</c>/<c>error</c>
+        /// (status check), 502 <c>unreachable</c> (connection/timeout), 500 <c>failed</c>.
+        /// </summary>
+        public async Task ServePrint(HttpContext ctx)
+        {
+            var doc = store.Get((string)ctx.GetRouteValue("token")!, CurrentUser(ctx));
+            if (doc is null)
+            {
+                ctx.Response.StatusCode = StatusCodes.Status404NotFound;
+                return;
+            }
+            var escPos = options.EscPos;
+            if (escPos?.Printer is null)
+            {
+                await WriteJsonError(ctx, StatusCodes.Status404NotFound, "no-printer").ConfigureAwait(false);
+                return;
+            }
+
+            var aborted = ctx.RequestAborted;
+            try
+            {
+                var transport = await escPos.Printer(ctx, doc.ReportId, aborted).ConfigureAwait(false);
+                if (transport is null)
+                {
+                    await WriteJsonError(ctx, StatusCodes.Status404NotFound, "no-printer").ConfigureAwait(false);
+                    return;
+                }
+                if (escPos.CheckStatusBeforePrint && transport is IEscPosStatusSource statusSource)
+                {
+                    var status = await statusSource.QueryStatusAsync(aborted).ConfigureAwait(false);
+                    if (!status.ReadyToPrint)
+                    {
+                        await WriteJsonError(ctx, StatusCodes.Status409Conflict, status.Code).ConfigureAwait(false);
+                        return;
+                    }
+                }
+                var bytes = new EscPosRenderer(escPos.Renderer).Render(doc.RenderList, aborted);
+                await transport.SendAsync(bytes, aborted).ConfigureAwait(false);
+                ctx.Response.StatusCode = StatusCodes.Status204NoContent;
+            }
+            catch (OperationCanceledException) when (aborted.IsCancellationRequested)
+            {
+                return;
+            }
+            catch (EscPosPrinterException ex)
+            {
+                Logger(ctx).LogWarning(ex, "NetReporter viewer could not reach the ESC/POS printer for report {ReportId}", doc.ReportId);
+                await WriteJsonError(ctx, StatusCodes.Status502BadGateway, "unreachable", ex.Message).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                Logger(ctx).LogError(ex, "NetReporter viewer could not print report {ReportId} as ESC/POS", doc.ReportId);
+                await WriteJsonError(ctx, StatusCodes.Status500InternalServerError, "failed", ex.Message).ConfigureAwait(false);
+            }
+        }
+
+        private async Task WriteJsonError(HttpContext ctx, int statusCode, string code, string? detail = null)
+        {
+            ctx.Response.StatusCode = statusCode;
+            ctx.Response.ContentType = "application/json; charset=utf-8";
+            await using var json = new Utf8JsonWriter(ctx.Response.Body);
+            json.WriteStartObject();
+            json.WriteString("error", code);
+            if (detail is not null && options.IncludeErrorDetails) json.WriteString("detail", detail);
+            json.WriteEndObject();
+        }
+
         public async Task ServeExport(HttpContext ctx)
         {
             var doc = store.Get((string)ctx.GetRouteValue("token")!, CurrentUser(ctx));
@@ -272,6 +347,7 @@ public static class ViewerEndpointExtensions
                 "pdf" => options.Formats.HasFlag(ViewerFormats.Pdf),
                 "html" => options.Formats.HasFlag(ViewerFormats.Html),
                 "xlsx" => options.Formats.HasFlag(ViewerFormats.Xlsx),
+                "escpos" => options.EscPos is { AllowDownload: true },
                 _ => false,
             };
             if (doc is null || !allowed)
@@ -291,6 +367,8 @@ public static class ViewerEndpointExtensions
                     "html" => (Encoding.UTF8.GetBytes(new HtmlRenderer().Render(doc.RenderList,
                                   new HtmlRenderOptions { Title = doc.Report.Title ?? doc.Report.Name }, aborted)),
                               "text/html; charset=utf-8"),
+                    "escpos" => (new EscPosRenderer(options.EscPos!.Renderer).Render(doc.RenderList, aborted),
+                                 "application/octet-stream"),
                     _ => (new XlsxRenderer().Render(doc.Report, options.XlsxOptions),
                           "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
                 };

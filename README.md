@@ -62,7 +62,7 @@
 |---|---|
 | 🖥️ **`NetReporter.Viewer`** (new package, opt-in) | `app.MapNetReporterViewer("/reports", …)` serves a paginated, zoomable viewer for end users of an ASP.NET Core app: page navigation, thumbnails, print, PDF/XLSX/HTML download. Pages are SVG written on demand and inlined by the `<netreporter-viewer>` web component (no CDN), so text is selectable and searchable; images are referenced by URL, so a logo on every page is downloaded once. See [Report viewer](#️-report-viewer-netreporterviewer) |
 | ⚡ **SVG written directly** | `SvgRenderer` no longer draws through Skia's SVG canvas, which rebuilt the whole glyph→Unicode table of the font for every text (cost proportional to the font's glyph count, under a global lock) and re-encoded every image as PNG on every page. An 18-page, 600-row document went from 96 ms to 9.7 ms on Linux (358 → 10 ms on macOS), and 8 threads now render 1 060 docs/s instead of 12.6. Same geometry as the PDF (`PageGeometry` is shared with the PDF painter, a test checks every glyph position against Skia's canvas) |
-| 🧾 **Roll paper + ESC/POS** (new package `NetReporter.EscPos`, opt-in) | `PageSetup.Roll80` / `Roll58` / `Roll(width)` (`page.size: roll80`) are continuous pages: no page breaks, the layout returns one page whose height is the content's. `EscPosRenderer` rasterizes it with the PDF's painter and emits `GS v 0` blocks with feed, cut and cash-drawer commands (2.2 ms per ticket); `EscPosTcpPrinter` sends them over TCP 9100. Every setting is a runtime option. See [ESC/POS thermal printers](#-escpos-thermal-printers-netreporterescpos) |
+| 🧾 **Roll paper + ESC/POS** (new package `NetReporter.EscPos`, opt-in) | `PageSetup.Roll80` / `Roll58` / `Roll(width)` (`page.size: roll80`) are continuous pages: no page breaks, the layout returns one page whose height is the content's. `EscPosRenderer` rasterizes it with the PDF's painter and emits `GS v 0` blocks with feed, cut and cash-drawer commands (2.2 ms per ticket); `EscPosTcpPrinter` sends them over TCP 9100 and reads the printer status (`DLE EOT`). The Designer exports `.escpos`; the Viewer offers the download and a "print ticket" button that checks the printer first. Every setting is a runtime option. See [ESC/POS thermal printers](#-escpos-thermal-printers-netreporterescpos) |
 | 🎨 **Designer** | Insert elements by dragging a tool anywhere on the page (margins and gaps land in the nearest band) or by clicking the tool and clicking/drawing on the page; the properties drawer is a column beside the page instead of covering it; resizable/collapsible editor, CodeMirror editors with error lines and element ↔ YAML linking, page navigator, clean view, zoom around the cursor, rulers, grid, smart guides and an ES/EN switch. See [Visual designer](#-visual-designer) |
 
 ### ⚠️ Behavior changes in 1.4
@@ -607,7 +607,7 @@ Path inputs suggest bindings discovered in `data.json`: array paths for `rows`, 
 2. **Edit** sample data on the `data.json` tab.
 3. **Drag** a text, **resize** a table, **add columns** from the drawer, **click the Chart tool and draw it** on the page, then pick its rows/series.
 4. **Save as…** with your own name → stored in `~/.netreporter/templates/`.
-5. **⭳ PDF**, **⭳ HTML** or **⭳ XLSX** → downloads with the template's `fileName` (e.g. `invoice-000-001.pdf`).
+5. **⭳ PDF**, **⭳ HTML**, **⭳ XLSX** or **⭳ ESC/POS** → downloads with the template's `fileName` (e.g. `invoice-000-001.pdf`; the ESC/POS bytes use the 58 or 80 mm profile depending on the page width).
 
 ### Import files from disk
 
@@ -662,7 +662,8 @@ app.MapNetReporterViewer("/reports", async (request, ct) =>
 | `GET {prefix}/{reportId}?…` | Full-page viewer |
 | `GET {prefix}/{reportId}/open?…` | Resolves and lays out the report **once**; returns title, page count, page size and URLs (JSON) |
 | `GET {prefix}/_doc/{token}/pages/{n}` | Page `n` as SVG, rendered on first request |
-| `GET {prefix}/_doc/{token}/export/{pdf\|xlsx\|html}` | Download (`?inline=1` to display; used for printing) |
+| `GET {prefix}/_doc/{token}/export/{pdf\|xlsx\|html\|escpos}` | Download (`?inline=1` to display; used for printing). `escpos` only with `options.EscPos` |
+| `POST {prefix}/_doc/{token}/print` | Sends the document as ESC/POS to the printer `options.EscPos.Printer` resolves for this request: 204, or `{"error": "no-printer" \| "paper-end" \| "cover-open" \| "offline" \| "error" \| "unreachable" \| "failed"}` |
 | `GET {prefix}/_viewer/viewer.js` | The web component (ETag + cache) |
 
 - **One layout per open.** Pages, print and downloads reuse the same `RenderList`, so what is printed is what was
@@ -671,6 +672,7 @@ app.MapNetReporterViewer("/reports", async (request, ct) =>
   reopens it transparently.
 - **Lazy pages.** Only pages near the viewport are requested and kept in the DOM; a 300-page report doesn't download 300 SVGs. Pages are inlined SVG, so text can be selected, copied and found with Ctrl+F.
 - **Images by URL.** Each distinct image of the document is served once at `…/_doc/{token}/images/{n}` and referenced from the pages; an invoice with a 400 KB logo on every page transfers the logo once, not once per page.
+- **Thermal tickets.** `options.EscPos = new ViewerEscPosOptions()` adds the `.escpos` download; `.UseTcpPrinter("192.168.1.50")` (or a `Printer` delegate that picks the printer per user/branch/till) adds a **Print ticket** button that `POST`s to `…/print`. Before sending, the server asks the printer its status (`DLE EOT`) and answers `409` with `paper-end`, `cover-open`, `offline` or `error`, which the component shows localized; connection failures are `502 unreachable`. One click sends one ticket (the button is disabled while the request runs). `Renderer` holds the `EscPosRendererOptions` (58/80 mm, cut, drawer…).
 - **Viewer UI:** first/previous/next/last, go to page, thumbnails, zoom 25–400 % (fit width, fit page, Ctrl/⌘ +
   wheel or trackpad pinch anchored at the cursor), Home/End and ←/→, print (Ctrl/⌘+P), download menu,
   responsive toolbar. Theme it with `--nr-bg`, `--nr-toolbar-bg`, `--nr-toolbar-fg`, `--nr-accent`.
@@ -727,7 +729,9 @@ Every setting is an option you set at runtime (and may change between prints; th
 | `Initialize`, `Prologue`, `Epilogue` | `true`, –, – | `ESC @` first; your raw bytes after it (code page, density…) and after the last cut |
 | `FeedLinesBeforeCut`, `Cut`, `CutAfterEachPage` | 3, `Partial`, `true` | Feed before `GS V`; `None` / `Partial` / `Full`; multi-page documents cut per page or once at the end |
 | `OpenCashDrawer`, `CashDrawerPin` | `false`, 0 | `ESC p` pulse on pin 2 (0) or pin 5 (1) before printing |
-| TCP: `Host`, `Port`, `ConnectTimeout`, `SendTimeout`, `NoDelay` | –, 9100, 5 s, 30 s, `true` | Refused connections and timeouts surface as `EscPosPrinterException` (with host and port); cancellation as `OperationCanceledException` |
+| TCP: `Host`, `Port`, `ConnectTimeout`, `SendTimeout`, `StatusTimeout`, `NoDelay` | –, 9100, 5 s, 30 s, 2 s, `true` | Refused connections and timeouts surface as `EscPosPrinterException` (with host and port); cancellation as `OperationCanceledException` |
+
+`EscPosTcpPrinter.QueryStatusAsync()` asks the printer `DLE EOT 1/2/4` and returns an `EscPosPrinterStatus` (`Online`, `CoverOpen`, `PaperEnd`, `PaperNearEnd`, `Error`, `ReadyToPrint`, and a stable `Code`: `ready` / `offline` / `cover-open` / `paper-end` / `error`), so a POS can say "out of paper" instead of sending a ticket that never comes out. It throws `EscPosPrinterException` when the printer (or its network adapter) does not answer within `StatusTimeout`. Verified against a real Epson-compatible 80 mm printer: the ticket below printed exactly like the PDF, and the status query answered online / cover closed / paper OK.
 
 The sample receipt (`invoice-paperoll.yaml`, 80 mm, 297 pt tall) renders in **2.2 ms** on one thread and **2 500 tickets/s** on 8 threads (60 KB of raster), on a par with the PDF of the same layout; `dotnet run --project samples/TemplateSample` writes it as `invoice-paperoll.escpos`. Fonts resolve through the same `SkiaFonts` as every other renderer, so a host without fonts fails loudly instead of printing blank paper (register `LiberationFonts` or your own). This package targets Epson-compatible ESC/POS; Star printers in Star Line Mode speak a different command set.
 
@@ -1245,10 +1249,10 @@ dotnet test
 │ NetReporter.Pdf.Tests               │   18  │
 │ NetReporter.Xlsx.Tests              │   15  │
 │ NetReporter.Barcodes.Tests          │    7  │
-│ NetReporter.Viewer.Tests            │   26  │
-│ NetReporter.EscPos.Tests            │   19  │
+│ NetReporter.Viewer.Tests            │   37  │
+│ NetReporter.EscPos.Tests            │   28  │
 ├─────────────────────────────────────┼───────┤
-│ Total                               │  512  │
+│ Total                               │  532  │
 └─────────────────────────────────────┴───────┘
 ```
 

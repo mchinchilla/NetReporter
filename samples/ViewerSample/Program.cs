@@ -18,6 +18,7 @@ var reports = new Dictionary<string, (string Yaml, string Json)>(StringComparer.
     ["factura"] = ("invoice-complete.yaml", "invoice-complete-data.json"),
     ["factura-pastel"] = ("invoice-complete-pastel.yaml", "invoice-complete-data.json"),
     ["ticket"] = ("invoice-paperoll.yaml", "invoice-data.json"),
+    ["ticket-completo"] = ("ticket-complete.yaml", "invoice-data.json"),
     ["dashboard"] = ("sales-dashboard.yaml", "sales-dashboard-data.json"),
     ["grupos"] = ("nested-groups.yaml", "nested-groups-data.json"),
     ["estado-cuenta"] = ("account-statement.yaml", "account-statement-data.json"),
@@ -30,7 +31,19 @@ app.MapNetReporterViewer("/reports", (request, _) =>
     if (!reports.TryGetValue(request.ReportId, out var r)) return ValueTask.FromResult<ReportDefinition?>(null);
     var template = YamlReportLoader.Parse(File.ReadAllText(Path.Combine(dir, r.Yaml)));
     return ValueTask.FromResult<ReportDefinition?>(template.Bind(File.ReadAllText(Path.Combine(dir, r.Json))));
-}, options => options.IncludeErrorDetails = app.Environment.IsDevelopment());
+}, options =>
+{
+    options.IncludeErrorDetails = app.Environment.IsDevelopment();
+    // ESC/POS: the .escpos download is always offered; the "print ticket" button appears when a printer is
+    // configured. Here one TCP printer for everyone (NETREPORTER_PRINTER=host[:port]); a real ERP resolves
+    // the printer per user/branch in options.EscPos.Printer.
+    options.EscPos = new ViewerEscPosOptions();
+    if (Environment.GetEnvironmentVariable("NETREPORTER_PRINTER") is { Length: > 0 } printer)
+    {
+        var parts = printer.Split(':');
+        options.EscPos.UseTcpPrinter(parts[0], parts.Length > 1 ? int.Parse(parts[1]) : 9100);
+    }
+});
 
 app.MapGet("/", () => Results.Content(Page("NetReporter Viewer — demo", $"""
     <main class="list">
