@@ -489,12 +489,20 @@ public sealed class HomeController : Controller
                 PageWidthPt = report.Page.Size.Width,
                 PageHeightPt = report.Page.Size.Height,
                 MarginLeftPt = report.Page.Margins.Left,
-                MarginTopPt = report.Page.Margins.Top
+                MarginTopPt = report.Page.Margins.Top,
+                YamlLines = YamlSourceMap.Build(yaml ?? string.Empty)
             };
         }
         catch (Exception ex)
         {
-            return new PreviewViewModel { Error = $"{ex.GetType().Name}: {ex.Message}" };
+            var at = YamlSourceMap.Locate(ex);
+            return new PreviewViewModel
+            {
+                Error = $"{ex.GetType().Name}: {ex.Message}",
+                ErrorSource = at?.Source,
+                ErrorLine = at?.Line,
+                ErrorColumn = at?.Column
+            };
         }
     }
 

@@ -1,7 +1,42 @@
 @model NetReporter.Designer.Models.DesignerViewModel
 @{
     ViewData["Title"] = "Designer";
+    const string Cm = "https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/";
 }
+
+<link rel="stylesheet" href="@(Cm)codemirror.min.css">
+<link rel="stylesheet" href="@(Cm)addon/fold/foldgutter.min.css">
+<link rel="stylesheet" href="@(Cm)addon/dialog/dialog.min.css">
+<script src="@(Cm)codemirror.min.js"></script>
+<script src="@(Cm)mode/yaml/yaml.min.js"></script>
+<script src="@(Cm)mode/javascript/javascript.min.js"></script>
+<script src="@(Cm)addon/selection/active-line.min.js"></script>
+<script src="@(Cm)addon/edit/matchbrackets.min.js"></script>
+<script src="@(Cm)addon/fold/foldcode.min.js"></script>
+<script src="@(Cm)addon/fold/foldgutter.min.js"></script>
+<script src="@(Cm)addon/fold/indent-fold.min.js"></script>
+<script src="@(Cm)addon/fold/brace-fold.min.js"></script>
+<script src="@(Cm)addon/dialog/dialog.min.js"></script>
+<script src="@(Cm)addon/search/searchcursor.min.js"></script>
+<script src="@(Cm)addon/search/search.min.js"></script>
+<script src="@(Cm)addon/search/jump-to-line.min.js"></script>
+<style>
+    .cm-host { position: relative; flex: 1 1 0; min-height: 0; }
+    .cm-host > .CodeMirror {
+        position: absolute; inset: 0; height: auto;
+        font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; font-size: 12px; line-height: 1.5;
+    }
+    .cm-host .CodeMirror-activeline-background { background: #f1f5f9; }
+    .cm-host .CodeMirror-gutters { background: #f8fafc; border-right: 1px solid #e2e8f0; }
+    .cm-host .CodeMirror-linenumber { color: #94a3b8; }
+    .cm-host .cm-linked-line { background: rgba(245, 158, 11, 0.12); }
+    .cm-host .cm-linked-gutter { box-shadow: inset 3px 0 0 rgb(245, 158, 11); }
+    .cm-host .cm-error-line { background: rgba(239, 68, 68, 0.12); }
+    .cm-host .cm-error-marker { color: #dc2626; font-size: 11px; padding-left: 3px; cursor: default; }
+    .cm-host .error-gutter { width: 14px; }
+    /* El elemento bajo el cursor del YAML se resalta en el preview */
+    .element-overlay.yaml-cursor { outline: 2px dotted rgb(14, 165, 233); outline-offset: 1px; }
+</style>
 
 <div class="h-screen flex flex-col"
      x-data="designer()"
@@ -203,18 +238,19 @@
                  :style="`width: ${editorWidth}px`">
             <nav class="flex border-b border-slate-200 bg-slate-50 text-sm">
                 <button type="button"
-                        @@click="tab = 'yaml'"
+                        @@click="showTab('yaml')"
                         :class="tab === 'yaml' ? 'bg-white text-slate-900 border-b-2 border-sky-600' : 'text-slate-600 hover:text-slate-900'"
                         class="px-4 py-2 font-medium transition">
                     report.yaml
                 </button>
                 <button type="button"
-                        @@click="tab = 'json'"
+                        @@click="showTab('json')"
                         :class="tab === 'json' ? 'bg-white text-slate-900 border-b-2 border-sky-600' : 'text-slate-600 hover:text-slate-900'"
                         class="px-4 py-2 font-medium transition">
                     data.json
                 </button>
                 <div class="ml-auto flex items-center px-2">
+                    <span class="text-[10px] text-slate-400 mr-2 hidden xl:inline">Ctrl/⌘+F buscar · Alt+G ir a línea</span>
                     <button type="button" @@click="toggleEditor()"
                             class="w-7 h-7 rounded text-slate-500 hover:bg-slate-200 hover:text-slate-900"
                             title="Ocultar el editor (Ctrl/Cmd+B)">⇤</button>
@@ -222,22 +258,22 @@
             </nav>
 
             <form id="editor-form"
-                  class="flex-1 flex flex-col"
+                  class="flex-1 flex flex-col min-h-0"
                   hx-post="/Home/Preview"
                   hx-target="#preview"
                   hx-swap="innerHTML"
                   hx-trigger="input delay:700ms from:textarea, load"
                   hx-indicator="#preview-loader">
 
-                <div x-show="tab === 'yaml'" class="flex-1 flex flex-col" x-cloak>
+                <div x-show="tab === 'yaml'" class="cm-host" x-cloak>
                     <textarea id="yaml-editor" name="Yaml"
-                              class="editor flex-1 w-full p-3 border-0 focus:ring-0 resize-none text-slate-900 bg-white outline-none"
+                              class="editor w-full h-full p-3 border-0 focus:ring-0 resize-none text-slate-900 bg-white outline-none"
                               spellcheck="false">@Model.Yaml</textarea>
                 </div>
 
-                <div x-show="tab === 'json'" class="flex-1 flex flex-col">
+                <div x-show="tab === 'json'" class="cm-host">
                     <textarea id="json-editor" name="Json"
-                              class="editor flex-1 w-full p-3 border-0 focus:ring-0 resize-none text-slate-900 bg-white outline-none"
+                              class="editor w-full h-full p-3 border-0 focus:ring-0 resize-none text-slate-900 bg-white outline-none"
                               spellcheck="false">@Model.Json</textarea>
                 </div>
             </form>
@@ -839,6 +875,12 @@
 </style>
 
 <script>
+    // Instancias de CodeMirror fuera del estado de Alpine: Alpine envuelve en proxies reactivos todo lo
+    // que vive en data(), y CodeMirror no tolera eso. Los <textarea> siguen siendo la fuente que leen
+    // HTMX (hx-post del form) y los exports; cada cambio del editor se copia ahí con cm.save().
+    const EDITORS = { yaml: null, json: null };
+    const EDITOR_STATE = { yamlLines: {}, linked: null, error: null, cursorTimer: null, programmatic: false };
+
     function designer() {
         return {
             tab: 'yaml',
@@ -961,8 +1003,184 @@
                 document.body.style.userSelect = 'none';
             },
 
-            /** Hook para quien necesite reaccionar a cambios de ancho del editor/preview. */
-            onLayoutChanged() {},
+            /** Reacciona a cambios de ancho del editor/preview. */
+            onLayoutChanged() { this.refreshEditors(); },
+
+            // === Editor de código (CodeMirror) ===
+
+            initEditors() {
+                if (!window.CodeMirror) return;   // sin CDN: quedan los <textarea> planos
+                const common = {
+                    lineNumbers: true, styleActiveLine: true, indentUnit: 2, tabSize: 2, lineWrapping: false,
+                    foldGutter: true, gutters: ['error-gutter', 'CodeMirror-linenumbers', 'CodeMirror-foldgutter'],
+                    extraKeys: {
+                        Tab: cm => cm.somethingSelected() ? cm.indentSelection('add') : cm.replaceSelection('  ', 'end'),
+                        'Shift-Tab': cm => cm.indentSelection('subtract'),
+                        'Alt-G': 'jumpToLine'
+                    }
+                };
+                for (const [key, mode] of [['yaml', 'yaml'], ['json', { name: 'javascript', json: true }]]) {
+                    const ta = document.getElementById(key + '-editor');
+                    const cm = CodeMirror.fromTextArea(ta, {
+                        ...common, mode, matchBrackets: key === 'json',
+                        foldOptions: { rangeFinder: key === 'json' ? CodeMirror.fold.brace : CodeMirror.fold.indent }
+                    });
+                    cm.on('change', (_, change) => {
+                        cm.save();
+                        if (change.origin === 'setValue') return;
+                        // Igual que si el usuario tecleara en el textarea: dispara el hx-trigger y el "dirty".
+                        ta.dispatchEvent(new Event('input', { bubbles: true }));
+                    });
+                    EDITORS[key] = cm;
+                }
+                EDITORS.yaml.on('cursorActivity', () => {
+                    if (EDITOR_STATE.programmatic) return;
+                    clearTimeout(EDITOR_STATE.cursorTimer);
+                    EDITOR_STATE.cursorTimer = setTimeout(() => this.highlightElementAtCursor(), 120);
+                });
+                EDITORS.yaml.on('blur', () => this.clearYamlCursorHighlight());
+            },
+
+            getEditorText(key) {
+                const cm = EDITORS[key];
+                return cm ? cm.getValue() : document.getElementById(key + '-editor').value;
+            },
+
+            /** Reemplaza el texto conservando scroll y cursor (las ediciones visuales reescriben el YAML entero). */
+            setEditorText(key, text) {
+                text = text ?? '';
+                const ta = document.getElementById(key + '-editor');
+                const cm = EDITORS[key];
+                if (!cm) { ta.value = text; return; }
+                if (cm.getValue() === text) return;
+                const scroll = cm.getScrollInfo();
+                const cursor = cm.getCursor();
+                EDITOR_STATE.programmatic = true;
+                try {
+                    cm.setValue(text);
+                    cm.setCursor(Math.min(cursor.line, cm.lastLine()), cursor.ch);
+                    cm.scrollTo(scroll.left, scroll.top);
+                } finally { EDITOR_STATE.programmatic = false; }
+                ta.value = text;
+            },
+
+            showTab(key) {
+                this.tab = key;
+                this.$nextTick(() => EDITORS[key]?.refresh());
+            },
+
+            refreshEditors() {
+                this.$nextTick(() => { EDITORS.yaml?.refresh(); EDITORS.json?.refresh(); });
+            },
+
+            /** Tras cada render del preview: mapa de líneas, marca de error y elemento enlazado. */
+            syncPreviewDecorations() {
+                try {
+                    const node = document.querySelector('[data-yaml-lines]');
+                    if (node) EDITOR_STATE.yamlLines = JSON.parse(node.textContent || '{}');
+                } catch { EDITOR_STATE.yamlLines = {}; }
+
+                // Error: limpiar la marca anterior y marcar la nueva (sin mover el cursor del usuario).
+                const prev = EDITOR_STATE.error;
+                if (prev) {
+                    const cm = EDITORS[prev.source];
+                    if (cm && prev.line - 1 <= cm.lastLine()) {
+                        cm.removeLineClass(prev.line - 1, 'background', 'cm-error-line');
+                    }
+                    cm?.clearGutter('error-gutter');
+                    EDITOR_STATE.error = null;
+                }
+                const box = document.querySelector('[data-preview-error]');
+                const line = parseInt(box?.dataset.errorLine, 10);
+                const source = box?.dataset.errorSource;
+                if (box && Number.isFinite(line) && EDITORS[source]) {
+                    const cm = EDITORS[source];
+                    const l = Math.min(line - 1, cm.lastLine());
+                    cm.addLineClass(l, 'background', 'cm-error-line');
+                    const marker = document.createElement('span');
+                    marker.className = 'cm-error-marker';
+                    marker.textContent = '●';
+                    marker.title = (box.querySelector('.font-mono')?.textContent || '').trim();
+                    cm.setGutterMarker(l, 'error-gutter', marker);
+                    EDITOR_STATE.error = { source, line: l + 1 };
+                    box.querySelector('[data-goto-error]')?.addEventListener('click', () =>
+                        this.gotoEditorLine(source, line, parseInt(box.dataset.errorColumn, 10) || 1));
+                }
+                if (!this.selected) this.revealInEditor(null);
+            },
+
+            gotoEditorLine(key, line, column = 1) {
+                if (this.editorCollapsed) this.toggleEditor();
+                this.showTab(key);
+                this.$nextTick(() => {
+                    const cm = EDITORS[key];
+                    if (!cm) return;
+                    const pos = { line: Math.max(0, line - 1), ch: Math.max(0, column - 1) };
+                    cm.focus();
+                    cm.setCursor(pos);
+                    cm.scrollIntoView(pos, 80);
+                });
+            },
+
+            /** Marca en el YAML las líneas del elemento seleccionado y las hace visibles (sin robar el foco). */
+            revealInEditor(path) {
+                const cm = EDITORS.yaml;
+                if (!cm) return;
+                const prev = EDITOR_STATE.linked;
+                if (prev) {
+                    cm.operation(() => {
+                        for (let l = prev[0]; l <= prev[1] && l <= cm.lastLine(); l++) {
+                            cm.removeLineClass(l, 'background', 'cm-linked-line');
+                            cm.removeLineClass(l, 'gutter', 'cm-linked-gutter');
+                        }
+                    });
+                    EDITOR_STATE.linked = null;
+                }
+                const range = path ? EDITOR_STATE.yamlLines[path] : null;
+                if (!range) return;
+                const from = range[0] - 1, to = Math.min(range[1] - 1, cm.lastLine());
+                cm.operation(() => {
+                    for (let l = from; l <= to; l++) {
+                        cm.addLineClass(l, 'background', 'cm-linked-line');
+                        cm.addLineClass(l, 'gutter', 'cm-linked-gutter');
+                    }
+                });
+                EDITOR_STATE.linked = [from, to];
+                if (!cm.hasFocus() && this.tab === 'yaml' && !this.editorCollapsed) {
+                    const top = cm.charCoords({ line: from, ch: 0 }, 'local').top;
+                    const bottom = cm.charCoords({ line: to, ch: 0 }, 'local').bottom;
+                    const info = cm.getScrollInfo();
+                    if (top < info.top || bottom > info.top + info.clientHeight)
+                        cm.scrollTo(null, Math.max(0, top - info.clientHeight / 3));
+                }
+            },
+
+            /** Elemento (o banda) cuyo bloque YAML contiene la línea del cursor → resaltado en el preview. */
+            highlightElementAtCursor() {
+                const cm = EDITORS.yaml;
+                if (!cm) return;
+                const line = cm.getCursor().line + 1;
+                let best = null, bestSpan = Infinity;
+                for (const [path, [a, b]] of Object.entries(EDITOR_STATE.yamlLines)) {
+                    if (!path.includes('.elements.')) continue;
+                    if (line >= a && line <= b && b - a < bestSpan) { best = path; bestSpan = b - a; }
+                }
+                this.clearYamlCursorHighlight();
+                if (!best) return;
+                const els = document.querySelectorAll(`.element-overlay[data-path="${best}"]`);
+                els.forEach(e => e.classList.add('yaml-cursor'));
+                const first = els[0];
+                if (first) {
+                    const host = document.getElementById('preview').getBoundingClientRect();
+                    const r = first.getBoundingClientRect();
+                    if (r.bottom < host.top || r.top > host.bottom || r.right < host.left || r.left > host.right)
+                        first.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' });
+                }
+            },
+
+            clearYamlCursorHighlight() {
+                document.querySelectorAll('.element-overlay.yaml-cursor').forEach(e => e.classList.remove('yaml-cursor'));
+            },
 
             async init() {
                 try {
@@ -979,6 +1197,9 @@
                 const stored = parseFloat(localStorage.getItem(this.ZOOM_STORAGE_KEY));
                 if (Number.isFinite(stored)) this.zoom = this.clampZoom(stored);
 
+                this.initEditors();
+                // Se crean con el contenedor aún oculto (x-cloak): medir otra vez cuando ya es visible.
+                requestAnimationFrame(() => this.refreshEditors());
                 await Promise.all([this.refreshTemplates(), this.refreshSamples()]);
                 // Marcar dirty cuando el usuario edita los textareas manualmente.
                 const mark = () => { this.isDirty = true; };
@@ -999,6 +1220,13 @@
                 document.getElementById('preview')?.addEventListener('htmx:afterSwap', () => {
                     this.refreshBandsFromPreview();
                     this.applyZoomToDom();
+                    this.syncPreviewDecorations();
+                });
+                // Doble clic en un elemento → su bloque en el YAML, con el cursor ahí.
+                document.getElementById('preview')?.addEventListener('dblclick', evt => {
+                    const el = evt.target.closest('.element-overlay');
+                    const range = el && EDITOR_STATE.yamlLines[el.dataset.path];
+                    if (range) this.gotoEditorLine('yaml', range[0]);
                 });
             },
 
@@ -1103,7 +1331,7 @@
             // === Undo / Redo ===
 
             pushUndo() {
-                const yaml = document.getElementById('yaml-editor').value;
+                const yaml = this.getEditorText('yaml');
                 const last = this.undoStack[this.undoStack.length - 1];
                 if (last === yaml) return;           // no-op
                 this.undoStack.push(yaml);
@@ -1113,7 +1341,7 @@
 
             async undo() {
                 if (this.undoStack.length === 0) return;
-                const current = document.getElementById('yaml-editor').value;
+                const current = this.getEditorText('yaml');
                 const previous = this.undoStack.pop();
                 this.redoStack.push(current);
                 if (this.redoStack.length > this.MAX_HISTORY) this.redoStack.shift();
@@ -1122,7 +1350,7 @@
 
             async redo() {
                 if (this.redoStack.length === 0) return;
-                const current = document.getElementById('yaml-editor').value;
+                const current = this.getEditorText('yaml');
                 const next = this.redoStack.pop();
                 this.undoStack.push(current);
                 if (this.undoStack.length > this.MAX_HISTORY) this.undoStack.shift();
@@ -1130,13 +1358,13 @@
             },
 
             async restoreSnapshot(yaml) {
-                document.getElementById('yaml-editor').value = yaml;
+                this.setEditorText('yaml', yaml);
                 const form = new FormData();
                 form.append('Yaml', yaml);
-                form.append('Json', document.getElementById('json-editor').value);
+                form.append('Json', this.getEditorText('json'));
                 const res = await fetch('/Home/Preview', { method: 'POST', body: form });
                 const html = await res.text();
-                document.getElementById('preview').innerHTML = html;
+                this.setPreviewHtml(html);
                 this.clearSelection();
                 this.refreshBandsFromPreview();
                 this.applyZoomToDom();
@@ -1300,8 +1528,8 @@
                     }
                     // Actualiza YAML + preview pero PRESERVA el form.columns actual del usuario
                     // para no robarle el foco durante edición.
-                    document.getElementById('yaml-editor').value = data.yaml;
-                    document.getElementById('preview').innerHTML = data.previewHtml;
+                    this.setEditorText('yaml', data.yaml);
+                    this.setPreviewHtml(data.previewHtml);
                     this.isDirty = true;
                     this.refreshBandsFromPreview();
                     this.applyZoomToDom();
@@ -1554,8 +1782,8 @@
                     const res = await fetch('/Home/UpdateSeries', { method: 'POST', body: form });
                     const data = await res.json();
                     if (data.error) { console.error('UpdateSeries:', data.error); return; }
-                    document.getElementById('yaml-editor').value = data.yaml;
-                    document.getElementById('preview').innerHTML = data.previewHtml;
+                    this.setEditorText('yaml', data.yaml);
+                    this.setPreviewHtml(data.previewHtml);
                     this.isDirty = true;
                     this.refreshBandsFromPreview();
                     this.applyZoomToDom();
@@ -1567,7 +1795,7 @@
 
             refreshJsonPaths() {
                 let data;
-                try { data = JSON.parse(document.getElementById('json-editor').value || '{}'); }
+                try { data = JSON.parse(this.getEditorText('json') || '{}'); }
                 catch { return; }
                 const scalars = [], arrays = [];
                 const walk = (node, path, depth) => {
@@ -1623,11 +1851,11 @@
                 form.style.display = 'none';
 
                 const yaml = document.createElement('textarea');
-                yaml.name = 'Yaml'; yaml.value = document.getElementById('yaml-editor').value;
+                yaml.name = 'Yaml'; yaml.value = this.getEditorText('yaml');
                 form.appendChild(yaml);
 
                 const json = document.createElement('textarea');
-                json.name = 'Json'; json.value = document.getElementById('json-editor').value;
+                json.name = 'Json'; json.value = this.getEditorText('json');
                 form.appendChild(json);
 
                 document.body.appendChild(form);
@@ -2076,20 +2304,28 @@
 
             buildFormData() {
                 const form = new FormData();
-                form.append('Yaml', document.getElementById('yaml-editor').value);
-                form.append('Json', document.getElementById('json-editor').value);
+                form.append('Yaml', this.getEditorText('yaml'));
+                form.append('Json', this.getEditorText('json'));
                 return form;
             },
 
             applyServerResponse(data) {
-                document.getElementById('yaml-editor').value = data.yaml;
-                document.getElementById('preview').innerHTML = data.previewHtml;
+                this.setEditorText('yaml', data.yaml);
+                this.setPreviewHtml(data.previewHtml);
                 this.selected = null;
                 this.selection = [];
                 this.isDirty = true;
                 this.refreshBandsFromPreview();
                 // El partial llega con --zoom: 1; sin esto el preview vuelve a 100% tras cada edición.
                 this.applyZoomToDom();
+            },
+
+            /** Todo HTML de preview que no llega por HTMX pasa por aquí. */
+            setPreviewHtml(html) {
+                document.getElementById('preview').innerHTML = html;
+                this.refreshBandsFromPreview();
+                this.applyZoomToDom();
+                this.syncPreviewDecorations();
             },
 
             overlayFor(path) {
@@ -2104,6 +2340,7 @@
                 const cls = this.selection.length > 1 ? 'multi-selected' : 'selected';
                 for (const s of this.selection)
                     document.querySelectorAll(`.element-overlay[data-path="${s.path}"]`).forEach(e => e.classList.add(cls));
+                this.revealInEditor(this.selected?.path ?? null);
             },
 
             setSelection(elements, primaryEl = null) {
@@ -2157,6 +2394,7 @@
                     .forEach(e => e.classList.remove('selected', 'multi-selected'));
                 this.selected = null;
                 this.selection = [];
+                this.revealInEditor(null);
             },
 
             // === Template persistence ===
@@ -2194,8 +2432,8 @@
             },
 
             async applyLoadedContent(yaml, json) {
-                document.getElementById('yaml-editor').value = yaml;
-                document.getElementById('json-editor').value = json;
+                this.setEditorText('yaml', yaml);
+                this.setEditorText('json', json);
                 this.refreshJsonPaths();
                 this.isDirty = false;
                 this.undoStack = [];
@@ -2234,8 +2472,8 @@
                 }
 
                 // Si solo uno fue importado, mantener el otro tal cual está.
-                const currentYaml = document.getElementById('yaml-editor').value;
-                const currentJson = document.getElementById('json-editor').value;
+                const currentYaml = this.getEditorText('yaml');
+                const currentJson = this.getEditorText('json');
                 this.currentSelection = '';   // template importado deja de ser sample/user
                 await this.applyLoadedContent(yamlText ?? currentYaml, jsonText ?? currentJson);
             },
@@ -2258,8 +2496,8 @@
             async saveToName(name) {
                 const form = new FormData();
                 form.append('Name', name);
-                form.append('Yaml', document.getElementById('yaml-editor').value);
-                form.append('Json', document.getElementById('json-editor').value);
+                form.append('Yaml', this.getEditorText('yaml'));
+                form.append('Json', this.getEditorText('json'));
                 try {
                     const res = await fetch('/Home/SaveTemplate', { method: 'POST', body: form });
                     const data = await res.json();

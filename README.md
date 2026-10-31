@@ -512,7 +512,7 @@ Open `http://localhost:5296`.
 
 The designer is a three-pane web app (visible in the screenshot above):
 
-- **Left** — tabbed editor for `report.yaml` and `data.json`. Edits debounce and re-render the preview. Drag the divider to resize it (the width is remembered) or hide it with `⇤` / `Ctrl+B`.
+- **Left** — tabbed editor for `report.yaml` and `data.json`. Edits debounce and re-render the preview. Drag the divider to resize it (the width is remembered) or hide it with `⇤` / `Ctrl+B`. Both panes are code editors (CodeMirror: line numbers, syntax highlighting, folding, `Ctrl/⌘+F` search, `Alt+G` go to line). Selecting an element highlights its YAML block; placing the cursor inside a block outlines that element in the preview; double-clicking an element jumps to its YAML. Parse errors mark the offending line in `report.yaml` or `data.json` and the error panel links to it.
 - **Middle** — the **Toolbox** (drag `Text` / `Line` / `Rect` / `Table` / `Image` / `Code` / `Chart` onto a band) and the **Bands** list with reorder/delete controls.
 - **Right** — live **SVG preview** of the rendered page, with zoom controls (`−` / `+` / `1:1` / `↔`) and pagination. Click any element to select it; a properties drawer slides in on the right edge. With several elements selected, the drawer switches to **multi-selection** (list, align, copy, duplicate, delete).
 

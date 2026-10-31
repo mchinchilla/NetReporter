@@ -176,6 +176,12 @@ public sealed class PreviewViewModel
     public IReadOnlyList<PreviewPage> Pages { get; init; } = Array.Empty<PreviewPage>();
     public IReadOnlyList<string> StyleNames { get; init; } = Array.Empty<string>();
     public string? Error { get; init; }
+    /// <summary>"yaml" or "json" when the error points at a line of one of the editors.</summary>
+    public string? ErrorSource { get; init; }
+    public int? ErrorLine { get; init; }
+    public int? ErrorColumn { get; init; }
+    /// <summary>Path (<c>bands.N[.elements.M]</c>) → [first, last] line in the YAML (1-based).</summary>
+    public IReadOnlyDictionary<string, int[]> YamlLines { get; init; } = new Dictionary<string, int[]>();
     public double PageWidthPt { get; init; }
     public double PageHeightPt { get; init; }
     public double MarginLeftPt { get; init; }

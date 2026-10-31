@@ -2,9 +2,22 @@
 
 @if (Model.Error is not null)
 {
-    <div class="bg-red-50 border border-red-200 text-red-800 rounded px-4 py-3 text-sm font-mono whitespace-pre-wrap">
-        <div class="font-sans font-semibold text-red-900 mb-2">Error al renderizar</div>
-        @Model.Error
+    <div class="bg-red-50 border border-red-200 text-red-800 rounded px-4 py-3 text-sm"
+         data-preview-error
+         data-error-source="@(Model.ErrorSource ?? "")"
+         data-error-line="@(Model.ErrorLine?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "")"
+         data-error-column="@(Model.ErrorColumn?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "")">
+        <div class="font-semibold text-red-900 mb-2 flex items-center gap-3 flex-wrap">
+            <span>Error al renderizar</span>
+            @if (Model.ErrorLine is not null)
+            {
+                <button type="button" data-goto-error
+                        class="font-normal text-xs px-2 py-0.5 rounded border border-red-300 bg-white hover:bg-red-100">
+                    Ir a @(Model.ErrorSource == "json" ? "data.json" : "report.yaml"), línea @Model.ErrorLine
+                </button>
+            }
+        </div>
+        <div class="font-mono text-xs whitespace-pre-wrap break-words">@Model.Error</div>
     </div>
 }
 else if (Model.Pages.Count == 0)
@@ -13,6 +26,7 @@ else if (Model.Pages.Count == 0)
 }
 else
 {
+    <script type="application/json" data-yaml-lines>@Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.YamlLines))</script>
     <datalist id="style-names">
         @foreach (var s in Model.StyleNames) { <option value="@s"></option> }
     </datalist>

@@ -512,7 +512,7 @@ Abre `http://localhost:5296`.
 
 El designer es una app web de tres paneles (visible en la captura de arriba):
 
-- **Izquierda** — editor con tabs para `report.yaml` y `data.json`. Las ediciones hacen debounce y re-renderizan el preview. Arrastra el divisor para cambiar su ancho (se recuerda) u ocúltalo con `⇤` / `Ctrl+B`.
+- **Izquierda** — editor con tabs para `report.yaml` y `data.json`. Las ediciones hacen debounce y re-renderizan el preview. Arrastra el divisor para cambiar su ancho (se recuerda) u ocúltalo con `⇤` / `Ctrl+B`. Ambos paneles son editores de código (CodeMirror: números de línea, resaltado de sintaxis, plegado, búsqueda con `Ctrl/⌘+F`, `Alt+G` para ir a una línea). Seleccionar un elemento resalta su bloque en el YAML; poner el cursor dentro de un bloque marca ese elemento en el preview; doble clic en un elemento salta a su YAML. Los errores de parseo marcan la línea culpable en `report.yaml` o `data.json` y el panel de error enlaza a ella.
 - **Centro** — el **Toolbox** (arrastra `Text` / `Line` / `Rect` / `Table` / `Image` / `Code` / `Chart` a una banda) y la lista de **Bandas** con controles para reordenar/eliminar.
 - **Derecha** — **preview SVG** en vivo de la página renderizada, con controles de zoom (`−` / `+` / `1:1` / `↔`) y paginación. Click en cualquier elemento para seleccionarlo; un drawer de propiedades se desliza desde el borde derecho. Con varios elementos seleccionados, el drawer cambia a **selección múltiple** (lista, alinear, copiar, duplicar, borrar).
 
