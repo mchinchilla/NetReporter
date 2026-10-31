@@ -593,6 +593,8 @@ Path inputs suggest bindings discovered in `data.json`: array paths for `rows`, 
 
 The preview header has `−` / `+` / `1:1` / `↔` buttons. Steps are `25 · 50 · 75 · 100 · 125 · 150 · 200 · 300 · 400 %`. The `↔` button fits the page width to the available preview area. The chosen level persists in `localStorage` so reloading the designer keeps it. Drag and resize coordinates are compensated for the current zoom — moving an element at 200% still moves it pt-by-pt in the YAML.
 
+`Ctrl/⌘ + wheel` (or a trackpad pinch) zooms around the cursor, and `⤢` fits the whole page. Multi-page reports get a page navigator (`‹ n de N ›`, also `PgUp` / `PgDn`); pages outside the viewport are not painted (`content-visibility: auto`), so long reports stay responsive. **Clean view** (`👁` or `V`) hides every editing overlay to see the report exactly as it prints.
+
 > Implementation note: the preview is scaled with `transform: scale(var(--zoom))`, not the CSS `zoom` property. `zoom` would push the scaled content into flex layout calculations, making the preview panel invade the YAML editor / toolbox. The flex items in the preview chain require `min-w-0` so the parent's `overflow-auto` actually clips the scaled content instead of letting it grow the panel.
 
 ---

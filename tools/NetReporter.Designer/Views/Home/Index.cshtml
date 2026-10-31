@@ -384,7 +384,33 @@
                                 @@click="zoomFitWidth()"
                                 title="Ajustar al ancho"
                                 class="w-6 h-6 flex items-center justify-center border border-slate-300 rounded bg-white text-slate-700 hover:bg-sky-50 hover:border-sky-500 leading-none">↔</button>
+                        <button type="button"
+                                @@click="zoomFitPage()"
+                                title="Página completa"
+                                class="w-6 h-6 flex items-center justify-center border border-slate-300 rounded bg-white text-slate-700 hover:bg-sky-50 hover:border-sky-500 leading-none">⤢</button>
                     </div>
+                    <div class="flex items-center gap-1 text-xs" x-show="pageCount > 0" x-cloak>
+                        <span class="w-px h-5 bg-slate-300 mx-1"></span>
+                        <button type="button" @@click="goToPage(currentPage - 1)" :disabled="currentPage <= 1"
+                                title="Página anterior (PgUp)"
+                                class="w-6 h-6 flex items-center justify-center border border-slate-300 rounded bg-white text-slate-700 hover:bg-sky-50 hover:border-sky-500 disabled:opacity-40 disabled:hover:bg-white">‹</button>
+                        <input type="text" inputmode="numeric"
+                               :value="currentPage"
+                               @@change="goToPage(parseInt($event.target.value, 10)); $event.target.value = currentPage"
+                               @@keydown.enter="$event.target.blur()"
+                               @@focus="$event.target.select()"
+                               aria-label="Página"
+                               class="w-9 h-6 text-center border border-slate-300 rounded bg-white font-mono text-slate-700">
+                        <span class="text-slate-500 whitespace-nowrap" x-text="'de ' + pageCount"></span>
+                        <button type="button" @@click="goToPage(currentPage + 1)" :disabled="currentPage >= pageCount"
+                                title="Página siguiente (PgDn)"
+                                class="w-6 h-6 flex items-center justify-center border border-slate-300 rounded bg-white text-slate-700 hover:bg-sky-50 hover:border-sky-500 disabled:opacity-40 disabled:hover:bg-white">›</button>
+                    </div>
+                    <span class="w-px h-5 bg-slate-300"></span>
+                    <button type="button" @@click="toggleCleanView()"
+                            :class="cleanView ? 'bg-sky-600 text-white border-sky-600 hover:bg-sky-700' : 'bg-white text-slate-700 border-slate-300 hover:bg-sky-50 hover:border-sky-500'"
+                            title="Vista limpia: oculta los marcos de edición para ver el reporte tal cual (V)"
+                            class="px-2 h-6 flex items-center gap-1 border rounded text-xs leading-none">👁 <span class="hidden lg:inline">Vista limpia</span></button>
                 </div>
                 <span id="preview-loader" class="htmx-indicator text-xs text-sky-700 flex items-center gap-1">
                     <svg class="animate-spin w-3 h-3" viewBox="0 0 24 24" fill="none">
@@ -397,6 +423,9 @@
 
             <div id="preview"
                  class="flex-1 min-w-0 overflow-auto p-6"
+                 :class="cleanView ? 'clean-view' : ''"
+                 @@scroll.passive="onPreviewScroll()"
+                 @@wheel="onPreviewWheel($event)"
                  @@pointerdown="onOverlayPointerDown($event)">
                 <p class="text-sm text-slate-500 text-center mt-8">Cargando preview…</p>
             </div>
@@ -965,6 +994,10 @@
                 ['Ctrl/⌘ + B', 'Mostrar / ocultar editor'],
                 ['Ctrl/⌘ + + / − / 0', 'Zoom'],
                 ['Esc', 'Quitar selección'],
+                ['Ctrl/⌘ + rueda', 'Zoom en el punto del cursor'],
+                ['RePág / AvPág', 'Página anterior / siguiente'],
+                ['V', 'Vista limpia (sin marcos de edición)'],
+                ['Doble clic', 'Ir al YAML del elemento'],
             ],
             BAND_LABELS: {
                 ReportHeader: 'Encabezado de reporte', PageHeader: 'Encabezado de página', Detail: 'Detalle',
@@ -1230,6 +1263,80 @@
                 });
             },
 
+            // === Navegación del preview ===
+
+            pageCount: 0,
+            currentPage: 1,
+            cleanView: false,
+            _scrollTick: false,
+
+            pageEls() { return Array.from(document.querySelectorAll('#preview .svg-page')); },
+
+            updatePageInfo() {
+                this.pageCount = this.pageEls().length;
+                if (this.currentPage > this.pageCount) this.currentPage = Math.max(1, this.pageCount);
+                this.trackCurrentPage();
+            },
+
+            onPreviewScroll() {
+                if (this._scrollTick) return;
+                this._scrollTick = true;
+                requestAnimationFrame(() => { this._scrollTick = false; this.trackCurrentPage(); });
+            },
+
+            trackCurrentPage() {
+                const host = document.getElementById('preview');
+                const pages = this.pageEls();
+                if (!host || !pages.length) return;
+                const probe = host.getBoundingClientRect().top + host.clientHeight * 0.35;
+                let current = 1;
+                pages.forEach((p, i) => { if (p.getBoundingClientRect().top <= probe) current = i + 1; });
+                this.currentPage = current;
+            },
+
+            goToPage(n) {
+                const pages = this.pageEls();
+                if (!pages.length || !Number.isFinite(n)) return;
+                n = Math.min(pages.length, Math.max(1, n));
+                const host = document.getElementById('preview');
+                const top = pages[n - 1].getBoundingClientRect().top - host.getBoundingClientRect().top + host.scrollTop;
+                host.scrollTo({ top: Math.max(0, top - 16) });
+                this.currentPage = n;
+            },
+
+            toggleCleanView() {
+                this.cleanView = !this.cleanView;
+                if (this.cleanView) this.clearSelection();
+            },
+
+            /** Ctrl/⌘ + rueda (o pinch del trackpad): zoom anclado al punto bajo el cursor. */
+            onPreviewWheel(evt) {
+                if (!(evt.ctrlKey || evt.metaKey)) return;
+                evt.preventDefault();
+                const host = document.getElementById('preview');
+                const r = host.getBoundingClientRect();
+                const ax = evt.clientX - r.left, ay = evt.clientY - r.top;
+                const rx = (host.scrollLeft + ax) / host.scrollWidth;
+                const ry = (host.scrollTop + ay) / host.scrollHeight;
+                const next = Math.abs(evt.deltaY) < 40
+                    ? this.zoom * Math.exp(-evt.deltaY * 0.01)          // trackpad: continuo
+                    : this.nextZoomLevel(evt.deltaY < 0 ? +1 : -1);      // rueda: por pasos
+                this.setZoom(next);
+                host.scrollLeft = rx * host.scrollWidth - ax;
+                host.scrollTop = ry * host.scrollHeight - ay;
+            },
+
+            zoomFitPage() {
+                const host = document.getElementById('preview');
+                const page = host?.querySelector('.svg-page');
+                if (!host || !page) return;
+                const w = parseFloat(page.style.width), h = parseFloat(page.style.height);
+                if (!(w > 0 && h > 0)) return;
+                // p-6 = 24px por lado; la etiqueta "Página n de N" bajo la hoja ocupa ~28px.
+                this.setZoom(Math.min((host.clientWidth - 48) / w, (host.clientHeight - 48 - 28) / h));
+                this.goToPage(this.currentPage);
+            },
+
             // === Zoom ===
 
             clampZoom(z) { return Math.min(this.ZOOM_MAX, Math.max(this.ZOOM_MIN, z)); },
@@ -1312,6 +1419,7 @@
                 }
                 out.sort((a, b) => a.index - b.index);
                 this.bands = out;
+                this.$nextTick(() => this.updatePageInfo());
             },
 
             get busyLabel() {
@@ -1324,6 +1432,7 @@
 
             onToolPointerDown(evt, kind) {
                 evt.preventDefault();
+                if (this.cleanView) this.cleanView = false;   // crear necesita las zonas de las bandas
                 this.clearSelection();
                 this.creating = { kind, x: evt.clientX, y: evt.clientY };
             },
@@ -1453,6 +1562,15 @@
                 }
 
                 if (evt.key === 'Escape') { this.showHelp = false; this.clearSelection(); return; }
+                if (evt.key === 'PageDown' || evt.key === 'PageUp') {
+                    evt.preventDefault();
+                    this.goToPage(this.currentPage + (evt.key === 'PageDown' ? 1 : -1));
+                    return;
+                }
+                if ((evt.key === 'v' || evt.key === 'V') && !evt.shiftKey && !evt.altKey) {
+                    this.toggleCleanView();
+                    return;
+                }
 
                 // Delete / Backspace → borrar la selección (uno o varios).
                 if (this.selection.length && (evt.key === 'Delete' || evt.key === 'Backspace')) {

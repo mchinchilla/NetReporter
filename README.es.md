@@ -593,6 +593,8 @@ Los campos de path sugieren bindings descubiertos en `data.json`: paths de array
 
 La barra del preview tiene botones `−` / `+` / `1:1` / `↔`. Los pasos son `25 · 50 · 75 · 100 · 125 · 150 · 200 · 300 · 400 %`. El botón `↔` ajusta el ancho de página al área disponible del preview. El nivel elegido se persiste en `localStorage`, así que recargar el designer lo mantiene. Las coordenadas de drag/resize se compensan por el zoom actual — mover un elemento al 200% sigue moviéndolo pt-a-pt en el YAML.
 
+`Ctrl/⌘ + rueda` (o pinch del trackpad) hace zoom alrededor del cursor, y `⤢` ajusta la página completa. Los reportes de varias páginas tienen navegador de páginas (`‹ n de N ›`, también `RePág` / `AvPág`); las páginas fuera de la vista no se pintan (`content-visibility: auto`), así que los reportes largos siguen fluidos. La **vista limpia** (`👁` o `V`) oculta todos los marcos de edición para ver el reporte tal como se imprime.
+
 > Nota de implementación: el preview se escala con `transform: scale(var(--zoom))`, no con la propiedad CSS `zoom`. `zoom` mete el contenido escalado en el cálculo de layout de flexbox, haciendo que el panel del preview invada el editor YAML / toolbox. Los flex items del chain del preview llevan `min-w-0` para que el `overflow-auto` del contenedor sí recorte el contenido escalado en vez de dejarlo crecer al panel.
 
 ---

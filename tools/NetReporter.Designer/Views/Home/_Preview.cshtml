@@ -143,6 +143,13 @@ else
         margin: 0 auto;
     }
 
+    /* Las hojas fuera de la vista no se pintan: reportes largos siguen fluidos. */
+    .svg-page { content-visibility: auto; }
+
+    /* Vista limpia: el reporte tal cual, sin overlays de edición. */
+    .clean-view .element-overlay,
+    .clean-view .dropzone-layer { display: none; }
+
     .element-overlay {
         border: 1px dashed transparent;
         transition: border-color 120ms, background-color 120ms;
