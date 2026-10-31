@@ -1,4 +1,5 @@
 @model NetReporter.Designer.Models.PreviewViewModel
+@inject Microsoft.Extensions.Localization.IStringLocalizer<NetReporter.Designer.DesignerStrings> L
 
 @if (Model.Error is not null)
 {
@@ -8,12 +9,12 @@
          data-error-line="@(Model.ErrorLine?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "")"
          data-error-column="@(Model.ErrorColumn?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "")">
         <div class="font-semibold text-red-900 mb-2 flex items-center gap-3 flex-wrap">
-            <span>Error al renderizar</span>
+            <span>@L["Preview.Error"]</span>
             @if (Model.ErrorLine is not null)
             {
                 <button type="button" data-goto-error
                         class="font-normal text-xs px-2 py-0.5 rounded border border-red-300 bg-white hover:bg-red-100">
-                    Ir a @(Model.ErrorSource == "json" ? "data.json" : "report.yaml"), línea @Model.ErrorLine
+                    @L["Preview.GoToLine", Model.ErrorSource == "json" ? "data.json" : "report.yaml", Model.ErrorLine]
                 </button>
             }
         </div>
@@ -22,7 +23,7 @@
 }
 else if (Model.Pages.Count == 0)
 {
-    <p class="text-sm text-slate-500 text-center mt-8">El reporte no produjo páginas.</p>
+    <p class="text-sm text-slate-500 text-center mt-8">@L["Preview.NoPages"]</p>
 }
 else
 {
@@ -127,7 +128,7 @@ else
                     }
                 </div>
             </div>
-            <p class="text-xs text-slate-500 text-center">Página @pg.Number de @Model.Pages.Count</p>
+            <p class="text-xs text-slate-500 text-center">@L["Preview.PageOf", pg.Number, Model.Pages.Count]</p>
         }
     </div>
     </div>

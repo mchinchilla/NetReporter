@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Localization;
+
 namespace NetReporter.Designer.Services;
 
 /// <summary>
@@ -8,10 +10,13 @@ namespace NetReporter.Designer.Services;
 public sealed class TemplateStore
 {
     private readonly string _root;
+    private readonly IStringLocalizer<DesignerStrings> _l;
 
-    public TemplateStore(IConfiguration cfg)
+    public TemplateStore(IConfiguration cfg, IStringLocalizer<DesignerStrings> localizer)
     {
         ArgumentNullException.ThrowIfNull(cfg);
+        ArgumentNullException.ThrowIfNull(localizer);
+        _l = localizer;
         _root = cfg["TemplateStore:Path"] ?? GetDefaultPath();
         Directory.CreateDirectory(_root);
     }
@@ -41,7 +46,7 @@ public sealed class TemplateStore
         var jsonPath = ResolvePath(clean, ".data.json");
 
         if (!File.Exists(yamlPath))
-            throw new FileNotFoundException($"Template '{clean}' no existe.");
+            throw new FileNotFoundException(_l["Server.TemplateNotFound", clean]);
 
         var yaml = File.ReadAllText(yamlPath);
         var json = File.Exists(jsonPath) ? File.ReadAllText(jsonPath) : "{}";
@@ -75,25 +80,24 @@ public sealed class TemplateStore
         // Defensa en profundidad: aunque el nombre ya está sanitizado, validamos que el
         // path resuelto quede dentro de la carpeta root.
         if (!candidate.StartsWith(rootFull, StringComparison.Ordinal))
-            throw new InvalidOperationException("Path fuera de la carpeta de templates.");
+            throw new InvalidOperationException(_l["Server.PathOutsideRoot"]);
         return candidate;
     }
 
-    private static string SanitizeName(string name)
+    private string SanitizeName(string name)
     {
         ArgumentNullException.ThrowIfNull(name);
         var trimmed = name.Trim();
 
         if (trimmed.Length == 0)
-            throw new ArgumentException("El nombre no puede estar vacío.");
+            throw new ArgumentException(_l["Server.NameEmpty"]);
         if (trimmed.Length > 64)
-            throw new ArgumentException("El nombre supera 64 caracteres.");
+            throw new ArgumentException(_l["Server.NameTooLong"]);
 
         foreach (var c in trimmed)
         {
             if (!char.IsLetterOrDigit(c) && c != '-' && c != '_' && c != ' ')
-                throw new ArgumentException(
-                    $"Carácter inválido '{c}' en nombre. Usa letras, dígitos, espacios, '-' o '_'.");
+                throw new ArgumentException(_l["Server.NameInvalidChar", c]);
         }
         return trimmed;
     }

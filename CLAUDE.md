@@ -25,7 +25,7 @@ src/
 tests/
   NetReporter.Core.Tests/  NetReporter.Templates.Tests/  NetReporter.Html.Tests/  NetReporter.Svg.Tests/
   NetReporter.Pdf.Tests/   NetReporter.Xlsx.Tests/       NetReporter.Barcodes.Tests/
-  NetReporter.Viewer.Tests/ (TestServer)                                                 — 461 tests total
+  NetReporter.Viewer.Tests/ (TestServer)                                                 — 468 tests total
   TestAssets/Fonts/        Lato-Regular.ttf (SIL OFL) — font tests use it instead of system fonts (CI has almost none)
 tools/
   NetReporter.Designer/    ASP.NET Core MVC + Alpine.js + HTMX + Tailwind (CDN)
@@ -47,7 +47,7 @@ Solution file is `NetReporter.slnx` (the newer XML format — not classic `.sln`
 
 ```bash
 dotnet build
-dotnet test                                                # 461 tests
+dotnet test                                                # 468 tests
 dotnet run --project samples/InvoiceSample                 # → factura.pdf
 dotnet run --project samples/TemplateSample                # → 13 PDF + 13 XLSX
 dotnet run --project tools/NetReporter.Designer            # → http://localhost:5296
@@ -119,6 +119,7 @@ When the user asks for a feature that "should also work in XLSX", remember XLSX 
 - The Designer renders the **SVG** preview live via HTMX, with Alpine.js for state. Drag/resize/create operations POST back to mutation endpoints (`/Home/MoveMany`, `/Home/Update`, `/Home/Add`, `/Home/DeleteMany`, `/Home/Copy`, `/Home/Paste`, `/Home/UpdateSeries`, etc.) which call into `YamlReportRewriter`.
 - Overlays carry two sets of coordinates: `data-x/y/w/h` = rendered bbox in page points (for hit-testing and visual feedback) and `data-bx/by/bw/bh` = the YAML bounds (band-relative). Anything that writes bounds back to YAML must apply deltas to the `b*` values (`yamlBounds(ds)`), never write page coordinates.
 - The YAML/JSON panes are CodeMirror 5 instances kept outside Alpine state (`EDITORS`, `EDITOR_STATE`); the `<textarea>`s stay the source for HTMX and exports (synced with `cm.save()`). Read/write editor text only through `getEditorText(key)` / `setEditorText(key, text)`, and put preview HTML in the DOM through `setPreviewHtml` (or HTMX) so the line map (`YamlSourceMap`, `[data-yaml-lines]`), error marker and element↔YAML highlight stay in sync.
+- **Localization.** Every Designer UI string comes from `Resources/DesignerStrings.resx` (Spanish = neutral fallback) and `DesignerStrings.en.resx`, through `IStringLocalizer<DesignerStrings>`: `@L["Key"]` in views (server strings use `{0}` placeholders), `t('Key', { name })` in JS (the view emits the dictionary as `window.NR_I18N`; `{name}` placeholders), `_l[...]` in the controller and stores. Never add a hard-coded UI string; add a key to both resx files (`Key.Group` naming). `Program.cs` varies only the UI culture — the request culture stays invariant so form numbers keep `.` — and `/Home/SetLanguage` stores the cookie. The viewer has its own tables in `viewer.js` (`I18N` + `registerLanguage`/`globalThis.NetReporterViewerI18n`) and negotiates `lang` server-side in `NegotiateLanguage`.
 - Selection state: `selection` (array of `{path, kind}`) + `selected` (primary element for the drawer). Re-render classes with `renderSelectionClasses()`; after any server response call `applyServerResponse` (it also re-applies zoom).
 - The preview supports zoom (25%–400%) via `transform: scale(var(--zoom))` on `[data-preview-root]`, with an outer `[data-zoom-spacer]` reserving the post-scaled width/height so the parent's `overflow-auto` shows scroll correctly. CSS `zoom` was tried first but breaks layout: it makes the scaled content report a larger size to flexbox, which pushes the preview panel into the YAML editor / toolbox.
 - Rulers, grid and smart guides work in page points from the overlays' `data-x/y/w/h` and the page metrics on `[data-preview-root]` (`data-margin-*`, `data-page-width/height`). Guides only adjust the drag delta; what is sent to the server is still a `MoveMany` delta. `SNAP` is the grid step.

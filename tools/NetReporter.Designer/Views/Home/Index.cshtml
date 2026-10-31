@@ -1,6 +1,8 @@
 @model NetReporter.Designer.Models.DesignerViewModel
+@inject Microsoft.Extensions.Localization.IStringLocalizer<NetReporter.Designer.DesignerStrings> L
 @{
-    ViewData["Title"] = "Designer";
+    ViewData["Title"] = L["Page.Title"].Value;
+    var uiLanguage = System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName;
     const string Cm = "https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/";
 }
 
@@ -20,6 +22,10 @@
 <script src="@(Cm)addon/search/searchcursor.min.js"></script>
 <script src="@(Cm)addon/search/search.min.js"></script>
 <script src="@(Cm)addon/search/jump-to-line.min.js"></script>
+<script>
+    // UI strings for the browser side (Alpine expressions and JS messages): the same resources the view uses.
+    window.NR_I18N = @Html.Raw(Json.Serialize(L.GetAllStrings(includeParentCultures: true).ToDictionary(s => s.Name, s => s.Value)));
+</script>
 <style>
     .cm-host { position: relative; flex: 1 1 0; min-height: 0; }
     .cm-host > .CodeMirror {
@@ -62,7 +68,7 @@
             <div class="w-8 h-8 rounded bg-sky-600 flex items-center justify-center text-white font-bold">N</div>
             <div>
                 <h1 class="text-sm font-semibold text-slate-900 leading-tight">NetReporter Designer</h1>
-                <p class="text-xs text-slate-500 leading-tight">Editor de plantillas YAML · arrastrar y soltar · vista previa en vivo</p>
+                <p class="text-xs text-slate-500 leading-tight">@L["Header.Subtitle"]</p>
             </div>
         </div>
 
@@ -71,13 +77,13 @@
             <select x-model="currentSelection"
                     @@change="onSelectionChange()"
                     class="border border-slate-300 rounded px-2 py-1 bg-white text-slate-800 min-w-[180px]">
-                <option value="">(sin guardar)</option>
-                <optgroup label="📦 Ejemplos" x-show="availableSamples.length > 0">
+                <option value="">@L["Header.Unsaved"]</option>
+                <optgroup label="@L["Header.Samples"]" x-show="availableSamples.length > 0">
                     <template x-for="s in availableSamples" :key="s">
                         <option :value="'sample:' + s" x-text="s"></option>
                     </template>
                 </optgroup>
-                <optgroup label="Mis plantillas" x-show="availableTemplates.length > 0">
+                <optgroup label="@L["Header.MyTemplates"]" x-show="availableTemplates.length > 0">
                     <template x-for="t in availableTemplates" :key="t">
                         <option :value="'user:' + t" x-text="t"></option>
                     </template>
@@ -85,33 +91,33 @@
             </select>
             <span x-show="isDirty" x-cloak
                   class="text-amber-600 font-bold"
-                  title="Hay cambios sin guardar">●</span>
+                  title="@L["Header.DirtyTitle"]">●</span>
             <button type="button"
                     @@click="importFile()"
-                    title="Importar archivo .yaml o .json desde disco"
+                    title="@L["Header.ImportTitle"]"
                     class="px-2 py-1 border border-slate-300 rounded bg-white text-slate-700 hover:bg-sky-50 hover:border-sky-500">
-                ↥ Importar
+                @L["Header.Import"]
             </button>
             <input type="file" id="import-input" accept=".yaml,.yml,.json" multiple
                    class="hidden" @@change="onImportFiles($event)">
             <button type="button"
                     @@click="saveTemplate()"
-                    title="Guardar (Ctrl/Cmd+S)"
+                    title="@L["Header.SaveTitle"]"
                 class="px-2 py-1 border border-slate-300 rounded bg-white text-slate-700 hover:bg-sky-50 hover:border-sky-500">
-                Guardar
+                @L["Header.Save"]
             </button>
             <button type="button"
                     @@click="saveAsTemplate()"
                     class="px-2 py-1 border border-slate-300 rounded bg-white text-slate-700 hover:bg-sky-50 hover:border-sky-500">
-                Guardar como…
+                @L["Header.SaveAs"]
             </button>
             <button type="button"
                     @@click="deleteTemplate()"
                     :disabled="!isUserTemplate"
                     :class="!isUserTemplate ? 'opacity-40 cursor-not-allowed' : 'hover:bg-red-50 hover:border-red-400'"
-                    title="Eliminar la plantilla guardada"
+                    title="@L["Header.DeleteTitle"]"
                     class="px-2 py-1 border border-slate-300 rounded bg-white text-slate-700">
-                Eliminar
+                @L["Header.Delete"]
             </button>
             <button type="button"
                     @@click="exportPdf()"
@@ -136,8 +142,8 @@
                         :disabled="undoStack.length === 0"
                         :class="undoStack.length === 0 ? 'opacity-40 cursor-not-allowed' : 'hover:bg-slate-200'"
                         class="px-2 py-1 border border-slate-300 rounded text-xs bg-white text-slate-700"
-                        title="Deshacer (Ctrl/Cmd+Z)">
-                    ↶ <span class="hidden sm:inline">Deshacer</span>
+                        title="@L["Header.UndoTitle"]">
+                    ↶ <span class="hidden sm:inline">@L["Header.Undo"]</span>
                     <span class="text-[9px] text-slate-400" x-text="undoStack.length > 0 ? '(' + undoStack.length + ')' : ''"></span>
                 </button>
                 <button type="button"
@@ -145,8 +151,8 @@
                         :disabled="redoStack.length === 0"
                         :class="redoStack.length === 0 ? 'opacity-40 cursor-not-allowed' : 'hover:bg-slate-200'"
                         class="px-2 py-1 border border-slate-300 rounded text-xs bg-white text-slate-700"
-                        title="Rehacer (Ctrl/Cmd+Shift+Z)">
-                    ↷ <span class="hidden sm:inline">Rehacer</span>
+                        title="@L["Header.RedoTitle"]">
+                    ↷ <span class="hidden sm:inline">@L["Header.Redo"]</span>
                     <span class="text-[9px] text-slate-400" x-text="redoStack.length > 0 ? '(' + redoStack.length + ')' : ''"></span>
                 </button>
             </div>
@@ -155,16 +161,22 @@
                 · <code x-text="selected?.path"></code>
             </span>
             <span x-show="isMulti" x-cloak class="inline-flex items-center gap-1 bg-amber-100 text-amber-800 px-2 py-0.5 rounded"
-                  x-text="selection.length + ' elementos seleccionados'"></span>
-            <span x-show="clipboard" x-cloak class="text-slate-400" title="Hay elementos en el portapapeles (Ctrl/Cmd+V para pegar)">📋</span>
-            <span x-show="!selected" class="text-slate-400">Ningún elemento seleccionado</span>
+                  x-text="t('Header.SelectedCount', { n: selection.length })"></span>
+            <span x-show="clipboard" x-cloak class="text-slate-400" title="@L["Header.ClipboardTitle"]">📋</span>
+            <span x-show="!selected" class="text-slate-400">@L["Header.NoSelection"]</span>
+            <select x-model="language" @@change="setLanguage($event.target.value)"
+                    title="@L["Header.Language"]" aria-label="@L["Header.Language"]"
+                    class="border border-slate-300 rounded px-1 py-0.5 bg-white text-slate-700 text-xs">
+                <option value="es">ES</option>
+                <option value="en">EN</option>
+            </select>
             <div class="relative" @@click.outside="showHelp = false">
                 <button type="button" @@click="showHelp = !showHelp"
                         class="w-6 h-6 rounded-full border border-slate-300 bg-white text-slate-600 hover:bg-sky-50 hover:border-sky-500"
-                        title="Atajos de teclado (?)">?</button>
+                        title="@L["Header.ShortcutsTitle"]">?</button>
                 <div x-show="showHelp" x-cloak x-transition.opacity
                      class="absolute right-0 top-8 z-50 w-72 bg-white border border-slate-200 rounded-lg shadow-xl p-3 text-[11px] text-slate-700">
-                    <div class="font-semibold text-slate-900 mb-2">Atajos de teclado</div>
+                    <div class="font-semibold text-slate-900 mb-2">@L["Header.Shortcuts"]</div>
                     <dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
                         <template x-for="h in shortcuts" :key="h[0]">
                             <div class="contents">
@@ -216,29 +228,29 @@
         </div>
         <dl class="px-3 py-2 space-y-1 text-slate-200">
             <div class="flex justify-between gap-2">
-                <dt class="text-slate-400">Alto declarado</dt>
+                <dt class="text-slate-400">@L["Band.DeclaredHeight"]</dt>
                 <dd class="font-mono" x-text="(hoveredBand?.declaredHeight || 0).toFixed(2) + ' pt'"></dd>
             </div>
             <div class="flex justify-between gap-2">
-                <dt class="text-slate-400">Alto real</dt>
+                <dt class="text-slate-400">@L["Band.ActualHeight"]</dt>
                 <dd class="font-mono" x-text="(hoveredBand?.height || 0).toFixed(2) + ' pt'"></dd>
             </div>
             <div class="flex justify-between gap-2">
-                <dt class="text-slate-400">Posición Y</dt>
+                <dt class="text-slate-400">@L["Band.PositionY"]</dt>
                 <dd class="font-mono" x-text="(hoveredBand?.y || 0).toFixed(2) + ' pt'"></dd>
             </div>
             <div class="flex justify-between gap-2">
-                <dt class="text-slate-400">Elementos</dt>
+                <dt class="text-slate-400">@L["Band.Elements"]</dt>
                 <dd class="font-mono" x-text="hoveredBand?.elementCount ?? 0"></dd>
             </div>
             <div class="flex justify-between gap-2">
-                <dt class="text-slate-400">Path</dt>
+                <dt class="text-slate-400">@L["Band.Path"]</dt>
                 <dd class="font-mono text-slate-300" x-text="'bands.' + hoveredBand?.index"></dd>
             </div>
         </dl>
         <div x-show="(hoveredBand?.elementCount || 0) === 0"
              class="px-3 py-1.5 border-t border-slate-700 text-slate-400 text-[10px] italic">
-            Sin elementos — la posición es estimada.
+            @L["Band.NoElements"]
         </div>
     </div>
 
@@ -262,10 +274,10 @@
                     data.json
                 </button>
                 <div class="ml-auto flex items-center px-2">
-                    <span class="text-[10px] text-slate-400 mr-2 hidden xl:inline">Ctrl/⌘+F buscar · Alt+G ir a línea</span>
+                    <span class="text-[10px] text-slate-400 mr-2 hidden xl:inline">@L["Editor.Hint"]</span>
                     <button type="button" @@click="toggleEditor()"
                             class="w-7 h-7 rounded text-slate-500 hover:bg-slate-200 hover:text-slate-900"
-                            title="Ocultar el editor (Ctrl/Cmd+B)">⇤</button>
+                            title="@L["Editor.HideTitle"]">⇤</button>
                 </div>
             </nav>
 
@@ -295,7 +307,7 @@
         <div x-show="!editorCollapsed"
              class="w-1.5 shrink-0 cursor-col-resize bg-slate-200 hover:bg-sky-400 transition-colors"
              :class="resizingEditor ? 'bg-sky-500' : ''"
-             title="Arrastra para cambiar el ancho del editor · doble clic para restablecer"
+             title="@L["Editor.SplitterTitle"]"
              @@pointerdown.prevent="startEditorResize($event)"
              @@dblclick="setEditorWidth(defaultEditorWidth())"></div>
         <!-- Riel visible con el editor oculto -->
@@ -303,30 +315,30 @@
              class="w-8 shrink-0 bg-slate-50 border-r border-slate-200 flex flex-col items-center pt-2">
             <button type="button" @@click="toggleEditor()"
                     class="w-7 h-7 rounded text-slate-500 hover:bg-slate-200 hover:text-slate-900"
-                    title="Mostrar el editor (Ctrl/Cmd+B)">⇥</button>
+                    title="@L["Editor.ShowTitle"]">⇥</button>
             <span class="mt-3 text-[10px] text-slate-400 tracking-wide [writing-mode:vertical-rl]">YAML · JSON</span>
         </div>
 
         <!-- Toolbox vertical -->
         <aside class="w-28 shrink-0 bg-slate-100 border-r border-slate-200 flex flex-col items-center py-3 gap-2 overflow-y-auto">
-            <div class="text-[10px] uppercase text-slate-500 tracking-wide mb-1">Insertar</div>
+            <div class="text-[10px] uppercase text-slate-500 tracking-wide mb-1">@L["Toolbox.Insert"]</div>
             <template x-for="tool in tools" :key="tool.kind">
                 <button type="button"
                         class="toolbox-item w-20 h-12 rounded border border-slate-300 bg-white hover:border-sky-500 hover:bg-sky-50 flex flex-col items-center justify-center gap-1 text-[10px] text-slate-700 select-none touch-none"
                         :class="creating?.kind === tool.kind ? 'border-sky-600 bg-sky-100' : ''"
-                        :title="'Arrastra a una banda para insertar: ' + tool.label"
+                        :title="t('Toolbox.DragTitle', { tool: tool.label })"
                         @@pointerdown.prevent="onToolPointerDown($event, tool.kind)">
                     <span x-text="tool.icon" class="text-lg leading-none"></span>
                     <span x-text="tool.label"></span>
                 </button>
             </template>
             <div class="mt-1 text-[10px] text-slate-400 text-center leading-tight px-1">
-                Arrastra a una banda
+                @L["Toolbox.DragHint"]
             </div>
 
             <!-- Panel de bandas -->
             <div class="mt-3 w-full border-t border-slate-300 pt-3 px-2">
-                <div class="text-[10px] uppercase text-slate-500 tracking-wide mb-2 text-center">Bandas</div>
+                <div class="text-[10px] uppercase text-slate-500 tracking-wide mb-2 text-center">@L["Band.Panel"]</div>
                 <template x-for="(b, idx) in bands" :key="b.index">
                     <div class="flex items-center gap-0.5 mb-1 rounded px-0.5 py-0.5"
                          :class="hoveredBand?.index === b.index ? 'bg-sky-100' : ''"
@@ -338,33 +350,33 @@
                                 :disabled="idx === 0"
                                 :class="idx === 0 ? 'opacity-20 cursor-not-allowed' : 'hover:text-slate-900'"
                                 class="text-[10px] text-slate-500 px-0.5"
-                                title="Subir">▲</button>
+                                title="@L["Band.MoveUp"]">▲</button>
                         <button type="button"
                                 @@click="moveBandDown(b.index)"
                                 :disabled="idx === bands.length - 1"
                                 :class="idx === bands.length - 1 ? 'opacity-20 cursor-not-allowed' : 'hover:text-slate-900'"
                                 class="text-[10px] text-slate-500 px-0.5"
-                                title="Bajar">▼</button>
+                                title="@L["Band.MoveDown"]">▼</button>
                         <button type="button"
                                 @@click="deleteBand(b.index)"
                                 class="text-[10px] text-red-500 hover:text-red-700 px-0.5"
-                                title="Eliminar banda">✕</button>
+                                title="@L["Band.Delete"]">✕</button>
                     </div>
                 </template>
 
                 <div class="mt-2">
                     <select x-model="newBandKind"
                             class="w-full text-[11px] border border-slate-300 rounded py-0.5 px-1 mb-1 bg-white">
-                        <option value="ReportHeader">Encabezado de reporte</option>
-                        <option value="PageHeader">Encabezado de página</option>
-                        <option value="Detail">Detalle</option>
-                        <option value="PageFooter">Pie de página</option>
-                        <option value="ReportFooter">Pie de reporte</option>
+                        <option value="ReportHeader">@L["Band.ReportHeader"]</option>
+                        <option value="PageHeader">@L["Band.PageHeader"]</option>
+                        <option value="Detail">@L["Band.Detail"]</option>
+                        <option value="PageFooter">@L["Band.PageFooter"]</option>
+                        <option value="ReportFooter">@L["Band.ReportFooter"]</option>
                     </select>
                     <button type="button"
                             @@click="addBand()"
                             class="w-full text-[11px] bg-sky-600 text-white rounded px-1.5 py-1 hover:bg-sky-700">
-                        + Banda
+                        @L["Band.Add"]
                     </button>
                 </div>
             </div>
@@ -376,58 +388,58 @@
         <section class="flex-1 min-w-0 flex flex-col bg-slate-200 relative">
             <div class="flex items-center justify-between px-4 py-2 border-b border-slate-300 bg-slate-100 text-sm">
                 <div class="flex items-center gap-3">
-                    <span class="font-medium text-slate-700">Vista previa</span>
+                    <span class="font-medium text-slate-700">@L["Preview.Title"]</span>
                     <div class="flex items-center gap-1 text-xs">
                         <button type="button"
                                 @@click="zoomOut()"
-                                title="Alejar (Ctrl/Cmd + -)"
+                                title="@L["Preview.ZoomOut"]"
                                 class="w-6 h-6 flex items-center justify-center border border-slate-300 rounded bg-white text-slate-700 hover:bg-sky-50 hover:border-sky-500 leading-none">−</button>
                         <span class="w-12 text-center font-mono text-slate-700"
                               x-text="Math.round(zoom * 100) + '%'"></span>
                         <button type="button"
                                 @@click="zoomIn()"
-                                title="Acercar (Ctrl/Cmd + +)"
+                                title="@L["Preview.ZoomIn"]"
                                 class="w-6 h-6 flex items-center justify-center border border-slate-300 rounded bg-white text-slate-700 hover:bg-sky-50 hover:border-sky-500 leading-none">+</button>
                         <button type="button"
                                 @@click="zoomReset()"
-                                title="100% (Ctrl/Cmd + 0)"
+                                title="@L["Preview.Zoom100"]"
                                 class="px-1.5 h-6 flex items-center border border-slate-300 rounded bg-white text-slate-700 hover:bg-sky-50 hover:border-sky-500 leading-none">1:1</button>
                         <button type="button"
                                 @@click="zoomFitWidth()"
-                                title="Ajustar al ancho"
+                                title="@L["Preview.FitWidth"]"
                                 class="w-6 h-6 flex items-center justify-center border border-slate-300 rounded bg-white text-slate-700 hover:bg-sky-50 hover:border-sky-500 leading-none">↔</button>
                         <button type="button"
                                 @@click="zoomFitPage()"
-                                title="Página completa"
+                                title="@L["Preview.FitPage"]"
                                 class="w-6 h-6 flex items-center justify-center border border-slate-300 rounded bg-white text-slate-700 hover:bg-sky-50 hover:border-sky-500 leading-none">⤢</button>
                     </div>
                     <div class="flex items-center gap-1 text-xs" x-show="pageCount > 0" x-cloak>
                         <span class="w-px h-5 bg-slate-300 mx-1"></span>
                         <button type="button" @@click="goToPage(currentPage - 1)" :disabled="currentPage <= 1"
-                                title="Página anterior (PgUp)"
+                                title="@L["Preview.PrevPage"]"
                                 class="w-6 h-6 flex items-center justify-center border border-slate-300 rounded bg-white text-slate-700 hover:bg-sky-50 hover:border-sky-500 disabled:opacity-40 disabled:hover:bg-white">‹</button>
                         <input type="text" inputmode="numeric"
                                :value="currentPage"
                                @@change="goToPage(parseInt($event.target.value, 10)); $event.target.value = currentPage"
                                @@keydown.enter="$event.target.blur()"
                                @@focus="$event.target.select()"
-                               aria-label="Página"
+                               aria-label="@L["Preview.Page"]"
                                class="w-9 h-6 text-center border border-slate-300 rounded bg-white font-mono text-slate-700">
-                        <span class="text-slate-500 whitespace-nowrap" x-text="'de ' + pageCount"></span>
+                        <span class="text-slate-500 whitespace-nowrap" x-text="t('Preview.Of') + ' ' + pageCount"></span>
                         <button type="button" @@click="goToPage(currentPage + 1)" :disabled="currentPage >= pageCount"
-                                title="Página siguiente (PgDn)"
+                                title="@L["Preview.NextPage"]"
                                 class="w-6 h-6 flex items-center justify-center border border-slate-300 rounded bg-white text-slate-700 hover:bg-sky-50 hover:border-sky-500 disabled:opacity-40 disabled:hover:bg-white">›</button>
                     </div>
                     <span class="w-px h-5 bg-slate-300"></span>
                     <div class="flex items-center gap-1 text-xs">
                         <button type="button" @@click="toggleRulers()"
                                 :class="showRulers ? 'bg-slate-700 text-white border-slate-700' : 'bg-white text-slate-700 border-slate-300 hover:bg-sky-50 hover:border-sky-500'"
-                                title="Reglas (R)" class="px-1.5 h-6 border rounded leading-none">📏</button>
+                                title="@L["Preview.Rulers"]" class="px-1.5 h-6 border rounded leading-none">📏</button>
                         <button type="button" @@click="toggleGrid()"
                                 :class="showGrid ? 'bg-slate-700 text-white border-slate-700' : 'bg-white text-slate-700 border-slate-300 hover:bg-sky-50 hover:border-sky-500'"
-                                title="Cuadrícula (G) — Shift al arrastrar ajusta a ella" class="px-1.5 h-6 border rounded leading-none font-mono">#</button>
+                                title="@L["Preview.Grid"]" class="px-1.5 h-6 border rounded leading-none font-mono">#</button>
                         <select x-model.number="gridStep" @@change="applyGridToDom(); persistGuides()"
-                                title="Paso de la cuadrícula y del ajuste con Shift"
+                                title="@L["Preview.GridStep"]"
                                 class="h-6 border border-slate-300 rounded bg-white text-slate-700 text-xs px-1">
                             <option value="5">5 pt</option>
                             <option value="10">10 pt</option>
@@ -436,21 +448,21 @@
                         </select>
                         <button type="button" @@click="smartGuides = !smartGuides; persistGuides()"
                                 :class="smartGuides ? 'bg-slate-700 text-white border-slate-700' : 'bg-white text-slate-700 border-slate-300 hover:bg-sky-50 hover:border-sky-500'"
-                                title="Guías inteligentes al arrastrar (Alt las desactiva momentáneamente)"
+                                title="@L["Preview.SmartGuides"]"
                                 class="px-1.5 h-6 border rounded leading-none">⌖</button>
                     </div>
                     <span class="w-px h-5 bg-slate-300"></span>
                     <button type="button" @@click="toggleCleanView()"
                             :class="cleanView ? 'bg-sky-600 text-white border-sky-600 hover:bg-sky-700' : 'bg-white text-slate-700 border-slate-300 hover:bg-sky-50 hover:border-sky-500'"
-                            title="Vista limpia: oculta los marcos de edición para ver el reporte tal cual (V)"
-                            class="px-2 h-6 flex items-center gap-1 border rounded text-xs leading-none">👁 <span class="hidden lg:inline">Vista limpia</span></button>
+                            title="@L["Preview.CleanViewTitle"]"
+                            class="px-2 h-6 flex items-center gap-1 border rounded text-xs leading-none">👁 <span class="hidden lg:inline">@L["Preview.CleanView"]</span></button>
                 </div>
                 <span id="preview-loader" class="htmx-indicator text-xs text-sky-700 flex items-center gap-1">
                     <svg class="animate-spin w-3 h-3" viewBox="0 0 24 24" fill="none">
                         <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" stroke-opacity="0.25"/>
                         <path fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
                     </svg>
-                    <span x-text="busyLabel">Renderizando…</span>
+                    <span x-text="busyLabel">@L["Preview.Rendering"]</span>
                 </span>
             </div>
 
@@ -458,7 +470,7 @@
                  :style="showRulers ? 'grid-template-columns: 22px minmax(0, 1fr); grid-template-rows: 22px minmax(0, 1fr)' : 'grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr)'">
                 <button type="button" x-show="showRulers" @@click="cycleRulerUnit()"
                         class="bg-slate-100 border-r border-b border-slate-300 text-[9px] text-slate-500 hover:text-slate-900 font-mono"
-                        title="Unidad de las reglas (clic para cambiar). El 0 es el origen del contenido (márgenes)."
+                        title="@L["Preview.RulerUnit"]"
                         x-text="rulerUnit"></button>
                 <canvas id="ruler-x" x-show="showRulers" class="block w-full h-[22px] bg-slate-100 border-b border-slate-300"></canvas>
                 <canvas id="ruler-y" x-show="showRulers" class="block h-full w-[22px] bg-slate-100 border-r border-slate-300"></canvas>
@@ -470,7 +482,7 @@
                  @@pointermove="onPreviewHover($event)"
                  @@pointerleave="rulerCursor = null; drawRulers()"
                  @@pointerdown="onOverlayPointerDown($event)">
-                <p class="text-sm text-slate-500 text-center mt-8">Cargando preview…</p>
+                <p class="text-sm text-slate-500 text-center mt-8">@L["Preview.Loading"]</p>
             </div>
             </div>
 
@@ -483,16 +495,16 @@
                    class="absolute top-12 right-4 w-72 bg-white rounded-lg shadow-lg border border-slate-200 text-sm flex flex-col"
                    style="max-height: calc(100vh - 6rem);">
                 <header class="flex items-center justify-between px-3 py-2 bg-slate-50 border-b border-slate-200 shrink-0 rounded-t-lg">
-                    <div class="font-semibold text-slate-800" x-text="isMulti ? 'Selección múltiple' : 'Propiedades'"></div>
+                    <div class="font-semibold text-slate-800" x-text="isMulti ? t('Drawer.MultiTitle') : t('Drawer.Title')"></div>
                     <div class="flex items-center gap-1">
                         <button type="button"
                                 @@click="deleteSelection()"
                                 class="text-red-500 hover:text-red-700 text-base leading-none"
-                                title="Eliminar (Del)">🗑</button>
+                                title="@L["Drawer.DeleteTitle"]">🗑</button>
                         <button type="button"
                                 @@click="clearSelection()"
                                 class="text-slate-400 hover:text-slate-700"
-                                title="Cerrar">✕</button>
+                                title="@L["Drawer.Close"]">✕</button>
                     </div>
                 </header>
 
@@ -507,22 +519,22 @@
                         </template>
                     </ul>
                     <fieldset class="border border-slate-200 rounded p-2">
-                        <legend class="text-[10px] uppercase text-slate-500 px-1">Alinear</legend>
+                        <legend class="text-[10px] uppercase text-slate-500 px-1">@L["Align.Legend"]</legend>
                         <div class="grid grid-cols-3 gap-1 text-[11px]">
-                            <button type="button" @@click="alignSelection('left')"    class="border border-slate-300 rounded py-1 hover:bg-sky-50" title="Alinear a la izquierda">⇤ Izq.</button>
-                            <button type="button" @@click="alignSelection('hcenter')" class="border border-slate-300 rounded py-1 hover:bg-sky-50" title="Centrar horizontalmente">↔ Centro</button>
-                            <button type="button" @@click="alignSelection('right')"   class="border border-slate-300 rounded py-1 hover:bg-sky-50" title="Alinear a la derecha">⇥ Der.</button>
-                            <button type="button" @@click="alignSelection('top')"     class="border border-slate-300 rounded py-1 hover:bg-sky-50" title="Alinear arriba">⤒ Arriba</button>
-                            <button type="button" @@click="alignSelection('vmiddle')" class="border border-slate-300 rounded py-1 hover:bg-sky-50" title="Centrar verticalmente">↕ Medio</button>
-                            <button type="button" @@click="alignSelection('bottom')"  class="border border-slate-300 rounded py-1 hover:bg-sky-50" title="Alinear abajo">⤓ Abajo</button>
+                            <button type="button" @@click="alignSelection('left')"    class="border border-slate-300 rounded py-1 hover:bg-sky-50" title="@L["Align.LeftTitle"]">@L["Align.Left"]</button>
+                            <button type="button" @@click="alignSelection('hcenter')" class="border border-slate-300 rounded py-1 hover:bg-sky-50" title="@L["Align.HCenterTitle"]">@L["Align.HCenter"]</button>
+                            <button type="button" @@click="alignSelection('right')"   class="border border-slate-300 rounded py-1 hover:bg-sky-50" title="@L["Align.RightTitle"]">@L["Align.Right"]</button>
+                            <button type="button" @@click="alignSelection('top')"     class="border border-slate-300 rounded py-1 hover:bg-sky-50" title="@L["Align.TopTitle"]">@L["Align.Top"]</button>
+                            <button type="button" @@click="alignSelection('vmiddle')" class="border border-slate-300 rounded py-1 hover:bg-sky-50" title="@L["Align.VMiddleTitle"]">@L["Align.VMiddle"]</button>
+                            <button type="button" @@click="alignSelection('bottom')"  class="border border-slate-300 rounded py-1 hover:bg-sky-50" title="@L["Align.BottomTitle"]">@L["Align.Bottom"]</button>
                         </div>
                     </fieldset>
                     <div class="grid grid-cols-3 gap-1 text-[11px]">
-                        <button type="button" @@click="copySelection()"      class="border border-slate-300 rounded py-1 hover:bg-sky-50" title="Ctrl/Cmd+C">📋 Copiar</button>
-                        <button type="button" @@click="duplicateSelection()" class="border border-slate-300 rounded py-1 hover:bg-sky-50" title="Ctrl/Cmd+D">⧉ Duplicar</button>
-                        <button type="button" @@click="deleteSelection()"    class="border border-red-300 text-red-600 rounded py-1 hover:bg-red-50" title="Del">🗑 Borrar</button>
+                        <button type="button" @@click="copySelection()"      class="border border-slate-300 rounded py-1 hover:bg-sky-50" title="Ctrl/Cmd+C">@L["Multi.Copy"]</button>
+                        <button type="button" @@click="duplicateSelection()" class="border border-slate-300 rounded py-1 hover:bg-sky-50" title="Ctrl/Cmd+D">@L["Multi.Duplicate"]</button>
+                        <button type="button" @@click="deleteSelection()"    class="border border-red-300 text-red-600 rounded py-1 hover:bg-red-50" title="Del">@L["Multi.Delete"]</button>
                     </div>
-                    <p class="text-[10px] text-slate-400">Arrastra cualquiera para mover el grupo · flechas para nudge · Shift+clic para quitar/agregar.</p>
+                    <p class="text-[10px] text-slate-400">@L["Multi.Hint"]</p>
                 </div>
 
                 <div class="p-3 space-y-3 overflow-y-auto flex-1" x-show="selected && !isMulti">
@@ -534,7 +546,7 @@
 
                     <!-- Bounds -->
                     <fieldset class="border border-slate-200 rounded p-2">
-                        <legend class="text-[10px] uppercase text-slate-500 px-1">Posición y tamaño (pt)</legend>
+                        <legend class="text-[10px] uppercase text-slate-500 px-1">@L["Props.Bounds"]</legend>
                         <div class="grid grid-cols-2 gap-2">
                             <label class="flex flex-col text-[11px] text-slate-600">
                                 X
@@ -551,14 +563,14 @@
                                        class="mt-0.5 border border-slate-300 rounded px-2 py-1 text-sm text-slate-900">
                             </label>
                             <label class="flex flex-col text-[11px] text-slate-600">
-                                Ancho
+                                @L["Props.Width"]
                                 <input type="number" step="0.5"
                                        x-model.number="form.width"
                                        @@input.debounce.400ms="applyPatch({Width: form.width})"
                                        class="mt-0.5 border border-slate-300 rounded px-2 py-1 text-sm text-slate-900">
                             </label>
                             <label class="flex flex-col text-[11px] text-slate-600">
-                                Alto
+                                @L["Props.Height"]
                                 <input type="number" step="0.5"
                                        x-model.number="form.height"
                                        @@input.debounce.400ms="applyPatch({Height: form.height})"
@@ -569,7 +581,7 @@
 
                     <!-- Visibilidad condicional (todos los kinds) -->
                     <label class="flex flex-col text-[11px] text-slate-600">
-                        Visible si… <span class="text-[10px] text-slate-400">(expresión; vacío = siempre)</span>
+                        @L["Props.VisibleIf"] <span class="text-[10px] text-slate-400">@L["Props.VisibleHint"]</span>
                         <input type="text" x-model="form.visible"
                                @@change="applyPatch({Visible: form.visible || ' '})"
                                placeholder="$.descuento > 0"
@@ -579,7 +591,7 @@
                     <!-- Estilo (text + rectangle + chart) -->
                     <label x-show="['text', 'rectangle', 'chart'].includes(selected?.kind)"
                            class="flex flex-col text-[11px] text-slate-600">
-                        Estilo
+                        @L["Props.Style"]
                         <input type="text" list="style-names"
                                x-model="form.style"
                                @@input.debounce.400ms="applyPatch({Style: form.style})"
@@ -590,15 +602,13 @@
                     <!-- Contenido (text) -->
                     <label x-show="selected?.kind === 'text'"
                            class="flex flex-col text-[11px] text-slate-600">
-                        Contenido
+                        @L["Props.Content"]
                         <textarea rows="3"
                                   x-model="form.content"
                                   @@input.debounce.400ms="applyPatch({Content: form.content})"
                                   class="mt-0.5 border border-slate-300 rounded px-2 py-1 text-sm text-slate-900 font-mono"></textarea>
                         <span class="text-[10px] text-slate-400 mt-0.5">
-                            Soporta <code>{{ $.path }}</code>, <code>{{ pageNumber }}</code> y expresiones:
-                            <code>{{ $.total * 1.15 : N2 }}</code>, <code>{{ upper($.nombre) }}</code>,
-                            <code>{{ $.saldo == 0 ? 'PAGADO' : 'PENDIENTE' }}</code>.
+                            @Html.Raw(L["Props.ContentHint"].Value)
                         </span>
                     </label>
 
@@ -606,14 +616,14 @@
                     <template x-if="selected?.kind === 'line'">
                         <div class="grid grid-cols-2 gap-2">
                             <label class="flex flex-col text-[11px] text-slate-600">
-                                Color
+                                @L["Props.Color"]
                                 <input type="color"
                                        x-model="form.color"
                                        @@input.debounce.400ms="applyPatch({Color: form.color})"
                                        class="mt-0.5 border border-slate-300 rounded h-8">
                             </label>
                             <label class="flex flex-col text-[11px] text-slate-600">
-                                Grosor
+                                @L["Props.Thickness"]
                                 <input type="number" step="0.1" min="0.1"
                                        x-model.number="form.thickness"
                                        @@input.debounce.400ms="applyPatch({Thickness: form.thickness})"
@@ -625,14 +635,14 @@
                     <!-- Rectángulo: fill + esquinas -->
                     <div x-show="selected?.kind === 'rectangle'" class="grid grid-cols-2 gap-2">
                         <label class="flex flex-col text-[11px] text-slate-600">
-                            Relleno
+                            @L["Props.Fill"]
                             <input type="color"
                                    x-model="form.fill"
                                    @@input.debounce.400ms="applyPatch({Fill: form.fill})"
                                    class="mt-0.5 border border-slate-300 rounded h-8">
                         </label>
                         <label class="flex flex-col text-[11px] text-slate-600">
-                            Radio esquinas
+                            @L["Props.CornerRadius"]
                             <input type="number" step="1" min="0"
                                    x-model.number="form.cornerRadius"
                                    @@input.debounce.400ms="applyPatch({CornerRadius: form.cornerRadius || 0})"
@@ -646,28 +656,28 @@
                             <div class="flex items-center gap-2">
                                 <button type="button" @@click="document.getElementById('image-upload').click()"
                                         class="flex-1 text-[11px] bg-sky-600 text-white rounded px-2 py-1.5 hover:bg-sky-700">
-                                    🖼 Elegir imagen…
+                                    @L["Image.Choose"]
                                 </button>
                                 <input type="file" id="image-upload" accept="image/png,image/jpeg,image/gif,image/webp"
                                        class="hidden" @@change="onImageFileChosen($event)">
                             </div>
                             <p class="text-[10px] text-slate-500" x-show="form.source === 'data:'">
-                                Imagen embebida en el template (data URI). También puedes usar un path o un template:
+                                @L["Image.Embedded"]
                             </p>
                             <label class="flex flex-col text-[11px] text-slate-600">
-                                Origen (ruta o plantilla)
+                                @L["Image.Source"]
                                 <input type="text" list="json-template-paths"
                                        :value="form.source === 'data:' ? '' : form.source"
                                        @@change="form.source = $event.target.value; applyPatch({Source: form.source})"
-                                       placeholder="logo.png o {{ $.logo }}"
+                                       placeholder="@L["Image.SourcePlaceholder"]"
                                        class="mt-0.5 border border-slate-300 rounded px-2 py-1 text-sm font-mono">
                             </label>
                             <label class="flex flex-col text-[11px] text-slate-600">
-                                Ajuste
+                                @L["Image.Fit"]
                                 <select x-model="form.fit" @@change="applyPatch({Fit: form.fit})"
                                         class="mt-0.5 border border-slate-300 rounded px-2 py-1 text-sm bg-white">
-                                    <option value="contain">contain (mantener proporción)</option>
-                                    <option value="fill">fill (estirar)</option>
+                                    <option value="contain">@L["Image.FitContain"]</option>
+                                    <option value="fill">@L["Image.FitFill"]</option>
                                 </select>
                             </label>
                         </div>
@@ -677,17 +687,17 @@
                     <template x-if="selected?.kind === 'barcode'">
                         <div class="space-y-2">
                             <label class="flex flex-col text-[11px] text-slate-600">
-                                Formato
+                                @L["Barcode.Format"]
                                 <select x-model="form.barcodeFormat" @@change="applyPatch({BarcodeFormat: form.barcodeFormat})"
                                         class="mt-0.5 border border-slate-300 rounded px-2 py-1 text-sm bg-white">
                                     <option value="qr">QR</option>
                                     <option value="code128">Code 128</option>
                                     <option value="code39">Code 39</option>
-                                    <option value="ean13">EAN-13 (12–13 dígitos)</option>
+                                    <option value="ean13">@L["Barcode.Ean13"]</option>
                                 </select>
                             </label>
                             <label class="flex flex-col text-[11px] text-slate-600">
-                                Valor (texto o template)
+                                @L["Barcode.Value"]
                                 <input type="text" list="json-template-paths"
                                        x-model="form.value"
                                        @@input.debounce.500ms="applyPatch({Value: form.value})"
@@ -695,13 +705,13 @@
                             </label>
                             <div class="grid grid-cols-2 gap-2">
                                 <label class="flex flex-col text-[11px] text-slate-600">
-                                    Color
+                                    @L["Props.Color"]
                                     <input type="color" x-model="form.barcodeForeground"
                                            @@input.debounce.400ms="applyPatch({BarcodeForeground: form.barcodeForeground})"
                                            class="mt-0.5 border border-slate-300 rounded h-8">
                                 </label>
                                 <label class="flex flex-col text-[11px] text-slate-600">
-                                    Fondo
+                                    @L["Barcode.Background"]
                                     <input type="color" x-model="form.barcodeBackground"
                                            @@input.debounce.400ms="applyPatch({BarcodeBackground: form.barcodeBackground})"
                                            class="mt-0.5 border border-slate-300 rounded h-8">
@@ -715,54 +725,54 @@
                         <div class="space-y-2">
                             <div class="grid grid-cols-2 gap-2">
                                 <label class="flex flex-col text-[11px] text-slate-600">
-                                    Tipo
+                                    @L["Chart.Type"]
                                     <select x-model="form.chartType" @@change="applyPatch({ChartType: form.chartType})"
                                             class="mt-0.5 border border-slate-300 rounded px-2 py-1 text-sm bg-white">
-                                        <option value="bar">Barras</option>
-                                        <option value="horizontalBar">Barras horiz.</option>
-                                        <option value="line">Líneas</option>
-                                        <option value="area">Área</option>
-                                        <option value="pie">Pastel</option>
-                                        <option value="donut">Dona</option>
+                                        <option value="bar">@L["Chart.Bar"]</option>
+                                        <option value="horizontalBar">@L["Chart.HBar"]</option>
+                                        <option value="line">@L["Chart.Line"]</option>
+                                        <option value="area">@L["Chart.Area"]</option>
+                                        <option value="pie">@L["Chart.Pie"]</option>
+                                        <option value="donut">@L["Chart.Donut"]</option>
                                     </select>
                                 </label>
                                 <label class="flex flex-col text-[11px] text-slate-600">
-                                    Leyenda
+                                    @L["Chart.Legend"]
                                     <select x-model="form.legend" @@change="applyPatch({Legend: form.legend || 'auto'})"
                                             class="mt-0.5 border border-slate-300 rounded px-2 py-1 text-sm bg-white">
-                                        <option value="">auto</option>
-                                        <option value="none">ninguna</option>
-                                        <option value="top">arriba</option>
-                                        <option value="bottom">abajo</option>
-                                        <option value="right">derecha</option>
+                                        <option value="">@L["Chart.LegendAuto"]</option>
+                                        <option value="none">@L["Chart.LegendNone"]</option>
+                                        <option value="top">@L["Chart.LegendTop"]</option>
+                                        <option value="bottom">@L["Chart.LegendBottom"]</option>
+                                        <option value="right">@L["Chart.LegendRight"]</option>
                                     </select>
                                 </label>
                             </div>
                             <label class="flex flex-col text-[11px] text-slate-600">
-                                Título
+                                @L["Chart.Title"]
                                 <input type="text" x-model="form.title"
                                        @@input.debounce.500ms="applyPatch({Title: form.title || ' '})"
                                        class="mt-0.5 border border-slate-300 rounded px-2 py-1 text-sm">
                             </label>
                             <label class="flex flex-col text-[11px] text-slate-600">
-                                Filas (JSON Path al array)
+                                @L["Chart.Rows"]
                                 <input type="text" list="json-array-paths" x-model="form.rows"
                                        @@change="refreshRowPaths(form.rows); applyPatch({Rows: form.rows})"
                                        class="mt-0.5 border border-slate-300 rounded px-2 py-1 text-sm font-mono">
                             </label>
                             <label class="flex flex-col text-[11px] text-slate-600">
-                                Categoría (por fila)
+                                @L["Chart.Category"]
                                 <input type="text" list="json-row-paths" x-model="form.category"
                                        @@change="applyPatch({Category: form.category})"
                                        class="mt-0.5 border border-slate-300 rounded px-2 py-1 text-sm font-mono">
                             </label>
                             <div class="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-slate-600">
-                                <label class="flex items-center gap-1"><input type="checkbox" x-model="form.showValues" @@change="applyPatch({ShowValues: form.showValues})"> valores</label>
+                                <label class="flex items-center gap-1"><input type="checkbox" x-model="form.showValues" @@change="applyPatch({ShowValues: form.showValues})"> @L["Chart.ShowValues"]</label>
                                 <label class="flex items-center gap-1"><input type="checkbox" x-model="form.showPercent" @@change="applyPatch({ShowPercent: form.showPercent})"> %</label>
-                                <label class="flex items-center gap-1"><input type="checkbox" x-model="form.stacked" @@change="applyPatch({Stacked: form.stacked})"> apilado</label>
+                                <label class="flex items-center gap-1"><input type="checkbox" x-model="form.stacked" @@change="applyPatch({Stacked: form.stacked})"> @L["Chart.Stacked"]</label>
                             </div>
                             <label class="flex flex-col text-[11px] text-slate-600">
-                                Formato de valores
+                                @L["Chart.ValueFormat"]
                                 <input type="text" x-model="form.valueFormat" placeholder="N0, C0, 0.0"
                                        @@input.debounce.500ms="applyPatch({ValueFormat: form.valueFormat || ' '})"
                                        class="mt-0.5 border border-slate-300 rounded px-2 py-1 text-sm">
@@ -770,23 +780,23 @@
                             <div class="border border-slate-200 rounded p-1.5 space-y-1.5">
                                 <div class="flex items-center justify-between">
                                     <span class="text-[10px] uppercase text-slate-500 tracking-wide">
-                                        Series (<span x-text="form.series.length"></span>)
+                                        @L["Chart.Series"] (<span x-text="form.series.length"></span>)
                                     </span>
                                     <button type="button" @@click="addSeries()"
-                                            class="text-[10px] bg-sky-600 text-white rounded px-2 py-0.5 hover:bg-sky-700">+ serie</button>
+                                            class="text-[10px] bg-sky-600 text-white rounded px-2 py-0.5 hover:bg-sky-700">@L["Chart.AddSeries"]</button>
                                 </div>
                                 <template x-for="(se, idx) in form.series" :key="idx">
                                     <div class="border border-slate-200 rounded bg-slate-50 p-1 space-y-1">
                                         <div class="flex items-center gap-1">
                                             <input type="color" x-model="se.color" @@change="flushSeries()"
-                                                   class="w-6 h-6 border border-slate-300 rounded shrink-0" title="Color">
-                                            <input type="text" x-model="se.name" placeholder="Nombre"
+                                                   class="w-6 h-6 border border-slate-300 rounded shrink-0" title="@L["Props.Color"]">
+                                            <input type="text" x-model="se.name" placeholder="@L["Chart.SeriesName"]"
                                                    @@input.debounce.500ms="flushSeries()"
                                                    class="flex-1 min-w-0 border border-slate-300 rounded px-1 py-0.5 text-[11px] bg-white">
                                             <button type="button" @@click="removeSeries(idx)" :disabled="form.series.length === 1"
                                                     class="text-[10px] text-red-500 hover:text-red-700 px-0.5 disabled:opacity-30">✕</button>
                                         </div>
-                                        <input type="text" list="json-row-paths" x-model="se.value" placeholder="$.total o = $.a * $.b"
+                                        <input type="text" list="json-row-paths" x-model="se.value" placeholder="@L["Chart.SeriesValuePlaceholder"]"
                                                @@change="flushSeries()"
                                                class="w-full border border-slate-300 rounded px-1 py-0.5 text-[11px] font-mono bg-white">
                                     </div>
@@ -799,7 +809,7 @@
                     <template x-if="selected?.kind === 'table'">
                         <div class="space-y-2">
                             <label class="flex flex-col text-[11px] text-slate-600">
-                                Filas (JSON Path al array)
+                                @L["Chart.Rows"]
                                 <input type="text" list="json-array-paths"
                                        x-model="form.rows"
                                        @@input.debounce.400ms="refreshRowPaths(form.rows); applyPatch({Rows: form.rows})"
@@ -809,14 +819,14 @@
 
                             <div class="grid grid-cols-2 gap-2">
                                 <label class="flex flex-col text-[11px] text-slate-600">
-                                    Alto encabezado
+                                    @L["Table.HeaderHeight"]
                                     <input type="number" step="1" min="1"
                                            x-model.number="form.headerHeight"
                                            @@input.debounce.400ms="applyPatch({HeaderHeight: form.headerHeight})"
                                            class="mt-0.5 border border-slate-300 rounded px-2 py-1 text-sm">
                                 </label>
                                 <label class="flex flex-col text-[11px] text-slate-600">
-                                    Alto de fila
+                                    @L["Table.RowHeight"]
                                     <input type="number" step="1" min="1"
                                            x-model.number="form.rowHeight"
                                            @@input.debounce.400ms="applyPatch({RowHeight: form.rowHeight})"
@@ -825,17 +835,17 @@
                             </div>
 
                             <label class="flex flex-col text-[11px] text-slate-600">
-                                Encabezado
+                                @L["Table.Header"]
                                 <select x-model="form.headerMode"
                                         @@change="applyPatch({HeaderMode: form.headerMode})"
                                         class="mt-0.5 border border-slate-300 rounded px-2 py-1 text-sm bg-white">
-                                    <option value="RepeatOnPageBreak">Repetir en cada página</option>
-                                    <option value="PrintOnce">Solo la primera vez</option>
+                                    <option value="RepeatOnPageBreak">@L["Table.RepeatHeader"]</option>
+                                    <option value="PrintOnce">@L["Table.PrintOnce"]</option>
                                 </select>
                             </label>
 
                             <label class="flex flex-col text-[11px] text-slate-600">
-                                Estilo del encabezado
+                                @L["Table.HeaderStyle"]
                                 <input type="text" list="style-names"
                                        x-model="form.headerStyle"
                                        @@input.debounce.400ms="applyPatch({HeaderStyle: form.headerStyle})"
@@ -844,7 +854,7 @@
                             </label>
 
                             <label class="flex flex-col text-[11px] text-slate-600">
-                                Estilo de fila
+                                @L["Table.RowStyle"]
                                 <input type="text" list="style-names"
                                        x-model="form.rowStyle"
                                        @@input.debounce.400ms="applyPatch({RowStyle: form.rowStyle})"
@@ -853,7 +863,7 @@
                             </label>
 
                             <label class="flex flex-col text-[11px] text-slate-600">
-                                Estilo de fila alterna (opcional)
+                                @L["Table.AltRowStyle"]
                                 <input type="text" list="style-names"
                                        x-model="form.alternateRowStyle"
                                        @@input.debounce.400ms="applyPatch({AlternateRowStyle: form.alternateRowStyle})"
@@ -865,12 +875,12 @@
                             <div class="border border-slate-200 rounded p-1.5 space-y-1.5">
                                 <div class="flex items-center justify-between">
                                     <span class="text-[10px] uppercase text-slate-500 tracking-wide">
-                                        Columnas (<span x-text="form.columns.length"></span>)
+                                        @L["Table.Columns"] (<span x-text="form.columns.length"></span>)
                                     </span>
                                     <button type="button"
                                             @@click="addColumn()"
                                             class="text-[10px] bg-sky-600 text-white rounded px-2 py-0.5 hover:bg-sky-700">
-                                        + columna
+                                        @L["Table.AddColumn"]
                                     </button>
                                 </div>
                                 <template x-for="(col, idx) in form.columns" :key="idx">
@@ -880,16 +890,16 @@
                                             <button type="button"
                                                     @@click="col.expanded = !col.expanded"
                                                     class="text-[10px] text-slate-500 hover:text-slate-900 w-3 text-center shrink-0"
-                                                    :title="col.expanded ? 'Contraer' : 'Expandir'"
+                                                    :title="col.expanded ? t('Table.Collapse') : t('Table.Expand')"
                                                     x-text="col.expanded ? '▼' : '▶'"></button>
                                             <input type="text" x-model="col.header"
                                                    @@input.debounce.400ms="flushColumns()"
-                                                   placeholder="Encabezado"
+                                                   placeholder="@L["Table.HeaderPlaceholder"]"
                                                    class="flex-1 border border-slate-300 rounded px-1 py-0.5 text-[11px] bg-white min-w-0">
                                             <input type="number" step="1" min="1"
                                                    x-model.number="col.width"
                                                    @@input.debounce.400ms="flushColumns()"
-                                                   title="Ancho (pt)"
+                                                   title="@L["Table.WidthTitle"]"
                                                    class="w-10 border border-slate-300 rounded px-1 py-0.5 text-[11px] bg-white shrink-0">
                                             <button type="button" @@click="moveColumn(idx, -1)"
                                                     :disabled="idx === 0"
@@ -904,28 +914,28 @@
                                         </div>
                                         <!-- Detalles solo cuando expandida -->
                                         <div x-show="col.expanded" x-cloak class="px-1 pb-1 space-y-0.5 border-t border-slate-200 pt-1">
-                                            <label class="block text-[9px] uppercase text-slate-500 tracking-wide">Valor (binding)</label>
+                                            <label class="block text-[9px] uppercase text-slate-500 tracking-wide">@L["Table.Binding"]</label>
                                             <input type="text" x-model="col.binding" list="json-row-paths"
                                                    @@input.debounce.400ms="flushColumns()"
-                                                   placeholder="$.campo o = $.a * $.b"
+                                                   placeholder="@L["Table.BindingPlaceholder"]"
                                                    class="w-full border border-slate-300 rounded px-1 py-0.5 text-[11px] font-mono bg-white">
                                             <div class="grid grid-cols-2 gap-0.5 mt-1">
                                                 <div>
-                                                    <label class="block text-[9px] uppercase text-slate-500 tracking-wide">Formato</label>
+                                                    <label class="block text-[9px] uppercase text-slate-500 tracking-wide">@L["Table.Format"]</label>
                                                     <input type="text" x-model="col.format"
                                                            @@input.debounce.400ms="flushColumns()"
                                                            placeholder="N2, dd/MM/yyyy"
                                                            class="w-full border border-slate-300 rounded px-1 py-0.5 text-[11px] bg-white">
                                                 </div>
                                                 <div>
-                                                    <label class="block text-[9px] uppercase text-slate-500 tracking-wide">Alineación</label>
+                                                    <label class="block text-[9px] uppercase text-slate-500 tracking-wide">@L["Table.Align"]</label>
                                                     <select x-model="col.align"
                                                             @@change="flushColumns()"
                                                             class="w-full border border-slate-300 rounded px-1 py-0.5 text-[11px] bg-white">
-                                                        <option value="left">Izquierda</option>
-                                                        <option value="center">Centro</option>
-                                                        <option value="right">Derecha</option>
-                                                        <option value="justify">Justificado</option>
+                                                        <option value="left">@L["Table.AlignLeft"]</option>
+                                                        <option value="center">@L["Table.AlignCenter"]</option>
+                                                        <option value="right">@L["Table.AlignRight"]</option>
+                                                        <option value="justify">@L["Table.AlignJustify"]</option>
                                                     </select>
                                                 </div>
                                             </div>
@@ -953,6 +963,23 @@
     // HTMX (hx-post del form) y los exports; cada cambio del editor se copia ahí con cm.save().
     const EDITORS = { yaml: null, json: null };
     const EDITOR_STATE = { yamlLines: {}, linked: null, error: null, cursorTimer: null, programmatic: false };
+
+    // UI strings (window.NR_I18N, emitted by the view from the .resx resources). {name} placeholders.
+    const NR_I18N = window.NR_I18N || {};
+    function t(key, vars) {
+        let s = NR_I18N[key] ?? key;
+        if (vars) for (const [k, v] of Object.entries(vars)) s = s.split('{' + k + '}').join(String(v));
+        return s;
+    }
+    // CodeMirror's search / jump dialogs, keyed by its English phrases.
+    function cmPhrases() {
+        return {
+            'Search:': t('CM.Search'), '(Use /re/ syntax for regexp search)': t('CM.SearchHint'),
+            'Replace:': t('CM.Replace'), 'Replace all:': t('CM.ReplaceAll'), 'With:': t('CM.With'), 'Replace?': t('CM.ReplaceQ'),
+            'Yes': t('CM.Yes'), 'No': t('CM.No'), 'All': t('CM.All'), 'Stop': t('CM.Stop'),
+            'Jump to line:': t('CM.JumpToLine'), '(Use line:column or scroll% syntax)': t('CM.JumpHint'),
+        };
+    }
 
     function designer() {
         return {
@@ -997,6 +1024,14 @@
             availableSamples: [],
             currentSelection: '',     // "" | "sample:<name>" | "user:<name>"
             isDirty: false,
+            language: '@uiLanguage',
+
+            /** Stores the UI language in a cookie and reloads (the server renders the strings). */
+            setLanguage(code) {
+                if (code === this.language) return;
+                if (this.isDirty && !confirm(t('Msg.DiscardLoad'))) { this.language = '@uiLanguage'; return; }
+                location.href = '/Home/SetLanguage?culture=' + encodeURIComponent(code);
+            },
 
             get currentTemplate()    { return this.currentSelection.startsWith('user:') ? this.currentSelection.slice(5) : ''; },
             get currentSampleName()  { return this.currentSelection.startsWith('sample:') ? this.currentSelection.slice(7) : ''; },
@@ -1007,13 +1042,13 @@
             newBandKind: 'Detail',
             hoveredBand: null,     // { index, kind, ..., anchorTop (px viewport) }
             tools: [
-                { kind: 'text',      label: 'Texto',      icon: 'T' },
-                { kind: 'line',      label: 'Línea',      icon: '━' },
-                { kind: 'rectangle', label: 'Rectángulo', icon: '▭' },
-                { kind: 'table',     label: 'Tabla',      icon: '⊞' },
-                { kind: 'image',     label: 'Imagen',     icon: '🖼' },
-                { kind: 'barcode',   label: 'Código',     icon: '▦' },
-                { kind: 'chart',     label: 'Gráfico',    icon: '📊' }
+                { kind: 'text',      label: t('Tool.Text'),      icon: 'T' },
+                { kind: 'line',      label: t('Tool.Line'),      icon: '━' },
+                { kind: 'rectangle', label: t('Tool.Rectangle'), icon: '▭' },
+                { kind: 'table',     label: t('Tool.Table'),     icon: '⊞' },
+                { kind: 'image',     label: t('Tool.Image'),     icon: '🖼' },
+                { kind: 'barcode',   label: t('Tool.Barcode'),   icon: '▦' },
+                { kind: 'chart',     label: t('Tool.Chart'),     icon: '📊' }
             ],
 
             // === Distribución: editor redimensionable / plegable ===
@@ -1024,33 +1059,29 @@
             EDITOR_MIN: 280,
             showHelp: false,
             shortcuts: [
-                ['Shift + arrastrar', 'Ajustar al paso de la cuadrícula'],
-                ['Alt + arrastrar', 'Sin guías inteligentes'],
-                ['R / G', 'Reglas / cuadrícula'],
-                ['← ↑ → ↓', 'Mover 1 pt (Shift: 10 pt)'],
-                ['Shift / ⌘ + clic', 'Agregar o quitar de la selección'],
-                ['Arrastrar en vacío', 'Seleccionar por marco'],
-                ['Ctrl/⌘ + A', 'Seleccionar todo'],
-                ['Ctrl/⌘ + C / X / V', 'Copiar / cortar / pegar'],
-                ['Ctrl/⌘ + D', 'Duplicar'],
-                ['Supr / ⌫', 'Eliminar la selección'],
-                ['Ctrl/⌘ + Z', 'Deshacer (Shift: rehacer)'],
-                ['Ctrl/⌘ + S', 'Guardar plantilla'],
-                ['Ctrl/⌘ + B', 'Mostrar / ocultar editor'],
-                ['Ctrl/⌘ + + / − / 0', 'Zoom'],
-                ['Esc', 'Quitar selección'],
-                ['Ctrl/⌘ + rueda', 'Zoom en el punto del cursor'],
-                ['RePág / AvPág', 'Página anterior / siguiente'],
-                ['V', 'Vista limpia (sin marcos de edición)'],
-                ['Doble clic', 'Ir al YAML del elemento'],
+                [t('Shortcut.SnapKey'), t('Shortcut.Snap')],
+                [t('Shortcut.AltKey'), t('Shortcut.Alt')],
+                [t('Shortcut.RGKey'), t('Shortcut.RG')],
+                [t('Shortcut.ArrowsKey'), t('Shortcut.Arrows')],
+                [t('Shortcut.MultiKey'), t('Shortcut.Multi')],
+                [t('Shortcut.MarqueeKey'), t('Shortcut.Marquee')],
+                [t('Shortcut.SelectAllKey'), t('Shortcut.SelectAll')],
+                [t('Shortcut.ClipKey'), t('Shortcut.Clip')],
+                [t('Shortcut.DupKey'), t('Shortcut.Dup')],
+                [t('Shortcut.DelKey'), t('Shortcut.Del')],
+                [t('Shortcut.UndoKey'), t('Shortcut.Undo')],
+                [t('Shortcut.SaveKey'), t('Shortcut.Save')],
+                [t('Shortcut.EditorKey'), t('Shortcut.Editor')],
+                [t('Shortcut.ZoomKey'), t('Shortcut.Zoom')],
+                [t('Shortcut.EscKey'), t('Shortcut.Esc')],
+                [t('Shortcut.WheelKey'), t('Shortcut.Wheel')],
+                [t('Shortcut.PageKey'), t('Shortcut.Page')],
+                [t('Shortcut.CleanKey'), t('Shortcut.Clean')],
+                [t('Shortcut.DblKey'), t('Shortcut.Dbl')],
             ],
-            BAND_LABELS: {
-                ReportHeader: 'Encabezado de reporte', PageHeader: 'Encabezado de página', Detail: 'Detalle',
-                PageFooter: 'Pie de página', ReportFooter: 'Pie de reporte'
-            },
-            bandLabel(kind) { return this.BAND_LABELS[kind] || kind || ''; },
-            BAND_SHORT: { ReportHeader: 'Enc. rep.', PageHeader: 'Enc. pág.', Detail: 'Detalle', PageFooter: 'Pie pág.', ReportFooter: 'Pie rep.' },
-            bandShortLabel(kind) { return this.BAND_SHORT[kind] || kind || ''; },
+            BAND_KINDS: ['ReportHeader', 'PageHeader', 'Detail', 'PageFooter', 'ReportFooter'],
+            bandLabel(kind) { return this.BAND_KINDS.includes(kind) ? t('Band.' + kind) : (kind || ''); },
+            bandShortLabel(kind) { return this.BAND_KINDS.includes(kind) ? t('Band.Short.' + kind) : (kind || ''); },
 
             defaultEditorWidth() { return Math.round(Math.max(this.EDITOR_MIN, Math.min(window.innerWidth * 0.4, 680))); },
             maxEditorWidth() { return Math.max(this.EDITOR_MIN, window.innerWidth - 520); },
@@ -1089,7 +1120,7 @@
             initEditors() {
                 if (!window.CodeMirror) return;   // sin CDN: quedan los <textarea> planos
                 const common = {
-                    lineNumbers: true, styleActiveLine: true, indentUnit: 2, tabSize: 2, lineWrapping: false,
+                    lineNumbers: true, styleActiveLine: true, indentUnit: 2, tabSize: 2, lineWrapping: false, phrases: cmPhrases(),
                     foldGutter: true, gutters: ['error-gutter', 'CodeMirror-linenumbers', 'CodeMirror-foldgutter'],
                     extraKeys: {
                         Tab: cm => cm.somethingSelected() ? cm.indentSelection('add') : cm.replaceSelection('  ', 'end'),
@@ -1694,11 +1725,11 @@
             },
 
             get busyLabel() {
-                if (this.moving) return 'Moviendo…';
-                if (this.resizing) return 'Redimensionando…';
-                if (this.creating) return 'Creando…';
-                if (this.saving) return 'Guardando…';
-                return 'Renderizando…';
+                if (this.moving) return t('Preview.Moving');
+                if (this.resizing) return t('Preview.Resizing');
+                if (this.creating) return t('Preview.Creating');
+                if (this.saving) return t('Preview.Saving');
+                return t('Preview.Rendering');
             },
 
             onToolPointerDown(evt, kind) {
@@ -1871,8 +1902,8 @@
 
             addColumn() {
                 this.form.columns.push({
-                    header: 'Nueva columna',
-                    binding: '$.campo',
+                    header: t('Table.NewColumn'),
+                    binding: t('Table.NewColumnBinding'),
                     width: 80,
                     format: '',
                     align: 'left',
@@ -1939,13 +1970,13 @@
                     form.append('Height', '40');
                     const res = await fetch('/Home/AddBand', { method: 'POST', body: form });
                     const data = await res.json();
-                    if (data.error) { alert('Error: ' + data.error); return; }
+                    if (data.error) { alert(t('Msg.Error', { error: data.error })); return; }
                     this.applyServerResponse(data);
                 } finally { this.saving = false; }
             },
 
             async deleteBand(bandIndex) {
-                if (!confirm(`¿Borrar banda ${bandIndex}? Se eliminarán todos sus elementos.`)) return;
+                if (!confirm(t('Band.DeleteConfirm', { n: bandIndex }))) return;
                 this.pushUndo();
                 this.saving = true;
                 try {
@@ -1953,7 +1984,7 @@
                     form.append('BandIndex', bandIndex.toString());
                     const res = await fetch('/Home/DeleteBand', { method: 'POST', body: form });
                     const data = await res.json();
-                    if (data.error) { alert('Error: ' + data.error); return; }
+                    if (data.error) { alert(t('Msg.Error', { error: data.error })); return; }
                     this.applyServerResponse(data);
                 } finally { this.saving = false; }
             },
@@ -1979,7 +2010,7 @@
                     form.append('ToIndex', to.toString());
                     const res = await fetch('/Home/MoveBand', { method: 'POST', body: form });
                     const data = await res.json();
-                    if (data.error) { alert('Error: ' + data.error); return; }
+                    if (data.error) { alert(t('Msg.Error', { error: data.error })); return; }
                     this.applyServerResponse(data);
                 } finally { this.saving = false; }
             },
@@ -2003,7 +2034,7 @@
                     const res = await fetch('/Home/DeleteMany', { method: 'POST', body: form });
                     const data = await res.json();
                     if (data.error) {
-                        alert('Error al borrar: ' + data.error);
+                        alert(t('Msg.DeleteError', { error: data.error }));
                     } else {
                         this.applyServerResponse(data);
                     }
@@ -2017,7 +2048,7 @@
                 form.append('PathsJson', JSON.stringify(paths));
                 const res = await fetch('/Home/Copy', { method: 'POST', body: form });
                 const data = await res.json();
-                if (data.error) { alert('Error al copiar: ' + data.error); return null; }
+                if (data.error) { alert(t('Msg.CopyError', { error: data.error })); return null; }
                 return data.clipboard;
             },
 
@@ -2066,7 +2097,7 @@
                     form.append('OffsetY', String(dy));
                     const res = await fetch('/Home/Paste', { method: 'POST', body: form });
                     const data = await res.json();
-                    if (data.error) { alert('Error al pegar: ' + data.error); return; }
+                    if (data.error) { alert(t('Msg.PasteError', { error: data.error })); return; }
                     this.applyServerResponse(data);
                     this.reselectByPaths(data.newPaths || []);
                 } finally { this.saving = false; }
@@ -2137,7 +2168,7 @@
                 evt.target.value = '';
                 if (!file) return;
                 if (file.size > 2 * 1024 * 1024 &&
-                    !confirm('La imagen pesa más de 2 MB y quedará embebida en el YAML. ¿Continuar?')) return;
+                    !confirm(t('Image.TooBig'))) return;
                 const reader = new FileReader();
                 reader.onload = () => this.applyPatch({ Source: reader.result });
                 reader.readAsDataURL(file);
@@ -2146,7 +2177,7 @@
             addSeries() {
                 const palette = ['#2563EB', '#F59E0B', '#10B981', '#EF4444', '#8B5CF6', '#06B6D4'];
                 this.form.series.push({
-                    name: 'Serie ' + (this.form.series.length + 1),
+                    name: t('Chart.NewSeries', { n: this.form.series.length + 1 }),
                     value: this.rowPaths.find(p => p !== this.form.category) || '$.valor',
                     color: palette[this.form.series.length % palette.length]
                 });
@@ -2823,7 +2854,7 @@
 
             async onSelectionChange() {
                 if (!this.currentSelection) return;
-                if (this.isDirty && !confirm('Hay cambios sin guardar. ¿Descartarlos y cargar el template?')) {
+                if (this.isDirty && !confirm(t('Msg.DiscardLoad'))) {
                     this.currentSelection = '';
                     return;
                 }
@@ -2837,9 +2868,9 @@
                 try {
                     const res = await fetch(url);
                     const data = await res.json();
-                    if (data.error) { alert('Error al cargar: ' + data.error); return; }
+                    if (data.error) { alert(t('Msg.LoadError', { error: data.error })); return; }
                     await this.applyLoadedContent(data.yaml || '', data.json || '{}');
-                } catch (err) { alert('Error al cargar: ' + err); }
+                } catch (err) { alert(t('Msg.LoadError', { error: err })); }
             },
 
             async applyLoadedContent(yaml, json) {
@@ -2862,7 +2893,7 @@
             async onImportFiles(evt) {
                 const files = Array.from(evt.target.files || []);
                 if (files.length === 0) return;
-                if (this.isDirty && !confirm('Hay cambios sin guardar. ¿Descartarlos al importar?')) {
+                if (this.isDirty && !confirm(t('Msg.DiscardImport'))) {
                     evt.target.value = '';
                     return;
                 }
@@ -2878,7 +2909,7 @@
                 evt.target.value = '';   // permitir re-seleccionar el mismo archivo en el futuro
 
                 if (yamlText === null && jsonText === null) {
-                    alert('Selecciona al menos un .yaml o .json válido.');
+                    alert(t('Msg.ImportInvalid'));
                     return;
                 }
 
@@ -2895,7 +2926,7 @@
             },
 
             async saveAsTemplate() {
-                const name = prompt('Nombre del template (letras, dígitos, espacios, - o _):',
+                const name = prompt(t('Msg.TemplateNamePrompt'),
                                     this.currentTemplate || this.currentSampleName || '');
                 if (!name) return;
                 if (await this.saveToName(name)) {
@@ -2912,26 +2943,26 @@
                 try {
                     const res = await fetch('/Home/SaveTemplate', { method: 'POST', body: form });
                     const data = await res.json();
-                    if (data.error) { alert('Error al guardar: ' + data.error); return false; }
+                    if (data.error) { alert(t('Msg.SaveError', { error: data.error })); return false; }
                     this.isDirty = false;
                     return true;
-                } catch (err) { alert('Error al guardar: ' + err); return false; }
+                } catch (err) { alert(t('Msg.SaveError', { error: err })); return false; }
             },
 
             async deleteTemplate() {
                 if (!this.isUserTemplate) return;
                 const name = this.currentTemplate;
-                if (!confirm(`¿Borrar template "${name}"? Esta acción no se puede deshacer.`)) return;
+                if (!confirm(t('Msg.DeleteTemplateConfirm', { name }))) return;
 
                 const form = new FormData();
                 form.append('Name', name);
                 try {
                     const res = await fetch('/Home/DeleteTemplate', { method: 'POST', body: form });
                     const data = await res.json();
-                    if (data.error) { alert('Error al borrar: ' + data.error); return; }
+                    if (data.error) { alert(t('Msg.DeleteError', { error: data.error })); return; }
                     this.currentSelection = '';
                     await this.refreshTemplates();
-                } catch (err) { alert('Error al borrar: ' + err); }
+                } catch (err) { alert(t('Msg.DeleteError', { error: err })); }
             }
         };
     }

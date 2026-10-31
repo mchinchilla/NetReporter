@@ -4,8 +4,11 @@
 //   <script type="module" src="/reports/_viewer/viewer.js"></script>
 //   <netreporter-viewer src="/reports/invoice/open?id=42" lang="es"></netreporter-viewer>
 //
-// Attributes: src (the /open URL), lang (es|en), zoom (number, "page-width" or "page-fit"),
-//             thumbnails ("open" | "closed"), set-title (copies the report title to document.title).
+// Attributes: src (the /open URL), lang (es, en, or a registered language; otherwise the closest
+//             ancestor's lang, then <html lang>, then the browser language), zoom (number, "page-width"
+//             or "page-fit"), thumbnails ("open" | "closed"), set-title (copies the report title to document.title).
+// Languages:  NetReporterViewer.registerLanguage('pt', { ...strings }) or, before this module runs,
+//             globalThis.NetReporterViewerI18n = { pt: { ... } }. Missing keys fall back to English.
 // Events:     nr-load {title, pageCount}, nr-error {status, error, detail}, nr-pagechange {page}.
 // Methods:    reload(), goToPage(n), setZoom(z | "page-width" | "page-fit"), print(), download(format).
 // Theming:    --nr-bg, --nr-toolbar-bg, --nr-toolbar-fg, --nr-accent, --nr-font on the element.
@@ -33,6 +36,28 @@ const I18N = {
         pdf: 'PDF', xlsx: 'Excel (XLSX)', html: 'HTML', pageAlt: 'Page {n}',
     },
 };
+
+/** Strings for a language tag ("es", "es-HN", "pt-BR"…): built-in or registered, exact tag first, then its language. */
+function stringsFor(tag) {
+    if (!tag) return null;
+    const code = String(tag).toLowerCase();
+    const short = code.split(/[-_]/)[0];
+    const extra = globalThis.NetReporterViewerI18n ?? {};
+    const table = I18N[code] ?? extra[code] ?? I18N[short] ?? extra[short];
+    return table ? { ...I18N.en, ...table } : null;
+}
+
+/** The element's language: its lang, the closest ancestor's, the document's, the browser's, then English. */
+function resolveStrings(el) {
+    const candidates = [
+        el.getAttribute('lang'),
+        el.parentElement?.closest('[lang]')?.getAttribute('lang'),
+        document.documentElement.lang,
+        ...(navigator.languages ?? [navigator.language]),
+    ];
+    for (const c of candidates) { const t = stringsFor(c); if (t) return t; }
+    return I18N.en;
+}
 
 const PT_TO_PX = 96 / 72;          // 100% = real size on screen
 const ZOOM_STEPS = [0.25, 0.33, 0.5, 0.67, 0.75, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3, 4];
@@ -163,6 +188,20 @@ select.zoom option { color: #111; background: #fff; }
 class NetReporterViewer extends HTMLElement {
     static observedAttributes = ['src', 'lang'];
 
+    /** Adds or overrides a language; components connected afterwards (or whose lang attribute changes) use it. */
+    static registerLanguage(code, strings) {
+        if (!code || !strings) throw new TypeError('registerLanguage(code, strings)');
+        (globalThis.NetReporterViewerI18n ??= {})[String(code).toLowerCase()] = { ...strings };
+    }
+
+    /** Language codes with strings available (built-in and registered). */
+    static get languages() {
+        return [...new Set([...Object.keys(I18N), ...Object.keys(globalThis.NetReporterViewerI18n ?? {})])];
+    }
+
+    /** The English strings, as a template for registerLanguage. */
+    static get englishStrings() { return { ...I18N.en }; }
+
     constructor() {
         super();
         this._root = this.attachShadow({ mode: 'open' });
@@ -182,7 +221,7 @@ class NetReporterViewer extends HTMLElement {
 
     connectedCallback() {
         this._connected = true;
-        this._t = I18N[(this.getAttribute('lang') || document.documentElement.lang || 'es').slice(0, 2)] || I18N.es;
+        this._t = resolveStrings(this);
         this._build();
         const z = this.getAttribute('zoom');
         if (z === 'page-width' || z === 'page-fit') {
@@ -207,7 +246,7 @@ class NetReporterViewer extends HTMLElement {
     attributeChangedCallback(name, oldValue, newValue) {
         if (!this._connected || oldValue === newValue) return;
         if (name === 'src') { this._page = 1; this._doc = null; this.reload(); }
-        else if (name === 'lang') { this._t = I18N[(newValue || 'es').slice(0, 2)] || I18N.es; this._build(); this.reload(); }
+        else if (name === 'lang') { this._t = resolveStrings(this); this._build(); this.reload(); }
     }
 
     // ---------- public API ----------

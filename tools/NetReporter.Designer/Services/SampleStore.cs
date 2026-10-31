@@ -1,4 +1,5 @@
 using System.Reflection;
+using Microsoft.Extensions.Localization;
 
 namespace NetReporter.Designer.Services;
 
@@ -9,6 +10,13 @@ namespace NetReporter.Designer.Services;
 public sealed class SampleStore
 {
     private static readonly Assembly Asm = typeof(SampleStore).Assembly;
+    private readonly IStringLocalizer<DesignerStrings> _l;
+
+    public SampleStore(IStringLocalizer<DesignerStrings> localizer)
+    {
+        ArgumentNullException.ThrowIfNull(localizer);
+        _l = localizer;
+    }
 
     private static readonly IReadOnlyDictionary<string, (string YamlResource, string JsonResource)> Catalog =
         new Dictionary<string, (string, string)>(StringComparer.Ordinal)
@@ -35,7 +43,7 @@ public sealed class SampleStore
     {
         ArgumentNullException.ThrowIfNull(name);
         if (!Catalog.TryGetValue(name, out var entry))
-            throw new FileNotFoundException($"Sample '{name}' no existe.");
+            throw new FileNotFoundException(_l["Server.SampleNotFound", name]);
 
         return (ReadResource(entry.YamlResource), ReadResource(entry.JsonResource));
     }

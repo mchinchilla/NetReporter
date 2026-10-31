@@ -1,0 +1,751 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <data name="Page.Title" xml:space="preserve">
+    <value>Designer</value>
+  </data>
+  <data name="Header.Subtitle" xml:space="preserve">
+    <value>YAML template editor · drag and drop · live preview</value>
+  </data>
+  <data name="Header.Unsaved" xml:space="preserve">
+    <value>(unsaved)</value>
+  </data>
+  <data name="Header.Samples" xml:space="preserve">
+    <value>📦 Samples</value>
+  </data>
+  <data name="Header.MyTemplates" xml:space="preserve">
+    <value>My templates</value>
+  </data>
+  <data name="Header.DirtyTitle" xml:space="preserve">
+    <value>There are unsaved changes</value>
+  </data>
+  <data name="Header.ImportTitle" xml:space="preserve">
+    <value>Import a .yaml or .json file from disk</value>
+  </data>
+  <data name="Header.Import" xml:space="preserve">
+    <value>↥ Import</value>
+  </data>
+  <data name="Header.SaveTitle" xml:space="preserve">
+    <value>Save (Ctrl/Cmd+S)</value>
+  </data>
+  <data name="Header.Save" xml:space="preserve">
+    <value>Save</value>
+  </data>
+  <data name="Header.SaveAs" xml:space="preserve">
+    <value>Save as…</value>
+  </data>
+  <data name="Header.DeleteTitle" xml:space="preserve">
+    <value>Delete the saved template</value>
+  </data>
+  <data name="Header.Delete" xml:space="preserve">
+    <value>Delete</value>
+  </data>
+  <data name="Header.UndoTitle" xml:space="preserve">
+    <value>Undo (Ctrl/Cmd+Z)</value>
+  </data>
+  <data name="Header.Undo" xml:space="preserve">
+    <value>Undo</value>
+  </data>
+  <data name="Header.RedoTitle" xml:space="preserve">
+    <value>Redo (Ctrl/Cmd+Shift+Z)</value>
+  </data>
+  <data name="Header.Redo" xml:space="preserve">
+    <value>Redo</value>
+  </data>
+  <data name="Header.SelectedCount" xml:space="preserve">
+    <value>{n} elements selected</value>
+  </data>
+  <data name="Header.ClipboardTitle" xml:space="preserve">
+    <value>There are elements on the clipboard (Ctrl/Cmd+V to paste)</value>
+  </data>
+  <data name="Header.NoSelection" xml:space="preserve">
+    <value>No element selected</value>
+  </data>
+  <data name="Header.ShortcutsTitle" xml:space="preserve">
+    <value>Keyboard shortcuts (?)</value>
+  </data>
+  <data name="Header.Shortcuts" xml:space="preserve">
+    <value>Keyboard shortcuts</value>
+  </data>
+  <data name="Header.Language" xml:space="preserve">
+    <value>Language</value>
+  </data>
+  <data name="Band.DeclaredHeight" xml:space="preserve">
+    <value>Declared height</value>
+  </data>
+  <data name="Band.ActualHeight" xml:space="preserve">
+    <value>Actual height</value>
+  </data>
+  <data name="Band.PositionY" xml:space="preserve">
+    <value>Y position</value>
+  </data>
+  <data name="Band.Elements" xml:space="preserve">
+    <value>Elements</value>
+  </data>
+  <data name="Band.Path" xml:space="preserve">
+    <value>Path</value>
+  </data>
+  <data name="Band.NoElements" xml:space="preserve">
+    <value>No elements — the position is estimated.</value>
+  </data>
+  <data name="Band.ReportHeader" xml:space="preserve">
+    <value>Report header</value>
+  </data>
+  <data name="Band.PageHeader" xml:space="preserve">
+    <value>Page header</value>
+  </data>
+  <data name="Band.Detail" xml:space="preserve">
+    <value>Detail</value>
+  </data>
+  <data name="Band.PageFooter" xml:space="preserve">
+    <value>Page footer</value>
+  </data>
+  <data name="Band.ReportFooter" xml:space="preserve">
+    <value>Report footer</value>
+  </data>
+  <data name="Band.Short.ReportHeader" xml:space="preserve">
+    <value>Rep. hdr.</value>
+  </data>
+  <data name="Band.Short.PageHeader" xml:space="preserve">
+    <value>Page hdr.</value>
+  </data>
+  <data name="Band.Short.Detail" xml:space="preserve">
+    <value>Detail</value>
+  </data>
+  <data name="Band.Short.PageFooter" xml:space="preserve">
+    <value>Page ftr.</value>
+  </data>
+  <data name="Band.Short.ReportFooter" xml:space="preserve">
+    <value>Rep. ftr.</value>
+  </data>
+  <data name="Band.Panel" xml:space="preserve">
+    <value>Bands</value>
+  </data>
+  <data name="Band.MoveUp" xml:space="preserve">
+    <value>Move up</value>
+  </data>
+  <data name="Band.MoveDown" xml:space="preserve">
+    <value>Move down</value>
+  </data>
+  <data name="Band.Delete" xml:space="preserve">
+    <value>Delete band</value>
+  </data>
+  <data name="Band.Add" xml:space="preserve">
+    <value>+ Band</value>
+  </data>
+  <data name="Band.DeleteConfirm" xml:space="preserve">
+    <value>Delete band {n}? All its elements will be removed.</value>
+  </data>
+  <data name="Editor.Hint" xml:space="preserve">
+    <value>Ctrl/⌘+F search · Alt+G go to line</value>
+  </data>
+  <data name="Editor.HideTitle" xml:space="preserve">
+    <value>Hide the editor (Ctrl/Cmd+B)</value>
+  </data>
+  <data name="Editor.ShowTitle" xml:space="preserve">
+    <value>Show the editor (Ctrl/Cmd+B)</value>
+  </data>
+  <data name="Editor.SplitterTitle" xml:space="preserve">
+    <value>Drag to resize the editor · double-click to reset</value>
+  </data>
+  <data name="Toolbox.Insert" xml:space="preserve">
+    <value>Insert</value>
+  </data>
+  <data name="Toolbox.DragHint" xml:space="preserve">
+    <value>Drag onto a band</value>
+  </data>
+  <data name="Toolbox.DragTitle" xml:space="preserve">
+    <value>Drag onto a band to insert: {tool}</value>
+  </data>
+  <data name="Tool.Text" xml:space="preserve">
+    <value>Text</value>
+  </data>
+  <data name="Tool.Line" xml:space="preserve">
+    <value>Line</value>
+  </data>
+  <data name="Tool.Rectangle" xml:space="preserve">
+    <value>Rectangle</value>
+  </data>
+  <data name="Tool.Table" xml:space="preserve">
+    <value>Table</value>
+  </data>
+  <data name="Tool.Image" xml:space="preserve">
+    <value>Image</value>
+  </data>
+  <data name="Tool.Barcode" xml:space="preserve">
+    <value>Barcode</value>
+  </data>
+  <data name="Tool.Chart" xml:space="preserve">
+    <value>Chart</value>
+  </data>
+  <data name="Preview.Title" xml:space="preserve">
+    <value>Preview</value>
+  </data>
+  <data name="Preview.ZoomOut" xml:space="preserve">
+    <value>Zoom out (Ctrl/Cmd + -)</value>
+  </data>
+  <data name="Preview.ZoomIn" xml:space="preserve">
+    <value>Zoom in (Ctrl/Cmd + +)</value>
+  </data>
+  <data name="Preview.Zoom100" xml:space="preserve">
+    <value>100% (Ctrl/Cmd + 0)</value>
+  </data>
+  <data name="Preview.FitWidth" xml:space="preserve">
+    <value>Fit to width</value>
+  </data>
+  <data name="Preview.FitPage" xml:space="preserve">
+    <value>Fit page</value>
+  </data>
+  <data name="Preview.PrevPage" xml:space="preserve">
+    <value>Previous page (PgUp)</value>
+  </data>
+  <data name="Preview.NextPage" xml:space="preserve">
+    <value>Next page (PgDn)</value>
+  </data>
+  <data name="Preview.Page" xml:space="preserve">
+    <value>Page</value>
+  </data>
+  <data name="Preview.Of" xml:space="preserve">
+    <value>of</value>
+  </data>
+  <data name="Preview.Rulers" xml:space="preserve">
+    <value>Rulers (R)</value>
+  </data>
+  <data name="Preview.Grid" xml:space="preserve">
+    <value>Grid (G) — Shift while dragging snaps to it</value>
+  </data>
+  <data name="Preview.GridStep" xml:space="preserve">
+    <value>Grid step, also the Shift snap step</value>
+  </data>
+  <data name="Preview.SmartGuides" xml:space="preserve">
+    <value>Smart guides while dragging (hold Alt to disable them)</value>
+  </data>
+  <data name="Preview.CleanViewTitle" xml:space="preserve">
+    <value>Clean view: hides the editing overlays to see the report as it prints (V)</value>
+  </data>
+  <data name="Preview.CleanView" xml:space="preserve">
+    <value>Clean view</value>
+  </data>
+  <data name="Preview.RulerUnit" xml:space="preserve">
+    <value>Ruler unit (click to change). 0 is the content origin (margins).</value>
+  </data>
+  <data name="Preview.Loading" xml:space="preserve">
+    <value>Loading preview…</value>
+  </data>
+  <data name="Preview.Rendering" xml:space="preserve">
+    <value>Rendering…</value>
+  </data>
+  <data name="Preview.Moving" xml:space="preserve">
+    <value>Moving…</value>
+  </data>
+  <data name="Preview.Resizing" xml:space="preserve">
+    <value>Resizing…</value>
+  </data>
+  <data name="Preview.Creating" xml:space="preserve">
+    <value>Creating…</value>
+  </data>
+  <data name="Preview.Saving" xml:space="preserve">
+    <value>Saving…</value>
+  </data>
+  <data name="Preview.Error" xml:space="preserve">
+    <value>Render error</value>
+  </data>
+  <data name="Preview.GoToLine" xml:space="preserve">
+    <value>Go to {0}, line {1}</value>
+  </data>
+  <data name="Preview.NoPages" xml:space="preserve">
+    <value>The report produced no pages.</value>
+  </data>
+  <data name="Preview.PageOf" xml:space="preserve">
+    <value>Page {0} of {1}</value>
+  </data>
+  <data name="Drawer.MultiTitle" xml:space="preserve">
+    <value>Multiple selection</value>
+  </data>
+  <data name="Drawer.Title" xml:space="preserve">
+    <value>Properties</value>
+  </data>
+  <data name="Drawer.DeleteTitle" xml:space="preserve">
+    <value>Delete (Del)</value>
+  </data>
+  <data name="Drawer.Close" xml:space="preserve">
+    <value>Close</value>
+  </data>
+  <data name="Align.Legend" xml:space="preserve">
+    <value>Align</value>
+  </data>
+  <data name="Align.Left" xml:space="preserve">
+    <value>⇤ Left</value>
+  </data>
+  <data name="Align.LeftTitle" xml:space="preserve">
+    <value>Align left</value>
+  </data>
+  <data name="Align.HCenter" xml:space="preserve">
+    <value>↔ Center</value>
+  </data>
+  <data name="Align.HCenterTitle" xml:space="preserve">
+    <value>Center horizontally</value>
+  </data>
+  <data name="Align.Right" xml:space="preserve">
+    <value>⇥ Right</value>
+  </data>
+  <data name="Align.RightTitle" xml:space="preserve">
+    <value>Align right</value>
+  </data>
+  <data name="Align.Top" xml:space="preserve">
+    <value>⤒ Top</value>
+  </data>
+  <data name="Align.TopTitle" xml:space="preserve">
+    <value>Align top</value>
+  </data>
+  <data name="Align.VMiddle" xml:space="preserve">
+    <value>↕ Middle</value>
+  </data>
+  <data name="Align.VMiddleTitle" xml:space="preserve">
+    <value>Center vertically</value>
+  </data>
+  <data name="Align.Bottom" xml:space="preserve">
+    <value>⤓ Bottom</value>
+  </data>
+  <data name="Align.BottomTitle" xml:space="preserve">
+    <value>Align bottom</value>
+  </data>
+  <data name="Multi.Copy" xml:space="preserve">
+    <value>📋 Copy</value>
+  </data>
+  <data name="Multi.Duplicate" xml:space="preserve">
+    <value>⧉ Duplicate</value>
+  </data>
+  <data name="Multi.Delete" xml:space="preserve">
+    <value>🗑 Delete</value>
+  </data>
+  <data name="Multi.Hint" xml:space="preserve">
+    <value>Drag any of them to move the group · arrows to nudge · Shift+click to add/remove.</value>
+  </data>
+  <data name="Props.Bounds" xml:space="preserve">
+    <value>Position and size (pt)</value>
+  </data>
+  <data name="Props.Width" xml:space="preserve">
+    <value>Width</value>
+  </data>
+  <data name="Props.Height" xml:space="preserve">
+    <value>Height</value>
+  </data>
+  <data name="Props.VisibleIf" xml:space="preserve">
+    <value>Visible if…</value>
+  </data>
+  <data name="Props.VisibleHint" xml:space="preserve">
+    <value>(expression; empty = always)</value>
+  </data>
+  <data name="Props.Style" xml:space="preserve">
+    <value>Style</value>
+  </data>
+  <data name="Props.Content" xml:space="preserve">
+    <value>Content</value>
+  </data>
+  <data name="Props.ContentHint" xml:space="preserve">
+    <value>Supports &lt;code&gt;{{ $.path }}&lt;/code&gt;, &lt;code&gt;{{ pageNumber }}&lt;/code&gt; and expressions: &lt;code&gt;{{ $.total * 1.15 : N2 }}&lt;/code&gt;, &lt;code&gt;{{ upper($.name) }}&lt;/code&gt;, &lt;code&gt;{{ $.balance == 0 ? 'PAID' : 'PENDING' }}&lt;/code&gt;.</value>
+  </data>
+  <data name="Props.Color" xml:space="preserve">
+    <value>Color</value>
+  </data>
+  <data name="Props.Thickness" xml:space="preserve">
+    <value>Thickness</value>
+  </data>
+  <data name="Props.Fill" xml:space="preserve">
+    <value>Fill</value>
+  </data>
+  <data name="Props.CornerRadius" xml:space="preserve">
+    <value>Corner radius</value>
+  </data>
+  <data name="Image.Choose" xml:space="preserve">
+    <value>🖼 Choose image…</value>
+  </data>
+  <data name="Image.Embedded" xml:space="preserve">
+    <value>Image embedded in the template (data URI). You can also use a path or a template:</value>
+  </data>
+  <data name="Image.Source" xml:space="preserve">
+    <value>Source (path or template)</value>
+  </data>
+  <data name="Image.SourcePlaceholder" xml:space="preserve">
+    <value>logo.png or {{ $.logo }}</value>
+  </data>
+  <data name="Image.Fit" xml:space="preserve">
+    <value>Fit</value>
+  </data>
+  <data name="Image.FitContain" xml:space="preserve">
+    <value>contain (keep aspect ratio)</value>
+  </data>
+  <data name="Image.FitFill" xml:space="preserve">
+    <value>fill (stretch)</value>
+  </data>
+  <data name="Image.TooBig" xml:space="preserve">
+    <value>The image is over 2 MB and will be embedded in the YAML. Continue?</value>
+  </data>
+  <data name="Barcode.Format" xml:space="preserve">
+    <value>Format</value>
+  </data>
+  <data name="Barcode.Ean13" xml:space="preserve">
+    <value>EAN-13 (12–13 digits)</value>
+  </data>
+  <data name="Barcode.Value" xml:space="preserve">
+    <value>Value (text or template)</value>
+  </data>
+  <data name="Barcode.Background" xml:space="preserve">
+    <value>Background</value>
+  </data>
+  <data name="Chart.Type" xml:space="preserve">
+    <value>Type</value>
+  </data>
+  <data name="Chart.Bar" xml:space="preserve">
+    <value>Bars</value>
+  </data>
+  <data name="Chart.HBar" xml:space="preserve">
+    <value>Horiz. bars</value>
+  </data>
+  <data name="Chart.Line" xml:space="preserve">
+    <value>Lines</value>
+  </data>
+  <data name="Chart.Area" xml:space="preserve">
+    <value>Area</value>
+  </data>
+  <data name="Chart.Pie" xml:space="preserve">
+    <value>Pie</value>
+  </data>
+  <data name="Chart.Donut" xml:space="preserve">
+    <value>Donut</value>
+  </data>
+  <data name="Chart.Legend" xml:space="preserve">
+    <value>Legend</value>
+  </data>
+  <data name="Chart.LegendAuto" xml:space="preserve">
+    <value>auto</value>
+  </data>
+  <data name="Chart.LegendNone" xml:space="preserve">
+    <value>none</value>
+  </data>
+  <data name="Chart.LegendTop" xml:space="preserve">
+    <value>top</value>
+  </data>
+  <data name="Chart.LegendBottom" xml:space="preserve">
+    <value>bottom</value>
+  </data>
+  <data name="Chart.LegendRight" xml:space="preserve">
+    <value>right</value>
+  </data>
+  <data name="Chart.Title" xml:space="preserve">
+    <value>Title</value>
+  </data>
+  <data name="Chart.Rows" xml:space="preserve">
+    <value>Rows (JSON Path to the array)</value>
+  </data>
+  <data name="Chart.Category" xml:space="preserve">
+    <value>Category (per row)</value>
+  </data>
+  <data name="Chart.ShowValues" xml:space="preserve">
+    <value>values</value>
+  </data>
+  <data name="Chart.Stacked" xml:space="preserve">
+    <value>stacked</value>
+  </data>
+  <data name="Chart.ValueFormat" xml:space="preserve">
+    <value>Value format</value>
+  </data>
+  <data name="Chart.Series" xml:space="preserve">
+    <value>Series</value>
+  </data>
+  <data name="Chart.AddSeries" xml:space="preserve">
+    <value>+ series</value>
+  </data>
+  <data name="Chart.SeriesName" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="Chart.SeriesValuePlaceholder" xml:space="preserve">
+    <value>$.total or = $.a * $.b</value>
+  </data>
+  <data name="Chart.NewSeries" xml:space="preserve">
+    <value>Series {n}</value>
+  </data>
+  <data name="Table.HeaderHeight" xml:space="preserve">
+    <value>Header height</value>
+  </data>
+  <data name="Table.RowHeight" xml:space="preserve">
+    <value>Row height</value>
+  </data>
+  <data name="Table.Header" xml:space="preserve">
+    <value>Header</value>
+  </data>
+  <data name="Table.RepeatHeader" xml:space="preserve">
+    <value>Repeat on every page</value>
+  </data>
+  <data name="Table.PrintOnce" xml:space="preserve">
+    <value>Only the first time</value>
+  </data>
+  <data name="Table.HeaderStyle" xml:space="preserve">
+    <value>Header style</value>
+  </data>
+  <data name="Table.RowStyle" xml:space="preserve">
+    <value>Row style</value>
+  </data>
+  <data name="Table.AltRowStyle" xml:space="preserve">
+    <value>Alternate row style (optional)</value>
+  </data>
+  <data name="Table.Columns" xml:space="preserve">
+    <value>Columns</value>
+  </data>
+  <data name="Table.AddColumn" xml:space="preserve">
+    <value>+ column</value>
+  </data>
+  <data name="Table.Collapse" xml:space="preserve">
+    <value>Collapse</value>
+  </data>
+  <data name="Table.Expand" xml:space="preserve">
+    <value>Expand</value>
+  </data>
+  <data name="Table.HeaderPlaceholder" xml:space="preserve">
+    <value>Header</value>
+  </data>
+  <data name="Table.WidthTitle" xml:space="preserve">
+    <value>Width (pt)</value>
+  </data>
+  <data name="Table.Binding" xml:space="preserve">
+    <value>Value (binding)</value>
+  </data>
+  <data name="Table.BindingPlaceholder" xml:space="preserve">
+    <value>$.field or = $.a * $.b</value>
+  </data>
+  <data name="Table.Format" xml:space="preserve">
+    <value>Format</value>
+  </data>
+  <data name="Table.Align" xml:space="preserve">
+    <value>Alignment</value>
+  </data>
+  <data name="Table.AlignLeft" xml:space="preserve">
+    <value>Left</value>
+  </data>
+  <data name="Table.AlignCenter" xml:space="preserve">
+    <value>Center</value>
+  </data>
+  <data name="Table.AlignRight" xml:space="preserve">
+    <value>Right</value>
+  </data>
+  <data name="Table.AlignJustify" xml:space="preserve">
+    <value>Justify</value>
+  </data>
+  <data name="Table.NewColumn" xml:space="preserve">
+    <value>New column</value>
+  </data>
+  <data name="Table.NewColumnBinding" xml:space="preserve">
+    <value>$.field</value>
+  </data>
+  <data name="Shortcut.SnapKey" xml:space="preserve">
+    <value>Shift + drag</value>
+  </data>
+  <data name="Shortcut.Snap" xml:space="preserve">
+    <value>Snap to the grid step</value>
+  </data>
+  <data name="Shortcut.AltKey" xml:space="preserve">
+    <value>Alt + drag</value>
+  </data>
+  <data name="Shortcut.Alt" xml:space="preserve">
+    <value>Without smart guides</value>
+  </data>
+  <data name="Shortcut.RGKey" xml:space="preserve">
+    <value>R / G</value>
+  </data>
+  <data name="Shortcut.RG" xml:space="preserve">
+    <value>Rulers / grid</value>
+  </data>
+  <data name="Shortcut.ArrowsKey" xml:space="preserve">
+    <value>← ↑ → ↓</value>
+  </data>
+  <data name="Shortcut.Arrows" xml:space="preserve">
+    <value>Move 1 pt (Shift: 10 pt)</value>
+  </data>
+  <data name="Shortcut.MultiKey" xml:space="preserve">
+    <value>Shift / ⌘ + click</value>
+  </data>
+  <data name="Shortcut.Multi" xml:space="preserve">
+    <value>Add to or remove from the selection</value>
+  </data>
+  <data name="Shortcut.MarqueeKey" xml:space="preserve">
+    <value>Drag on empty space</value>
+  </data>
+  <data name="Shortcut.Marquee" xml:space="preserve">
+    <value>Marquee selection</value>
+  </data>
+  <data name="Shortcut.SelectAllKey" xml:space="preserve">
+    <value>Ctrl/⌘ + A</value>
+  </data>
+  <data name="Shortcut.SelectAll" xml:space="preserve">
+    <value>Select all</value>
+  </data>
+  <data name="Shortcut.ClipKey" xml:space="preserve">
+    <value>Ctrl/⌘ + C / X / V</value>
+  </data>
+  <data name="Shortcut.Clip" xml:space="preserve">
+    <value>Copy / cut / paste</value>
+  </data>
+  <data name="Shortcut.DupKey" xml:space="preserve">
+    <value>Ctrl/⌘ + D</value>
+  </data>
+  <data name="Shortcut.Dup" xml:space="preserve">
+    <value>Duplicate</value>
+  </data>
+  <data name="Shortcut.DelKey" xml:space="preserve">
+    <value>Del / ⌫</value>
+  </data>
+  <data name="Shortcut.Del" xml:space="preserve">
+    <value>Delete the selection</value>
+  </data>
+  <data name="Shortcut.UndoKey" xml:space="preserve">
+    <value>Ctrl/⌘ + Z</value>
+  </data>
+  <data name="Shortcut.Undo" xml:space="preserve">
+    <value>Undo (Shift: redo)</value>
+  </data>
+  <data name="Shortcut.SaveKey" xml:space="preserve">
+    <value>Ctrl/⌘ + S</value>
+  </data>
+  <data name="Shortcut.Save" xml:space="preserve">
+    <value>Save template</value>
+  </data>
+  <data name="Shortcut.EditorKey" xml:space="preserve">
+    <value>Ctrl/⌘ + B</value>
+  </data>
+  <data name="Shortcut.Editor" xml:space="preserve">
+    <value>Show / hide the editor</value>
+  </data>
+  <data name="Shortcut.ZoomKey" xml:space="preserve">
+    <value>Ctrl/⌘ + + / − / 0</value>
+  </data>
+  <data name="Shortcut.Zoom" xml:space="preserve">
+    <value>Zoom</value>
+  </data>
+  <data name="Shortcut.EscKey" xml:space="preserve">
+    <value>Esc</value>
+  </data>
+  <data name="Shortcut.Esc" xml:space="preserve">
+    <value>Clear selection</value>
+  </data>
+  <data name="Shortcut.WheelKey" xml:space="preserve">
+    <value>Ctrl/⌘ + wheel</value>
+  </data>
+  <data name="Shortcut.Wheel" xml:space="preserve">
+    <value>Zoom at the cursor</value>
+  </data>
+  <data name="Shortcut.PageKey" xml:space="preserve">
+    <value>PgUp / PgDn</value>
+  </data>
+  <data name="Shortcut.Page" xml:space="preserve">
+    <value>Previous / next page</value>
+  </data>
+  <data name="Shortcut.CleanKey" xml:space="preserve">
+    <value>V</value>
+  </data>
+  <data name="Shortcut.Clean" xml:space="preserve">
+    <value>Clean view (no editing overlays)</value>
+  </data>
+  <data name="Shortcut.DblKey" xml:space="preserve">
+    <value>Double-click</value>
+  </data>
+  <data name="Shortcut.Dbl" xml:space="preserve">
+    <value>Go to the element's YAML</value>
+  </data>
+  <data name="Msg.Error" xml:space="preserve">
+    <value>Error: {error}</value>
+  </data>
+  <data name="Msg.DeleteError" xml:space="preserve">
+    <value>Delete failed: {error}</value>
+  </data>
+  <data name="Msg.CopyError" xml:space="preserve">
+    <value>Copy failed: {error}</value>
+  </data>
+  <data name="Msg.PasteError" xml:space="preserve">
+    <value>Paste failed: {error}</value>
+  </data>
+  <data name="Msg.LoadError" xml:space="preserve">
+    <value>Load failed: {error}</value>
+  </data>
+  <data name="Msg.SaveError" xml:space="preserve">
+    <value>Save failed: {error}</value>
+  </data>
+  <data name="Msg.DiscardLoad" xml:space="preserve">
+    <value>There are unsaved changes. Discard them and load the template?</value>
+  </data>
+  <data name="Msg.DiscardImport" xml:space="preserve">
+    <value>There are unsaved changes. Discard them and import?</value>
+  </data>
+  <data name="Msg.ImportInvalid" xml:space="preserve">
+    <value>Select at least one valid .yaml or .json file.</value>
+  </data>
+  <data name="Msg.TemplateNamePrompt" xml:space="preserve">
+    <value>Template name (letters, digits, spaces, - or _):</value>
+  </data>
+  <data name="Msg.DeleteTemplateConfirm" xml:space="preserve">
+    <value>Delete template "{name}"? This cannot be undone.</value>
+  </data>
+  <data name="CM.Search" xml:space="preserve">
+    <value>Search:</value>
+  </data>
+  <data name="CM.SearchHint" xml:space="preserve">
+    <value>(Use /re/ syntax for regexp search)</value>
+  </data>
+  <data name="CM.Replace" xml:space="preserve">
+    <value>Replace:</value>
+  </data>
+  <data name="CM.ReplaceAll" xml:space="preserve">
+    <value>Replace all:</value>
+  </data>
+  <data name="CM.With" xml:space="preserve">
+    <value>With:</value>
+  </data>
+  <data name="CM.ReplaceQ" xml:space="preserve">
+    <value>Replace?</value>
+  </data>
+  <data name="CM.Yes" xml:space="preserve">
+    <value>Yes</value>
+  </data>
+  <data name="CM.No" xml:space="preserve">
+    <value>No</value>
+  </data>
+  <data name="CM.All" xml:space="preserve">
+    <value>All</value>
+  </data>
+  <data name="CM.Stop" xml:space="preserve">
+    <value>Stop</value>
+  </data>
+  <data name="CM.JumpToLine" xml:space="preserve">
+    <value>Jump to line:</value>
+  </data>
+  <data name="CM.JumpHint" xml:space="preserve">
+    <value>(Use line:column or scroll% syntax)</value>
+  </data>
+  <data name="Server.ExportError" xml:space="preserve">
+    <value>Export to {0} failed: {1}</value>
+  </data>
+  <data name="Server.ColumnsJsonInvalid" xml:space="preserve">
+    <value>Invalid columns JSON: {0}</value>
+  </data>
+  <data name="Server.TemplateNotFound" xml:space="preserve">
+    <value>Template '{0}' does not exist.</value>
+  </data>
+  <data name="Server.SampleNotFound" xml:space="preserve">
+    <value>Sample '{0}' does not exist.</value>
+  </data>
+  <data name="Server.NameEmpty" xml:space="preserve">
+    <value>The name cannot be empty.</value>
+  </data>
+  <data name="Server.NameTooLong" xml:space="preserve">
+    <value>The name exceeds 64 characters.</value>
+  </data>
+  <data name="Server.NameInvalidChar" xml:space="preserve">
+    <value>Invalid character '{0}' in the name. Use letters, digits, spaces, '-' or '_'.</value>
+  </data>
+  <data name="Server.PathOutsideRoot" xml:space="preserve">
+    <value>Path outside the templates folder.</value>
+  </data>
+</root>

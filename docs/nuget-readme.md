@@ -155,7 +155,7 @@ app.MapNetReporterViewer("/reports", async (request, ct) =>
 <netreporter-viewer src="/reports/invoice/open?id=42" lang="es"></netreporter-viewer>
 ```
 
-The report is laid out once per open; pages are rendered to SVG on demand and print/downloads reuse the same layout.
+The report is laid out once per open; pages are rendered to SVG on demand and print/downloads reuse the same layout. The viewer ships in Spanish and English (negotiated from `Accept-Language`, or pinned with `options.Language`); other languages can be registered with `NetReporterViewer.registerLanguage` (see the README).
 
 ## Features
 

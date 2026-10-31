@@ -30,8 +30,27 @@ public sealed class ReportViewerOptions
     /// <summary>Download formats shown in the toolbar and served by the export endpoint. Printing needs <see cref="ViewerFormats.Pdf"/>.</summary>
     public ViewerFormats Formats { get; set; } = ViewerFormats.All;
 
-    /// <summary>UI language of the viewer: <c>"es"</c> or <c>"en"</c>.</summary>
-    public string Language { get; set; } = "es";
+    /// <summary>
+    /// UI language of the full-page viewer (<c>"es"</c>, <c>"en"</c>, or one registered with
+    /// <c>NetReporterViewer.registerLanguage</c>). Null, the default, negotiates it per request from
+    /// <c>Accept-Language</c> among <see cref="SupportedLanguages"/>.
+    /// </summary>
+    public string? Language { get; set; }
+
+    /// <summary>
+    /// Languages the full-page viewer may be served in, most preferred first; the first one is the fallback
+    /// when the browser asks for none of them. <c>es</c> and <c>en</c> ship with the component; add another
+    /// here after registering its strings through <see cref="HeadHtml"/>.
+    /// </summary>
+    public IList<string> SupportedLanguages { get; } = new List<string> { "es", "en" };
+
+    /// <summary>
+    /// Raw HTML inserted in the <c>&lt;head&gt;</c> of the full-page viewer, before the component script:
+    /// a <c>&lt;script&gt;</c> that defines <c>globalThis.NetReporterViewerI18n = { pt: { … } }</c> to add a
+    /// language, a <c>&lt;style&gt;</c> with the <c>--nr-*</c> theme variables, a favicon link… It is emitted
+    /// verbatim: never build it from user input.
+    /// </summary>
+    public string? HeadHtml { get; set; }
 
     /// <summary>
     /// When true, layout errors are sent to the browser with their message. Keep it false in production:

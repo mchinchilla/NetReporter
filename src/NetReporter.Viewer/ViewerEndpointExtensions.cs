@@ -119,7 +119,9 @@ public static class ViewerEndpointExtensions
             var reportId = (string)ctx.GetRouteValue("reportId")!;
             var baseUrl = BaseUrl(ctx);
             var src = $"{baseUrl}/{Uri.EscapeDataString(reportId)}/open{ctx.Request.QueryString}";
-            var lang = WebUtility.HtmlEncode(options.Language);
+            var lang = WebUtility.HtmlEncode(NegotiateLanguage(ctx, options));
+            ctx.Response.Headers.ContentLanguage = lang;
+            if (options.Language is null) ctx.Response.Headers.Vary = "Accept-Language";
 
             var html = $$"""
                 <!doctype html>
@@ -129,6 +131,7 @@ public static class ViewerEndpointExtensions
                 <meta name="viewport" content="width=device-width, initial-scale=1">
                 <title>{{WebUtility.HtmlEncode(reportId)}}</title>
                 <style>html,body{margin:0;height:100%;background:#525659}netreporter-viewer{display:block;height:100%}</style>
+                {{options.HeadHtml}}
                 <script type="module" src="{{WebUtility.HtmlEncode($"{baseUrl}/_viewer/viewer.js?v={ScriptVersion}")}}"></script>
                 </head>
                 <body>
@@ -324,6 +327,31 @@ public static class ViewerEndpointExtensions
             if (detail is not null) json.WriteString("detail", detail);
             json.WriteEndObject();
         }
+    }
+
+    /// <summary>
+    /// Language of the full-page viewer: <see cref="ReportViewerOptions.Language"/> when set; otherwise the first
+    /// <c>Accept-Language</c> entry (by quality) that matches one of <see cref="ReportViewerOptions.SupportedLanguages"/>,
+    /// exactly (<c>pt-BR</c>) or by language (<c>es-HN</c> → <c>es</c>); otherwise the first supported language.
+    /// </summary>
+    internal static string NegotiateLanguage(HttpContext ctx, ReportViewerOptions options)
+    {
+        if (!string.IsNullOrWhiteSpace(options.Language)) return options.Language.Trim().ToLowerInvariant();
+
+        var supported = options.SupportedLanguages.Where(l => !string.IsNullOrWhiteSpace(l)).Select(l => l.Trim().ToLowerInvariant()).ToList();
+        if (supported.Count == 0) return "en";
+
+        var accepted = ctx.Request.GetTypedHeaders().AcceptLanguage
+            .Where(l => l.Value.HasValue && l.Value.Value != "*")
+            .OrderByDescending(l => l.Quality ?? 1.0)
+            .Select(l => l.Value.Value!.ToLowerInvariant());
+        foreach (var tag in accepted)
+        {
+            if (supported.Contains(tag)) return tag;
+            var language = tag.Split('-')[0];
+            if (supported.Contains(language)) return language;
+        }
+        return supported[0];
     }
 
     /// <summary>File name without extension: resolved <c>fileName:</c> → title → name, minus invalid characters.</summary>

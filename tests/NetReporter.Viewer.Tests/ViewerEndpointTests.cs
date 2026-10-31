@@ -80,7 +80,13 @@ public sealed class ViewerEndpointTests : IAsyncLifetime
             });
         });
         _app.MapNetReporterViewer("/pdf-only", (_, _) => ValueTask.FromResult<ReportDefinition?>(BuildReport(3)),
-            o => { o.Formats = ViewerFormats.Pdf; o.IncludeErrorDetails = true; });
+            o =>
+            {
+                o.Formats = ViewerFormats.Pdf;
+                o.IncludeErrorDetails = true;
+                o.Language = "en";
+                o.HeadHtml = "<meta name=\"x-test\" content=\"head\">";
+            });
         _app.MapNetReporterViewer("/img", (_, _) => ValueTask.FromResult<ReportDefinition?>(ReportWithLogo));
 
         await _app.StartAsync();
@@ -276,6 +282,54 @@ public sealed class ViewerEndpointTests : IAsyncLifetime
         Assert.Contains("nosniff", image.Headers.GetValues("X-Content-Type-Options"));
         Assert.Equal(HttpStatusCode.NotFound, (await Get(imagesUrl + "1", "ana")).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await Get(imagesUrl + "0", "luis")).StatusCode);
+    }
+
+    [Theory]
+    [InlineData(null, "es")]                        // nothing asked → first supported language
+    [InlineData("en-US,en;q=0.9", "en")]
+    [InlineData("es-HN,es;q=0.9,en;q=0.8", "es")]
+    [InlineData("pt-BR,pt;q=0.9", "es")]            // unsupported → fallback
+    [InlineData("fr;q=0.5,en;q=0.9", "en")]         // by quality, not order
+    public async Task ViewerPage_NegotiatesTheLanguageFromAcceptLanguage(string? acceptLanguage, string expected)
+    {
+        using var req = new HttpRequestMessage(HttpMethod.Get, "/reports/clientes");
+        if (acceptLanguage is not null) req.Headers.TryAddWithoutValidation("Accept-Language", acceptLanguage);
+        using var res = await _client.SendAsync(req);
+        var html = await res.Content.ReadAsStringAsync();
+
+        Assert.Contains($"<html lang=\"{expected}\">", html);
+        Assert.Contains($"lang=\"{expected}\" set-title", html);
+        Assert.Equal(expected, Assert.Single(res.Content.Headers.ContentLanguage));
+        Assert.Contains("Accept-Language", res.Headers.Vary);
+    }
+
+    [Fact]
+    public async Task ViewerPage_FixedLanguageAndHeadHtml()
+    {
+        using var req = new HttpRequestMessage(HttpMethod.Get, "/pdf-only/any");
+        req.Headers.TryAddWithoutValidation("Accept-Language", "es");
+        using var res = await _client.SendAsync(req);
+        var html = await res.Content.ReadAsStringAsync();
+
+        Assert.Contains("<html lang=\"en\">", html);
+        Assert.Contains("<meta name=\"x-test\" content=\"head\">", html);
+        Assert.DoesNotContain("Accept-Language", res.Headers.Vary);
+    }
+
+    [Fact]
+    public void NegotiateLanguage_HonoursCustomSupportedLanguages()
+    {
+        var options = new ReportViewerOptions();
+        options.SupportedLanguages.Clear();
+        options.SupportedLanguages.Add("en");
+        options.SupportedLanguages.Add("pt-BR");
+
+        var ctx = new Microsoft.AspNetCore.Http.DefaultHttpContext();
+        ctx.Request.Headers.AcceptLanguage = "pt-BR,pt;q=0.8";
+        Assert.Equal("pt-br", ViewerEndpointExtensions.NegotiateLanguage(ctx, options));
+
+        ctx.Request.Headers.AcceptLanguage = "pt-PT";
+        Assert.Equal("en", ViewerEndpointExtensions.NegotiateLanguage(ctx, options));   // pt-PT ≠ pt-BR, no bare "pt"
     }
 
     [Fact]

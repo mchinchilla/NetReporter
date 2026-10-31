@@ -534,7 +534,7 @@ El designer es una app web de tres paneles (visible en la captura de arriba):
 - **Centro** — el **Toolbox** (arrastra `Text` / `Line` / `Rect` / `Table` / `Image` / `Code` / `Chart` a una banda) y la lista de **Bandas** con controles para reordenar/eliminar.
 - **Derecha** — **preview SVG** en vivo de la página renderizada, con controles de zoom (`−` / `+` / `1:1` / `↔`) y paginación. Click en cualquier elemento para seleccionarlo; un drawer de propiedades se desliza desde el borde derecho. Con varios elementos seleccionados, el drawer cambia a **selección múltiple** (lista, alinear, copiar, duplicar, borrar).
 
-La barra superior expone las acciones globales: selector de template, **Importar**, **Save** / **Save as** / **Delete**, **Undo** / **Redo**, y export con un click a **PDF** / **HTML** / **XLSX**.
+La barra superior expone las acciones globales (y el selector de **idioma**: español / inglés; sigue el `Accept-Language` del navegador hasta que eliges uno, que se recuerda en una cookie; todos los textos de la interfaz viven en `tools/NetReporter.Designer/Resources/DesignerStrings*.resx` — para añadir un idioma, agrega un `DesignerStrings.<cultura>.resx` y lista la cultura en `Program.cs`; solo cambia el idioma de la interfaz: los números de los formularios y del YAML siempre usan `.` como separador decimal): selector de template, **Importar**, **Save** / **Save as** / **Delete**, **Undo** / **Redo**, y export con un click a **PDF** / **HTML** / **XLSX**.
 
 ### Drawer de propiedades por elemento
 
@@ -674,6 +674,13 @@ app.MapNetReporterViewer("/reports", async (request, ct) =>
 - **API del componente:** atributos `src`, `lang`, `zoom` (`page-width` | `page-fit` | número), `thumbnails`
   (`open` | `closed`), `set-title`; eventos `nr-load`, `nr-error`, `nr-pagechange`; métodos `reload()`,
   `goToPage(n)`, `setZoom(z)`, `print()`, `download(format)`.
+- **Idiomas.** Español e inglés vienen con el componente. Manda el atributo `lang`; si no, el `lang` del ancestro
+  más cercano, luego `<html lang>` y luego el idioma del navegador. El visor de página completa negocia su idioma
+  desde `Accept-Language` entre `options.SupportedLanguages` (por defecto `es`, `en`; el primero es el de respaldo)
+  salvo que `options.Language` fije uno. Para añadir un idioma, registra sus textos antes de que el componente se
+  conecte — `NetReporterViewer.registerLanguage('pt', { ...NetReporterViewer.englishStrings, page: 'Página', … })` o,
+  en el visor de página completa, `options.HeadHtml = "<script>globalThis.NetReporterViewerI18n = { pt: { … } }</script>"`
+  más `options.SupportedLanguages.Add("pt")`. Las claves que falten caen al inglés.
 - Los errores devuelven `{ "error": "not-found" | "render-failed" }`; el mensaje de la excepción solo se incluye con
   `IncludeErrorDetails = true` (desarrollo).
 - Las páginas SVG dibujan el texto con las fuentes **del navegador**, pero cada glifo va colocado donde lo midió el
@@ -1171,9 +1178,9 @@ dotnet test
 │ NetReporter.Pdf.Tests               │   18  │
 │ NetReporter.Xlsx.Tests              │   15  │
 │ NetReporter.Barcodes.Tests          │    7  │
-│ NetReporter.Viewer.Tests            │   19  │
+│ NetReporter.Viewer.Tests            │   26  │
 ├─────────────────────────────────────┼───────┤
-│ Total                               │  461  │
+│ Total                               │  468  │
 └─────────────────────────────────────┴───────┘
 ```
 

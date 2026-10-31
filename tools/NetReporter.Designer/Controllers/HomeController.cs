@@ -1,4 +1,7 @@
+using System.Globalization;
+using Microsoft.AspNetCore.Localization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Localization;
 using NetReporter.Core.Layout;
 using NetReporter.Core.RenderList;
 using NetReporter.Designer.Models;
@@ -17,11 +20,25 @@ public sealed class HomeController : Controller
     private readonly SvgRenderer _svg = new();
     private readonly TemplateStore _store;
     private readonly SampleStore _samples;
+    private readonly IStringLocalizer<DesignerStrings> _l;
 
-    public HomeController(TemplateStore store, SampleStore samples)
+    public HomeController(TemplateStore store, SampleStore samples, IStringLocalizer<DesignerStrings> localizer)
     {
         _store = store;
         _samples = samples;
+        _l = localizer;
+    }
+
+    /// <summary>Remembers the UI language in the culture cookie (one year) and returns to the designer.</summary>
+    [HttpGet]
+    public IActionResult SetLanguage(string? culture, string? returnUrl = null)
+    {
+        if (culture is not ("es" or "en")) return BadRequest();
+        Response.Cookies.Append(
+            CookieRequestCultureProvider.DefaultCookieName,
+            CookieRequestCultureProvider.MakeCookieValue(new RequestCulture(culture)),
+            new CookieOptions { Expires = DateTimeOffset.UtcNow.AddYears(1), IsEssential = true, SameSite = SameSiteMode.Lax });
+        return LocalRedirect(Url.IsLocalUrl(returnUrl) ? returnUrl! : "/");
     }
 
     public IActionResult Index()
@@ -128,7 +145,7 @@ public sealed class HomeController : Controller
         }
         catch (Exception ex)
         {
-            return Json(new { error = $"Columns JSON inválido: {ex.Message}" });
+            return Json(new { error = _l["Server.ColumnsJsonInvalid", ex.Message].Value });
         }
 
         return await ApplyChange(
@@ -285,7 +302,7 @@ public sealed class HomeController : Controller
         }
         catch (Exception ex)
         {
-            return Content($"Error al exportar PDF: {ex.GetType().Name}: {ex.Message}",
+            return Content(_l["Server.ExportError", "PDF", $"{ex.GetType().Name}: {ex.Message}"].Value,
                            "text/plain", System.Text.Encoding.UTF8);
         }
     }
@@ -309,7 +326,7 @@ public sealed class HomeController : Controller
         }
         catch (Exception ex)
         {
-            return Content($"<!doctype html><body><pre>Error: {System.Net.WebUtility.HtmlEncode(ex.Message)}</pre></body>",
+            return Content($"<!doctype html><body><pre>{System.Net.WebUtility.HtmlEncode(_l["Server.ExportError", "HTML", $"{ex.GetType().Name}: {ex.Message}"].Value)}</pre></body>",
                            "text/html", System.Text.Encoding.UTF8);
         }
     }
@@ -330,7 +347,7 @@ public sealed class HomeController : Controller
         }
         catch (Exception ex)
         {
-            return Content($"Error al exportar XLSX: {ex.GetType().Name}: {ex.Message}",
+            return Content(_l["Server.ExportError", "XLSX", $"{ex.GetType().Name}: {ex.Message}"].Value,
                            "text/plain", System.Text.Encoding.UTF8);
         }
     }
