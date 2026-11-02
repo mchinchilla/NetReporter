@@ -31,6 +31,7 @@ on:
 
 permissions:
   contents: write # push the vX.Y.Z tag and create the release
+  id-token: write # OIDC token for nuget.org Trusted Publishing (NuGet/login)
 
 concurrency:
   group: publish-nuget
@@ -129,10 +130,18 @@ jobs:
           path: artifacts/packages/*.*nupkg
           if-no-files-found: error
 
+      # Trusted Publishing: no long-lived API key. nuget.org trusts this repository + workflow
+      # (policy on the nuget.org account) and exchanges the run's OIDC token for a temporary key.
+      - name: Log in to nuget.org (Trusted Publishing)
+        id: nuget-login
+        uses: NuGet/login@v1
+        with:
+          user: mchinchilla73 # nuget.org profile that owns the packages
+
       - name: Push to nuget.org
         run: >
           dotnet nuget push "artifacts/packages/*.nupkg"
-          --api-key "${{ secrets.NUGET_API_KEY }}"
+          --api-key "${{ steps.nuget-login.outputs.NUGET_API_KEY }}"
           --source "$NUGET_SOURCE"
           --skip-duplicate
 

@@ -14,7 +14,7 @@ Write a report once — in C# or as a YAML template bound to JSON — and render
 subsets, paginated HTML, SVG pages, a native Excel workbook or a raster ticket for 58/80 mm receipt printers. A visual
 web designer edits the templates, and an embeddable viewer shows them to the users of your ASP.NET Core app.
 
-Full documentation (English and Spanish), the YAML schema reference, thirteen sample templates and the
+Full documentation (English and Spanish), the YAML schema reference, fourteen sample templates and the
 visual web designer live on GitHub: <https://github.com/mchinchilla/NetReporter>
 
 **New in 1.5:** charts with an optional modern look — rounded bars (`barRadius`), rounded chart cards (`cornerRadius`) and a soft pastel color scheme (`colorScheme: soft`).

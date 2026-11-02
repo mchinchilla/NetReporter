@@ -32,7 +32,7 @@ tools/
   NetReporter.Designer/    ASP.NET Core MVC + Alpine.js + HTMX + Tailwind (CDN)
 samples/
   InvoiceSample/           Imperative C# API
-  TemplateSample/          13 YAML templates exporting PDF + XLSX
+  TemplateSample/          14 YAML templates exporting PDF + XLSX
   ViewerSample/            Minimal ERP hosting NetReporter.Viewer (http://localhost:5297)
 ```
 
@@ -50,7 +50,7 @@ Solution file is `NetReporter.slnx` (the newer XML format — not classic `.sln`
 dotnet build
 dotnet test                                                # 583 tests
 dotnet run --project samples/InvoiceSample                 # → factura.pdf
-dotnet run --project samples/TemplateSample                # → 13 PDF + 13 XLSX
+dotnet run --project samples/TemplateSample                # → 14 PDF + 14 XLSX
 dotnet run --project tools/NetReporter.Designer            # → http://localhost:5296
 dotnet run --project samples/ViewerSample                  # → http://localhost:5297 (report viewer)
 ```
@@ -140,7 +140,7 @@ When the user asks for a feature that "should also work in XLSX", remember XLSX 
 - Every library under `src/` is a NuGet package (`NetReporter.*`) plus the `NetReporter` meta-package. Shared package metadata lives in `src/Directory.Build.props`; the root `Directory.Build.props` marks everything else `IsPackable=false`.
 - The README embedded in the packages is `docs/nuget-readme.md`, not the GitHub README: nuget.org strips raw HTML (the centered `<div>` shows as text) and only renders images from trusted domains, so that file stays plain Markdown with absolute `raw.githubusercontent.com` URLs. Keep it in sync when the public API or install instructions change.
 - Inter-package dependencies are pinned to the exact version (`[X.Y.Z]`) by `src/Directory.Build.targets` (rewrites `_ProjectReferencesWithVersions` after `_GetProjectReferenceVersions`), so consumers can't mix `NetReporter.*` versions. Third-party dependencies keep NuGet's default minimum range.
-- Versions come from git tags, not from csproj files. `.github/workflows/publish.yml` runs on every push to `main`: it computes the next `vX.Y.Z` from the latest tag (patch by default, `[minor]` / `[major]` in a commit message bump those parts), builds, tests, packs, pushes to nuget.org with the `NUGET_API_KEY` secret, then tags the commit and creates a GitHub release. Local builds get version `1.0.0-local`.
+- Versions come from git tags, not from csproj files. `.github/workflows/publish.yml` runs on every push to `main`: it computes the next `vX.Y.Z` from the latest tag (patch by default, `[minor]` / `[major]` in a commit message bump those parts), builds, tests, packs, pushes to nuget.org through **Trusted Publishing** (`NuGet/login` exchanges the run's OIDC token for a temporary key; the policy on nuget.org trusts `mchinchilla/NetReporter` + `publish.yml`, so renaming the workflow file breaks publishing until the policy is updated; there is no long-lived API key secret), then tags the commit and creates a GitHub release. Changes under `**.md` / `docs/**` don't trigger it (`paths-ignore`). Local builds get version `1.0.0-local`.
 - `NetReporter.Svg` references `SkiaSharp.NativeAssets.Linux` on purpose: the base `SkiaSharp` package only ships macOS/Windows natives for `net10.0`, and CI (and Linux consumers) need it.
 
 ## Scope discipline

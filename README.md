@@ -10,7 +10,7 @@
 [![NuGet](https://img.shields.io/nuget/v/NetReporter?style=flat-square&logo=nuget&label=NuGet)](https://www.nuget.org/packages/NetReporter)
 [![Tests](https://img.shields.io/badge/tests-583%20passing-22c55e?style=flat-square&logo=xunit)](#-tests)
 [![License](https://img.shields.io/badge/license-MIT-22c55e?style=flat-square)](#-licenses)
-[![Status](https://img.shields.io/badge/status-production-22c55e?style=flat-square)](#status)
+[![Status](https://img.shields.io/badge/status-production-22c55e?style=flat-square)](#-completed)
 
 🎨 Visual designer · 🖥️ Web viewer · 📄 PDF · 🌐 HTML · 🖼️ SVG · 📊 XLSX · 🧾 ESC/POS · 📦 YAML templates · 📈 Charts · 🧮 Expressions
 
@@ -41,7 +41,7 @@
 6. [Philosophy and architecture](#-philosophy-and-architecture)
 7. [Features](#-features)
 8. [Visual pipeline](#-visual-pipeline)
-9. [Tech stack](#-tech-stack)
+9. [Tech stack](#️-tech-stack)
 10. [Repository layout](#-repository-layout)
 11. [Quick start](#-quick-start)
 12. [Visual designer](#-visual-designer)
@@ -53,9 +53,9 @@
 18. [Available renderers](#-available-renderers)
 19. [Page sizes](#-page-sizes)
 20. [Tests](#-tests)
-21. [Known limitations](#-known-limitations)
+21. [Known limitations](#️-known-limitations)
 22. [Completed](#-completed)
-23. [Roadmap](#-roadmap)
+23. [Roadmap](#️-roadmap)
 24. [Licenses](#-licenses)
 
 ---
@@ -310,7 +310,7 @@ flowchart LR
 flowchart TB
     A[Click on preview] -->|select| B[Properties<br/>drawer]
     A -->|Shift+click / marquee| S[Multi-selection]
-    A -->|drag| C[Move element(s)]
+    A -->|drag| C["Move element(s)"]
     A -->|resize handle| D[Change bounds]
     A -->|Del| E[Delete]
     A -->|Ctrl+C / Ctrl+V| P[Copy / Paste]
@@ -390,7 +390,7 @@ NetReporter/
 └── 🎯 samples/
     ├── InvoiceSample/           Invoice using the C# API (no YAML)
     ├── ViewerSample/            Minimal ERP hosting NetReporter.Viewer (full page + embedded)
-    └── TemplateSample/          YAML demo (13 templates exported by Program.cs)
+    └── TemplateSample/          YAML demo (14 templates exported by Program.cs)
         ├── report.yaml                   Customer report
         ├── invoice-laser.yaml            📄 Letter invoice (laser)
         ├── invoice-paperoll.yaml         🧾 80mm receipt (continuous roll, thermal POS)
@@ -524,7 +524,7 @@ File.WriteAllBytes("invoice.xlsx", new NetReporter.Xlsx.XlsxRenderer().Render(re
 dotnet run --project samples/InvoiceSample
 # → samples/InvoiceSample/bin/Debug/net10.0/factura.pdf
 
-# YAML sample — emits PDF + XLSX for every template (13 reports × 2 outputs)
+# YAML sample — emits PDF + XLSX for every template (14 reports × 2 outputs)
 dotnet run --project samples/TemplateSample
 # → samples/TemplateSample/bin/Debug/net10.0/*.pdf and *.xlsx
 
