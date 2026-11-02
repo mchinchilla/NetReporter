@@ -19,6 +19,18 @@ public enum ChartKind
     Donut
 }
 
+/// <summary>Esquema de color del chart cuando no se fija <see cref="ChartElement.Palette"/>.</summary>
+public enum ChartColorScheme
+{
+    /// <summary>Paleta saturada (<see cref="ChartElement.DefaultPalette"/>), etiquetas interiores en blanco.</summary>
+    Default,
+    /// <summary>
+    /// Paleta suave (<see cref="ChartElement.SoftPalette"/>). Las etiquetas dentro de porciones y barras
+    /// apiladas pasan a un gris oscuro, porque el blanco no se lee sobre colores claros.
+    /// </summary>
+    Soft
+}
+
 public enum ChartLegendPosition
 {
     None,
@@ -85,6 +97,18 @@ public sealed record ChartElement : ReportElement
     public Color? Background { get; init; }
     public BorderLine? Border { get; init; }
 
+    /// <summary>Radio de las esquinas del fondo/borde del chart (<see cref="Background"/>, <see cref="Border"/>).</summary>
+    public double CornerRadius { get; init; }
+
+    /// <summary>
+    /// Bar/horizontalBar: radio del extremo libre de cada barra (el que no toca el eje; en barras
+    /// apiladas, solo el segmento exterior). Se limita a la mitad del grosor y al largo de la barra. 0 = recto.
+    /// </summary>
+    public double BarRadius { get; init; }
+
+    /// <summary>Paleta y color de etiquetas interiores cuando no hay <see cref="Palette"/>.</summary>
+    public ChartColorScheme ColorScheme { get; init; }
+
     /// <summary>Paleta por defecto (accesible y distinguible también en blanco y negro por luminancia).</summary>
     public static IReadOnlyList<Color> DefaultPalette { get; } =
     [
@@ -92,10 +116,23 @@ public sealed record ChartElement : ReportElement
         Color.FromHex("#8B5CF6"), Color.FromHex("#06B6D4"), Color.FromHex("#EC4899"), Color.FromHex("#84CC16")
     ];
 
+    /// <summary>Paleta suave (<see cref="ChartColorScheme.Soft"/>): tonos pastel que siguen distinguiéndose entre sí.</summary>
+    public static IReadOnlyList<Color> SoftPalette { get; } =
+    [
+        Color.FromHex("#8AB4F8"), Color.FromHex("#F6C28B"), Color.FromHex("#8ED1B2"), Color.FromHex("#F2A1A1"),
+        Color.FromHex("#B8A4F0"), Color.FromHex("#86CFDC"), Color.FromHex("#F1A6CC"), Color.FromHex("#C3DB8C")
+    ];
+
+    /// <summary>Color de las etiquetas dibujadas dentro de porciones y barras apiladas.</summary>
+    public Color InsideLabelColor => ColorScheme == ChartColorScheme.Soft ? SoftInsideLabel : Color.White;
+
+    private static readonly Color SoftInsideLabel = Color.FromHex("#1E293B");
+
     /// <summary>Color efectivo del índice <paramref name="index"/> (serie o categoría).</summary>
     public Color ColorAt(int index)
     {
-        var palette = Palette is { Count: > 0 } p ? p : DefaultPalette;
+        var palette = Palette is { Count: > 0 } p ? p
+            : ColorScheme == ChartColorScheme.Soft ? SoftPalette : DefaultPalette;
         return palette[index % palette.Count];
     }
 

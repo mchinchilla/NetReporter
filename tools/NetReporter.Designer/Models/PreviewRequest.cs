@@ -29,6 +29,8 @@ public sealed class UpdateRequest
     public string? Content { get; set; }
     public string? Color { get; set; }
     public double? Thickness { get; set; }
+    /// <summary>A blank value (" ") removes the fill (charts can have none); absent = unchanged. Default model binding would turn " " into null.</summary>
+    [System.ComponentModel.DataAnnotations.DisplayFormat(ConvertEmptyStringToNull = false)]
     public string? Fill { get; set; }
 
     // table
@@ -41,6 +43,8 @@ public sealed class UpdateRequest
     public string? AlternateRowStyle { get; set; }
 
     // común
+    /// <summary>A blank value removes the condition. Kept as " " (default binding would make it null, i.e. unchanged).</summary>
+    [System.ComponentModel.DataAnnotations.DisplayFormat(ConvertEmptyStringToNull = false)]
     public string? Visible { get; set; }
     // rectangle
     public double? CornerRadius { get; set; }
@@ -55,12 +59,18 @@ public sealed class UpdateRequest
     // chart
     public string? ChartType { get; set; }
     public string? Category { get; set; }
+    /// <summary>A blank value removes the chart title. Kept as " " (default binding would make it null, i.e. unchanged).</summary>
+    [System.ComponentModel.DataAnnotations.DisplayFormat(ConvertEmptyStringToNull = false)]
     public string? Title { get; set; }
     public string? Legend { get; set; }
     public bool? ShowValues { get; set; }
     public bool? ShowPercent { get; set; }
     public bool? Stacked { get; set; }
+    /// <summary>A blank value removes the format. Kept as " " (default binding would make it null, i.e. unchanged).</summary>
+    [System.ComponentModel.DataAnnotations.DisplayFormat(ConvertEmptyStringToNull = false)]
     public string? ValueFormat { get; set; }
+    public double? BarRadius { get; set; }
+    public string? ColorScheme { get; set; }
 }
 
 /// <summary>Operación sobre varios elementos: PathsJson = ["bands.0.elements.1", …].</summary>
@@ -272,6 +282,9 @@ public sealed record InteractiveElement(
     bool? Stacked = null,
     string? ValueFormat = null,
     IReadOnlyList<ChartSeriesView>? Series = null,
+    double? BarRadius = null,
+    string? ColorScheme = null,
+    bool HasBorder = false,
     // Bounds tal cual están en el YAML (relativos a la banda / content origin). X/Y/Width/Height de
     // arriba son el bounding box renderizado en coordenadas de página (para el overlay).
     double? BoundsX = null,

@@ -50,7 +50,7 @@ internal sealed class ChartLayout
     private void Emit(Rect bounds)
     {
         if (_chart.Background is not null || _chart.Border is not null)
-            Add(new DrawRectangleCommand(bounds, _chart.Background, _chart.Border));
+            Add(new DrawRectangleCommand(bounds, _chart.Background, _chart.Border, Math.Max(0, _chart.CornerRadius)));
 
         var area = Inset(bounds, 6);
         var fontSize = _style.FontSize;
@@ -271,6 +271,7 @@ internal sealed class ChartLayout
         for (var c = 0; c < _chart.Categories.Count; c++)
         {
             var groupX = plot.X + slot * c + (slot - groupW) / 2;
+            var (outerPos, outerNeg) = OuterStackSegments(c);
             double pos = 0, neg = 0;
             for (var s = 0; s < _chart.Series.Count; s++)
             {
@@ -290,14 +291,17 @@ internal sealed class ChartLayout
                 var x = _chart.Stacked ? groupX : groupX + barW * s;
                 var top = Math.Min(y(from), y(to));
                 var height = Math.Abs(y(to) - y(from));
-                Add(new DrawRectangleCommand(new Rect(x + 0.5, top, Math.Max(1, barW - 1), height), SeriesColor(s), null));
+                var bar = new Rect(x + 0.5, top, Math.Max(1, barW - 1), height);
+                var rounded = !_chart.Stacked || s == (v >= 0 ? outerPos : outerNeg);
+                Add(BarRect(bar, s, rounded ? (v >= 0 ? RectCorners.Top : RectCorners.Bottom) : RectCorners.None,
+                    bar.Width, bar.Height));
 
                 if (_chart.ShowValues)
                 {
                     var labelY = _chart.Stacked
                         ? top + (height - valueH) / 2
                         : v >= 0 ? top - valueH - 1 : top + height + 1;
-                    var style = _chart.Stacked ? valueStyle with { Foreground = Color.White } : valueStyle;
+                    var style = _chart.Stacked ? valueStyle with { Foreground = _chart.InsideLabelColor } : valueStyle;
                     if (!_chart.Stacked || height >= valueH)
                         Add(new DrawTextCommand(new Rect(x - 10, labelY, barW + 20, valueH), Format(v), style));
                 }
@@ -363,6 +367,34 @@ internal sealed class ChartLayout
         }
     }
 
+    /// <summary>
+    /// Barra como rectángulo; con <see cref="ChartElement.BarRadius"/> redondea las esquinas
+    /// <paramref name="corners"/> (el extremo libre), limitado a la mitad del grosor y al largo.
+    /// </summary>
+    private DrawRectangleCommand BarRect(Rect bar, int series, RectCorners corners, double thickness, double length)
+    {
+        var radius = corners == RectCorners.None ? 0 : Math.Min(_chart.BarRadius, Math.Min(thickness / 2, length));
+        return radius > 0
+            ? new DrawRectangleCommand(bar, SeriesColor(series), null, radius, corners)
+            : new DrawRectangleCommand(bar, SeriesColor(series), null);
+    }
+
+    /// <summary>
+    /// Barras apiladas: índice de la última serie con valor positivo y con valor negativo en la categoría
+    /// <paramref name="category"/> (los segmentos exteriores, los únicos que se redondean). -1 = ninguna.
+    /// </summary>
+    private (int Positive, int Negative) OuterStackSegments(int category)
+    {
+        if (!_chart.Stacked || _chart.BarRadius <= 0) return (-1, -1);
+        int pos = -1, neg = -1;
+        for (var s = 0; s < _chart.Series.Count; s++)
+        {
+            if (ValueAt(_chart.Series[s], category) is not { } v) continue;
+            if (v >= 0) pos = s; else neg = s;
+        }
+        return (pos, neg);
+    }
+
     // === Barras horizontales ===
 
     private void EmitHorizontalBars(Rect area)
@@ -415,6 +447,7 @@ internal sealed class ChartLayout
             Add(new DrawTextCommand(new Rect(area.X, slotTop + (slot - lineH) / 2, catW, lineH), _chart.Categories[c], catStyle));
 
             var groupY = slotTop + (slot - groupH) / 2;
+            var (outerPos, outerNeg) = OuterStackSegments(c);
             double pos = 0, neg = 0;
             for (var s = 0; s < _chart.Series.Count; s++)
             {
@@ -434,7 +467,10 @@ internal sealed class ChartLayout
                 var y = _chart.Stacked ? groupY : groupY + barH * s;
                 var left = Math.Min(X(from), X(to));
                 var width = Math.Abs(X(to) - X(from));
-                Add(new DrawRectangleCommand(new Rect(left, y + 0.5, width, Math.Max(1, barH - 1)), SeriesColor(s), null));
+                var bar = new Rect(left, y + 0.5, width, Math.Max(1, barH - 1));
+                var rounded = !_chart.Stacked || s == (v >= 0 ? outerPos : outerNeg);
+                Add(BarRect(bar, s, rounded ? (v >= 0 ? RectCorners.Right : RectCorners.Left) : RectCorners.None,
+                    bar.Height, bar.Width));
                 if (_chart.ShowValues && !_chart.Stacked)
                 {
                     var text = Format(v);
@@ -465,7 +501,7 @@ internal sealed class ChartLayout
             return;
         }
 
-        var labelStyle = LabelStyle(TextAlignment.Center, Color.White) with { Weight = FontWeight.Bold };
+        var labelStyle = LabelStyle(TextAlignment.Center, _chart.InsideLabelColor) with { Weight = FontWeight.Bold };
         var labelH = _measurer.LineHeight(labelStyle);
         var start = -90.0;
         for (var i = 0; i < values.Count; i++)

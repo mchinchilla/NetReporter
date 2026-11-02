@@ -8,7 +8,7 @@
 
 [![.NET 10](https://img.shields.io/badge/.NET-10.0-512BD4?style=flat-square&logo=dotnet)](https://dotnet.microsoft.com/)
 [![NuGet](https://img.shields.io/nuget/v/NetReporter?style=flat-square&logo=nuget&label=NuGet)](https://www.nuget.org/packages/NetReporter)
-[![Tests](https://img.shields.io/badge/tests-570%20passing-22c55e?style=flat-square&logo=xunit)](#-tests)
+[![Tests](https://img.shields.io/badge/tests-583%20passing-22c55e?style=flat-square&logo=xunit)](#-tests)
 [![License](https://img.shields.io/badge/license-MIT-22c55e?style=flat-square)](#-licenses)
 [![Status](https://img.shields.io/badge/status-production-22c55e?style=flat-square)](#status)
 
@@ -33,29 +33,45 @@
 
 ## 📚 Table of contents
 
-1. [What's new in 1.4](#-whats-new-in-14)
-2. [What's new in 1.3](#-whats-new-in-13)
-3. [What's new in 1.2](#-whats-new-in-12)
-4. [What's new in 1.1](#-whats-new-in-11)
-5. [Philosophy and architecture](#-philosophy-and-architecture)
-6. [Features](#-features)
-7. [Visual pipeline](#-visual-pipeline)
-8. [Tech stack](#-tech-stack)
-9. [Repository layout](#-repository-layout)
-10. [Quick start](#-quick-start)
-11. [Visual designer](#-visual-designer)
-12. [Report viewer](#️-report-viewer-netreporterviewer)
-13. [ESC/POS thermal printers](#-escpos-thermal-printers-netreporterescpos)
-14. [YAML template syntax](#-yaml-template-syntax)
-15. [Expressions (DSL)](#-expressions-dsl)
-16. [Charts](#-charts)
-17. [Available renderers](#-available-renderers)
-18. [Page sizes](#-page-sizes)
-19. [Tests](#-tests)
-20. [Known limitations](#-known-limitations)
-21. [Completed](#-completed)
-22. [Roadmap](#-roadmap)
-23. [Licenses](#-licenses)
+1. [What's new in 1.5](#-whats-new-in-15)
+2. [What's new in 1.4](#-whats-new-in-14)
+3. [What's new in 1.3](#-whats-new-in-13)
+4. [What's new in 1.2](#-whats-new-in-12)
+5. [What's new in 1.1](#-whats-new-in-11)
+6. [Philosophy and architecture](#-philosophy-and-architecture)
+7. [Features](#-features)
+8. [Visual pipeline](#-visual-pipeline)
+9. [Tech stack](#-tech-stack)
+10. [Repository layout](#-repository-layout)
+11. [Quick start](#-quick-start)
+12. [Visual designer](#-visual-designer)
+13. [Report viewer](#️-report-viewer-netreporterviewer)
+14. [ESC/POS thermal printers](#-escpos-thermal-printers-netreporterescpos)
+15. [YAML template syntax](#-yaml-template-syntax)
+16. [Expressions (DSL)](#-expressions-dsl)
+17. [Charts](#-charts)
+18. [Available renderers](#-available-renderers)
+19. [Page sizes](#-page-sizes)
+20. [Tests](#-tests)
+21. [Known limitations](#-known-limitations)
+22. [Completed](#-completed)
+23. [Roadmap](#-roadmap)
+24. [Licenses](#-licenses)
+
+---
+
+## 🆕 What's new in 1.5
+
+**Charts with a modern look.** Three opt-in chart options — off by default, so existing templates render exactly as before:
+
+| Change | Detail |
+|---|---|
+| 🟦 **Rounded bars** (`barRadius`) | `bar` / `horizontalBar` round the free end of each bar (only the outer segment when stacked), capped at half the bar's thickness |
+| 🔲 **Rounded chart card** (`cornerRadius`) | The chart's `fill` / `borderLine` get rounded corners, to match rounded KPI cards |
+| 🎨 **Soft colors** (`colorScheme: soft`) | Pastel palette for series without an explicit color, with dark labels inside slices and stacked bars |
+| 🖱️ **Designer** | New **Appearance** block in the chart drawer: vivid/soft colors, bar radius, background color (removable) and radius. New series no longer pin the palette color in the YAML, so switching schemes recolors them |
+
+They are ordinary draw commands with a radius, so rendering cost is unchanged and PDF, SVG, HTML and ESC/POS look the same. The `sales-dashboard` sample uses all three. See [Charts](#-charts).
 
 ---
 
@@ -337,7 +353,7 @@ flowchart TB
 | CSS | **Tailwind CSS** (CDN play) | Utility-first |
 | Barcodes (opt-in) | **ZXing.Net** 0.16.11 | Apache 2.0 · QR / Code128 / Code39 / EAN-13 |
 | XLSX backend | **ClosedXML** 0.105 | MIT · OpenXML, native Excel tables |
-| Tests | **xUnit** 2.9 | 570 tests across 9 projects |
+| Tests | **xUnit** 2.9 | 583 tests across 9 projects |
 | JSON | `System.Text.Json` (BCL) | No Newtonsoft |
 
 ---
@@ -556,7 +572,7 @@ The header strip exposes the global actions: template picker, **Import**, **Save
 | `table` | Rows path, header/row heights, header mode, header/row/alt styles, inline column editor (binding accepts `= expr`) |
 | `image` | **Choose image…** (upload → embedded data URI, warns above 2 MB), path or template source, fit |
 | `barcode` | Format (QR / Code 128 / Code 39 / EAN-13), value (text or template), foreground/background colors |
-| `chart` | Style, type, legend, title, rows path, category, values/percent/stacked, value format, **series editor** (name, color, value binding) |
+| `chart` | Style, type, legend, title, rows path, category, values/percent/stacked, value format, **appearance** (vivid / soft colors, bar radius, background color and radius), **series editor** (name, color, value binding) |
 
 Path inputs suggest bindings discovered in `data.json`: array paths for `rows`, and the fields of the first row for columns, categories and series.
 
@@ -602,7 +618,7 @@ Path inputs suggest bindings discovered in `data.json`: array paths for `rows`, 
 | `keep-together` | `keepTogether` forcing a clean page break on a "Terms & signatures" block |
 | `invoice-complete` | 🚀 **Flagship** — all Phase 1-4 features combined: logo, word-wrap, autoHeight, grouped table, QR, barcode, KeepTogether, culture es-HN, templated fileName (shown in the screenshot above) |
 | `invoice-complete-pastel` | Same flagship invoice restyled with a light pastel palette (light table header, tinted group rows and boxes) |
-| `sales-dashboard` | 📈 KPI cards computed with expressions (green/red via dynamic style), grouped bar, line, donut, pie and horizontal-bar charts, monthly table with computed columns and summary |
+| `sales-dashboard` | 📈 KPI cards computed with expressions (green/red via dynamic style), grouped bar, line, donut, pie and horizontal-bar charts in the soft color scheme with rounded bars and cards, monthly table with computed columns and summary |
 | `nested-groups` | 🗂️ Two-level groups (region → category) with `group(0)`, `min`/`max`/`avg` footers and a grand-total `summary` spanning two pages |
 | `account-statement` | 🧮 Expressions everywhere: `upper`, `padLeft`, date formats, ternaries, `= expr` columns, `visible:` warning/promo blocks, dynamic balance color |
 | `contracts-keep-together` | 🔒 One Detail band per client (card + table) with `keepTogether: true`: blocks move whole to the next page |
@@ -1072,7 +1088,7 @@ var binding = BindingFactory.Create("= $.qty * $.price", root);  // IDataBinding
 
 ## 📈 Charts
 
-![Charts in the sales-dashboard sample](docs/images/sales-dashboard.png)
+![Charts in the sales-dashboard sample: soft color scheme, rounded bars and rounded chart cards](docs/images/sales-dashboard.png)
 
 A `chart` element reads its rows with a JSON Path, takes one category per row and one value per series:
 
@@ -1090,8 +1106,11 @@ A `chart` element reads its rows with a JSON Path, takes one category per row an
   stacked: false                  # bar, horizontalBar, area
   fill: "#FFFFFF"                 # chart background (optional)
   borderLine: { thickness: 0.5, color: "#E2E8F0" }
+  cornerRadius: 8                 # rounded background / border (optional)
+  barRadius: 3                    # bar, horizontalBar: rounded free end of each bar (optional)
+  colorScheme: soft               # default | soft (optional)
   series:
-    - { name: "{{ $.year }}",     value: "= $.sales / 1000",    color: "#2563EB" }
+    - { name: "{{ $.year }}",     value: "= $.sales / 1000" }   # no color: taken from the scheme
     - { name: "{{ $.year - 1 }}", value: "= $.previous / 1000", color: "#CBD5E1" }
 ```
 
@@ -1102,6 +1121,16 @@ A `chart` element reads its rows with a JSON Path, takes one category per row an
 | `line` | One polyline per series with markers (`showMarkers`, `lineWidth`); a `null` value breaks the line |
 | `area` | Filled area under each line (semi-transparent), stackable |
 | `pie` / `donut` | Uses the first series; one slice per category; `showPercent: true` labels slices with percentages; `innerRadius` (0–0.9) sets the donut hole, which shows the total when `showValues` is on |
+
+**Modern look (opt-in).** Three options give a chart a softer, more current style. All of them are off by default, so existing templates render exactly as before:
+
+| Option | Effect |
+|---|---|
+| `cornerRadius` | Rounds the chart's background and border (`fill` / `borderLine`), e.g. to match rounded KPI cards |
+| `barRadius` | `bar` / `horizontalBar`: rounds the free end of each bar — the top of a positive bar, the bottom of a negative one, the right end of a horizontal bar. In stacked bars only the outer segment is rounded. The radius is capped at half the bar's thickness and at its length |
+| `colorScheme: soft` | Pastel palette (`ChartElement.SoftPalette`) for series — or slices — without an explicit color, with dark labels inside pie/donut slices and stacked bars (white does not read on light colors). An explicit `palette:` or series `color:` still wins |
+
+These are plain draw commands with a radius (the same rounded rectangles as `rectangle` elements), so they cost nothing measurable and look the same in PDF, SVG, HTML and ESC/POS. From C#: `CornerRadius`, `BarRadius` and `ColorScheme = ChartColorScheme.Soft` on `ChartElement`. In the Designer they live in the chart drawer under **Appearance**.
 
 Other options: `axisMin` / `axisMax` (by default the axis always includes zero and uses "nice" ticks), `palette: ["#…", …]` (colors by series — or by category for pie/donut), `showGrid`. Category labels that don't fit are thinned automatically so they never overlap, and value labels are kept inside the chart box.
 
@@ -1262,8 +1291,8 @@ dotnet test
 ┌─────────────────────────────────────┬───────┐
 │ Project                             │ Tests │
 ├─────────────────────────────────────┼───────┤
-│ NetReporter.Core.Tests              │  124  │
-│ NetReporter.Templates.Tests         │  221  │
+│ NetReporter.Core.Tests              │  132  │
+│ NetReporter.Templates.Tests         │  226  │
 │ NetReporter.Html.Tests              │   20  │
 │ NetReporter.Svg.Tests               │   62  │
 │ NetReporter.Pdf.Tests               │   18  │
@@ -1272,7 +1301,7 @@ dotnet test
 │ NetReporter.Viewer.Tests            │   53  │
 │ NetReporter.EscPos.Tests            │   50  │
 ├─────────────────────────────────────┼───────┤
-│ Total                               │  570  │
+│ Total                               │  583  │
 └─────────────────────────────────────┴───────┘
 ```
 
@@ -1352,7 +1381,7 @@ The Designer (UI) has no automated tests; its 1.1 features were verified manuall
 - [x] **Phase 6.1 (v1.2)** — PDF renderer on SkiaSharp's PDF backend (QuestPDF removed), own TrueType subsetter, fallback fonts, style-preserving font resolution and linear metrics on Linux
 - [x] **Phase 7 (v1.3)** — Fonts registered by the app (`SkiaFonts.RegisterFont*`), `NetReporter.Fonts.Liberation`, cancellation tokens
 - [x] **Phase 8 (v1.4)** — `NetReporter.Viewer`, direct SVG writer, roll paper (`Roll80` / `Roll58`) + `NetReporter.EscPos`, Designer insert/draw tools, rulers, grid, smart guides, CodeMirror editors and ES/EN UI
-- [x] **Tests** — 570 passing tests across 9 projects
+- [x] **Tests** — 583 passing tests across 9 projects
 
 ---
 

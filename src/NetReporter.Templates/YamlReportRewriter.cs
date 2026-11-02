@@ -116,7 +116,7 @@ public static class YamlReportRewriter
 
             if (patch.CornerRadius is double cr)
             {
-                if (kind is not ("rectangle" or "table"))
+                if (kind is not ("rectangle" or "table" or "chart"))
                     throw new InvalidOperationException($"'cornerRadius' no aplica al kind '{kind}'.");
                 e.CornerRadius = cr <= 0 ? null : Math.Round(cr, 2);
             }
@@ -142,7 +142,8 @@ public static class YamlReportRewriter
 
             if (patch.ChartType is not null || patch.Category is not null || patch.Title is not null ||
                 patch.Legend is not null || patch.ShowValues is not null || patch.ShowPercent is not null ||
-                patch.Stacked is not null || patch.ValueFormat is not null)
+                patch.Stacked is not null || patch.ValueFormat is not null ||
+                patch.BarRadius is not null || patch.ColorScheme is not null)
             {
                 if (kind != "chart")
                     throw new InvalidOperationException($"Campos de chart no aplican al kind '{kind}'.");
@@ -154,6 +155,17 @@ public static class YamlReportRewriter
                 if (patch.ShowPercent is bool sp) e.ShowPercent = sp ? true : null;
                 if (patch.Stacked is bool st) e.Stacked = st ? true : null;
                 if (patch.ValueFormat is not null) e.ValueFormat = string.IsNullOrWhiteSpace(patch.ValueFormat) ? null : patch.ValueFormat.Trim();
+                if (patch.BarRadius is double br) e.BarRadius = br <= 0 ? null : Math.Round(br, 2);
+                if (patch.ColorScheme is not null)
+                {
+                    var scheme = patch.ColorScheme.Trim().ToLowerInvariant();
+                    e.ColorScheme = scheme switch
+                    {
+                        "" or "default" => null,
+                        "soft" => "soft",
+                        _ => throw new InvalidOperationException($"colorScheme inválido: '{patch.ColorScheme}'. Usa default/soft.")
+                    };
+                }
             }
 
             // Rows: aplica a tablas y charts.

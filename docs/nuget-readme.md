@@ -17,7 +17,9 @@ web designer edits the templates, and an embeddable viewer shows them to the use
 Full documentation (English and Spanish), the YAML schema reference, thirteen sample templates and the
 visual web designer live on GitHub: <https://github.com/mchinchilla/NetReporter>
 
-**New in 1.4:** `NetReporter.Viewer` (paginated report viewer for ASP.NET Core apps), an SVG writer that is ~10× faster
+**New in 1.5:** charts with an optional modern look — rounded bars (`barRadius`), rounded chart cards (`cornerRadius`) and a soft pastel color scheme (`colorScheme: soft`).
+
+**1.4:** `NetReporter.Viewer` (paginated report viewer for ASP.NET Core apps), an SVG writer that is ~10× faster
 and scales across threads, continuous roll pages (`Roll80` / `Roll58`) and `NetReporter.EscPos` for thermal printers
 (raster `GS v 0`, cut, cash drawer, printer status). **1.3** added app-registered fonts and `NetReporter.Fonts.Liberation`
 for hosts without system fonts; **1.2** removed the QuestPDF dependency. See the GitHub README for the list of
@@ -191,7 +193,7 @@ if (status.ReadyToPrint)
   subtotals and a grand-total row, computed columns (`binding: "= $.qty * $.price"`).
 - Expression DSL compiled once to delegates: arithmetic, comparisons, ternaries, 40+ text/number/date/aggregate
   functions, `visible:` conditions and dynamic styles.
-- Charts: bar, horizontal bar, line, area, pie and donut, drawn as vector primitives (XLSX gets the data table).
+- Charts: bar, horizontal bar, line, area, pie and donut, drawn as vector primitives (XLSX gets the data table), with optional rounded bars and cards and a soft pastel color scheme.
 - Embedded images (PNG/JPEG/GIF/WebP), vector barcodes and QR codes.
 - Inheritable style sheet (`basedOn`) with cycle detection, per-report culture for number and date formats.
 - Page sizes: Letter, Legal, A3-A6, B4-B5, Tabloid, custom sizes and continuous 80 mm / 58 mm roll pages that grow with the content.

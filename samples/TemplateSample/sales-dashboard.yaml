@@ -2,6 +2,7 @@
 #   · KPIs calculados con sum()/max()/count() sobre arrays ($.meses[*].ventas)
 #   · estilo dinámico: el KPI de crecimiento se pinta verde o rojo según su signo
 #   · bar (agrupado), line, donut, pie y horizontalBar a partir de filas JSON
+#   · estilo suave: colorScheme: soft, barRadius (barras redondeadas) y cornerRadius en cada tarjeta
 #   · página 2: tabla con columnas calculadas (= expr) y fila de resumen
 
 name: SalesDashboard
@@ -138,10 +139,13 @@ bands:
         title: "Ventas mensuales (miles de L)"
         legend: top
         valueFormat: "N0"
+        barRadius: 3                    # extremo libre de cada barra redondeado
         fill: "#FFFFFF"
         borderLine: { thickness: 0.5, color: "#E2E8F0" }
+        cornerRadius: 8                 # mismo radio que las tarjetas KPI
+        colorScheme: soft               # paleta suave; etiquetas oscuras dentro de las porciones
         series:
-          - { name: "{{ $.anio }}", value: "= $.ventas / 1000", color: "#2563EB" }
+          - { name: "{{ $.anio }}", value: "= $.ventas / 1000" }
           - { name: "{{ $.anio - 1 }}", value: "= $.anterior / 1000", color: "#CBD5E1" }
 
   # === Línea (ventas vs meta) + dona (canales) ===
@@ -159,9 +163,11 @@ bands:
         valueFormat: "N0"
         fill: "#FFFFFF"
         borderLine: { thickness: 0.5, color: "#E2E8F0" }
+        cornerRadius: 8                 # mismo radio que las tarjetas KPI
+        colorScheme: soft               # paleta suave; etiquetas oscuras dentro de las porciones
         series:
-          - { name: "Ventas", value: "= $.ventas / 1000", color: "#2563EB" }
-          - { name: "Meta", value: "= $.meta / 1000", color: "#F59E0B" }
+          - { name: "Ventas", value: "= $.ventas / 1000" }
+          - { name: "Meta", value: "= $.meta / 1000" }
       - type: chart
         chartType: donut
         bounds: { x: 328, y: 0, width: 199, height: 176 }
@@ -175,6 +181,8 @@ bands:
         legend: bottom
         fill: "#FFFFFF"
         borderLine: { thickness: 0.5, color: "#E2E8F0" }
+        cornerRadius: 8                 # mismo radio que las tarjetas KPI
+        colorScheme: soft               # paleta suave; etiquetas oscuras dentro de las porciones
         series:
           - { name: "Monto", value: "= $.monto / 1000" }
 
@@ -193,6 +201,8 @@ bands:
         legend: right
         fill: "#FFFFFF"
         borderLine: { thickness: 0.5, color: "#E2E8F0" }
+        cornerRadius: 8                 # mismo radio que las tarjetas KPI
+        colorScheme: soft               # paleta suave; etiquetas oscuras dentro de las porciones
         series:
           - { name: "Ventas", value: "$.ventas" }
       - type: chart
@@ -207,7 +217,10 @@ bands:
         legend: none
         fill: "#FFFFFF"
         borderLine: { thickness: 0.5, color: "#E2E8F0" }
-        palette: ["#10B981"]
+        cornerRadius: 8                 # mismo radio que las tarjetas KPI
+        colorScheme: soft               # paleta suave; etiquetas oscuras dentro de las porciones
+        palette: ["#8ED1B2"]
+        barRadius: 3
         series:
           - { name: "Ventas", value: "= $.ventas / 1000" }
 

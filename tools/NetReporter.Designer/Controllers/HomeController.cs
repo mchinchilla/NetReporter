@@ -103,7 +103,9 @@ public sealed class HomeController : Controller
             ShowValues = request.ShowValues,
             ShowPercent = request.ShowPercent,
             Stacked = request.Stacked,
-            ValueFormat = request.ValueFormat
+            ValueFormat = request.ValueFormat,
+            BarRadius = request.BarRadius,
+            ColorScheme = request.ColorScheme
         };
         return await ApplyChange(
             request.Json,
@@ -857,6 +859,9 @@ public sealed class HomeController : Controller
                 Stacked: source?.Stacked,
                 ValueFormat: source?.ValueFormat,
                 Series: source?.Series?.Select(se => new ChartSeriesView(se.Name ?? "", se.Value ?? "", se.Color ?? "")).ToArray(),
+                BarRadius: source?.BarRadius,
+                ColorScheme: source?.ColorScheme,
+                HasBorder: source?.BorderLine is not null,
                 BoundsX: source?.Bounds?.X,
                 BoundsY: source?.Bounds?.Y,
                 BoundsWidth: source?.Bounds?.Width,

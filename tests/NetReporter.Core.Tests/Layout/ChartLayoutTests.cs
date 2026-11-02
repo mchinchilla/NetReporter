@@ -201,4 +201,97 @@ public sealed class ChartLayoutTests
             Assert.True(c.Bounds.Y >= area.Y - 0.5 && c.Bounds.Bottom <= area.Bottom + 0.5, $"{c} fuera en Y");
         });
     }
+
+    // === Rounded bars, chart corner radius and soft color scheme ===
+
+    private static List<DrawRectangleCommand> Bars(List<RenderCommand> cmds, Color fill) =>
+        cmds.OfType<DrawRectangleCommand>().Where(r => r.Fill == fill && r.Bounds.Width > 8 && r.Bounds.Height > 8).ToList();
+
+    [Fact]
+    public void BarRadius_Zero_KeepsSquareBars()
+    {
+        var bars = Bars(Layout(Chart(ChartKind.Bar)), ChartElement.DefaultPalette[0]);
+        Assert.Equal(4, bars.Count);
+        Assert.All(bars, b => Assert.Equal(0, b.CornerRadius));
+    }
+
+    [Fact]
+    public void BarRadius_RoundsTheFreeEnd_OfPositiveAndNegativeBars()
+    {
+        var chart = Chart(ChartKind.Bar, new ChartSeries("Neto", [10, -8, 15, 30])) with { BarRadius = 4 };
+        var bars = Bars(Layout(chart), ChartElement.DefaultPalette[0]);
+
+        Assert.Equal(4, bars.Count);
+        Assert.All(bars, b => Assert.Equal(4, b.CornerRadius));
+        Assert.Equal(RectCorners.Top, bars[0].Corners);
+        Assert.Equal(RectCorners.Bottom, bars[1].Corners);   // negative value: the free end is the bottom
+    }
+
+    [Fact]
+    public void BarRadius_IsClampedToHalfTheBarWidth()
+    {
+        var chart = Chart(ChartKind.Bar) with { BarRadius = 500 };
+        var bars = Bars(Layout(chart), ChartElement.DefaultPalette[0]);
+        Assert.All(bars, b => Assert.Equal(b.Bounds.Width / 2, b.CornerRadius, 6));
+    }
+
+    [Fact]
+    public void BarRadius_HorizontalBars_RoundTheRightEnd()
+    {
+        var chart = Chart(ChartKind.HorizontalBar) with { BarRadius = 3 };
+        var bars = Bars(Layout(chart), ChartElement.DefaultPalette[0]);
+        Assert.Equal(4, bars.Count);
+        Assert.All(bars, b => Assert.Equal(RectCorners.Right, b.Corners));
+        Assert.All(bars, b => Assert.Equal(3, b.CornerRadius));
+    }
+
+    [Fact]
+    public void BarRadius_StackedBars_RoundOnlyTheOuterSegment()
+    {
+        var bottom = Color.FromHex("#111111");
+        var top = Color.FromHex("#222222");
+        var chart = Chart(ChartKind.Bar,
+            new ChartSeries("A", [10, 20, 30, 40]) { Color = bottom },
+            new ChartSeries("B", [5, 5, null, 5]) { Color = top }) with { Stacked = true, BarRadius = 4 };
+        var cmds = Layout(chart);
+
+        var lower = Bars(cmds, bottom);
+        var upper = Bars(cmds, top);
+        Assert.Equal(3, upper.Count);
+        Assert.All(upper, b => Assert.Equal(RectCorners.Top, b.Corners));
+        // "Mar" has no value in B, so its A segment is the outer one and gets the rounded end.
+        Assert.Equal(new[] { 0d, 0d, 4d, 0d }, lower.Select(b => b.CornerRadius));
+    }
+
+    [Fact]
+    public void CornerRadius_RoundsTheChartBackground()
+    {
+        var chart = Chart(ChartKind.Line) with { Background = Color.FromHex("#F8FAFC"), CornerRadius = 10 };
+        var background = Layout(chart).OfType<DrawRectangleCommand>().First(r => r.Fill == Color.FromHex("#F8FAFC"));
+        Assert.Equal(10, background.CornerRadius);
+        Assert.Equal(RectCorners.All, background.Corners);
+    }
+
+    [Fact]
+    public void SoftScheme_UsesTheSoftPalette_AndDarkInsideLabels()
+    {
+        var chart = Chart(ChartKind.Pie) with { ColorScheme = ChartColorScheme.Soft, ShowPercent = true };
+        var cmds = Layout(chart);
+
+        var slices = cmds.OfType<DrawPathCommand>().Where(p => p.Fill is not null).Select(p => p.Fill).ToList();
+        Assert.Equal(ChartElement.SoftPalette.Take(4).Cast<Color?>(), slices);
+        var percent = cmds.OfType<DrawTextCommand>().First(t => t.Text.Contains('%'));
+        Assert.Equal(Color.FromHex("#1E293B"), percent.Style.Foreground);
+    }
+
+    [Fact]
+    public void DefaultScheme_KeepsWhiteInsideLabels_AndExplicitPaletteWins()
+    {
+        var pie = Layout(Chart(ChartKind.Pie) with { ShowPercent = true });
+        Assert.Equal(Color.White, pie.OfType<DrawTextCommand>().First(t => t.Text.Contains('%')).Style.Foreground);
+
+        var custom = Color.FromHex("#123456");
+        var chart = Chart(ChartKind.Bar) with { ColorScheme = ChartColorScheme.Soft, Palette = [custom] };
+        Assert.Equal(4, Bars(Layout(chart), custom).Count);
+    }
 }

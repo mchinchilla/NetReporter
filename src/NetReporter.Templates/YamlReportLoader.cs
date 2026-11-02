@@ -638,7 +638,15 @@ public sealed class TemplateReport
             InnerRadius = e.InnerRadius ?? 0.55,
             LineWidth = e.LineWidth ?? 2,
             Background = e.Fill is not null ? Color.FromHex(e.Fill) : null,
-            Border = e.BorderLine is not null ? ResolveBorderLine(e.BorderLine) : null
+            Border = e.BorderLine is not null ? ResolveBorderLine(e.BorderLine) : null,
+            CornerRadius = Math.Max(0, e.CornerRadius ?? 0),
+            BarRadius = Math.Max(0, e.BarRadius ?? 0),
+            ColorScheme = e.ColorScheme?.Trim().ToLowerInvariant() switch
+            {
+                null or "" or "default" => ChartColorScheme.Default,
+                "soft" => ChartColorScheme.Soft,
+                _ => throw new FormatException($"colorScheme inválido: '{e.ColorScheme}'. Usa default/soft.")
+            }
         };
     }
 

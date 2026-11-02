@@ -898,4 +898,31 @@
   <data name="Header.ElementIn" xml:space="preserve">
     <value>en {band} · nº {n}</value>
   </data>
+  <data name="Chart.Appearance" xml:space="preserve">
+    <value>Apariencia</value>
+  </data>
+  <data name="Chart.ColorScheme" xml:space="preserve">
+    <value>Colores</value>
+  </data>
+  <data name="Chart.SchemeDefault" xml:space="preserve">
+    <value>Intensos</value>
+  </data>
+  <data name="Chart.SchemeSoft" xml:space="preserve">
+    <value>Suaves</value>
+  </data>
+  <data name="Chart.BarRadius" xml:space="preserve">
+    <value>Radio de barras</value>
+  </data>
+  <data name="Chart.Background" xml:space="preserve">
+    <value>Fondo</value>
+  </data>
+  <data name="Chart.NoBackground" xml:space="preserve">
+    <value>Quitar fondo</value>
+  </data>
+  <data name="Chart.CornerRadius" xml:space="preserve">
+    <value>Radio del fondo</value>
+  </data>
+  <data name="Chart.CornerRadiusHint" xml:space="preserve">
+    <value>Agrega un fondo para redondear sus esquinas</value>
+  </data>
 </root>

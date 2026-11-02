@@ -189,6 +189,10 @@ public sealed class ElementYaml
     public List<string>? Palette { get; set; }
     public double? InnerRadius { get; set; }
     public double? LineWidth { get; set; }
+    /// <summary>bar/horizontalBar: radio del extremo libre de cada barra (pt). El fondo del chart usa <see cref="CornerRadius"/>.</summary>
+    public double? BarRadius { get; set; }
+    /// <summary><c>default</c> | <c>soft</c>: paleta y color de etiquetas interiores cuando no hay <see cref="Palette"/>.</summary>
+    public string? ColorScheme { get; set; }
 }
 
 /// <summary>Formato del clipboard del Designer (copiar/pegar elementos entre bandas o templates).</summary>

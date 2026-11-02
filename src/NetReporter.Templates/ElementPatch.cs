@@ -33,7 +33,7 @@ public sealed class ElementPatch
     // común: condición de visibilidad ("" la quita)
     public string? Visible { get; init; }
 
-    // rectangle
+    // rectangle, table, chart (fondo)
     public double? CornerRadius { get; init; }
 
     // image
@@ -55,4 +55,6 @@ public sealed class ElementPatch
     public bool? ShowPercent { get; init; }
     public bool? Stacked { get; init; }
     public string? ValueFormat { get; init; }
+    public double? BarRadius { get; init; }      // 0 lo quita
+    public string? ColorScheme { get; init; }    // default | soft ("" o "default" lo quita)
 }

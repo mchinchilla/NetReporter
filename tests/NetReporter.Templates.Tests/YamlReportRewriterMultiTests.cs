@@ -170,4 +170,39 @@ public sealed class YamlReportRewriterMultiTests
             var (withChart, path) = YamlReportRewriter.AddElement(Yaml, 0, "chart", 0, 0);
             YamlReportRewriter.UpdateSeries(withChart, path, [new ChartSeriesYaml { Name = "x" }]);
         });
+
+    [Fact]
+    public void ApplyPatch_ChartAppearance_WritesAndClearsFields()
+    {
+        var (withChart, path) = YamlReportRewriter.AddElement(Yaml, 0, "chart", 0, 0);
+
+        var styled = YamlReportRewriter.ApplyPatch(withChart, path, new ElementPatch
+        {
+            BarRadius = 4, ColorScheme = "Soft", CornerRadius = 8, Fill = "#F8FAFC"
+        });
+        var chart = Parse(styled).Bands![0].Elements![3];
+        Assert.Equal(4, chart.BarRadius);
+        Assert.Equal("soft", chart.ColorScheme);
+        Assert.Equal(8, chart.CornerRadius);
+        Assert.Equal("#F8FAFC", chart.Fill);
+
+        var cleared = YamlReportRewriter.ApplyPatch(styled, path, new ElementPatch
+        {
+            BarRadius = 0, ColorScheme = "default", CornerRadius = 0, Fill = " "
+        });
+        Assert.DoesNotContain("barRadius", cleared);
+        Assert.DoesNotContain("colorScheme", cleared);
+        Assert.DoesNotContain("cornerRadius", cleared);
+        Assert.Null(Parse(cleared).Bands![0].Elements![3].Fill);
+    }
+
+    [Fact]
+    public void ApplyPatch_ChartAppearanceOnText_AndUnknownScheme_Throw()
+    {
+        Assert.Throws<InvalidOperationException>(() =>
+            YamlReportRewriter.ApplyPatch(Yaml, "bands.0.elements.0", new ElementPatch { BarRadius = 3 }));
+        var (withChart, path) = YamlReportRewriter.AddElement(Yaml, 0, "chart", 0, 0);
+        Assert.Throws<InvalidOperationException>(() =>
+            YamlReportRewriter.ApplyPatch(withChart, path, new ElementPatch { ColorScheme = "neon" }));
+    }
 }

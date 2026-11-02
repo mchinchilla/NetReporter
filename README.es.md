@@ -8,7 +8,7 @@
 
 [![.NET 10](https://img.shields.io/badge/.NET-10.0-512BD4?style=flat-square&logo=dotnet)](https://dotnet.microsoft.com/)
 [![NuGet](https://img.shields.io/nuget/v/NetReporter?style=flat-square&logo=nuget&label=NuGet)](https://www.nuget.org/packages/NetReporter)
-[![Tests](https://img.shields.io/badge/tests-570%20passing-22c55e?style=flat-square&logo=xunit)](#-tests)
+[![Tests](https://img.shields.io/badge/tests-583%20passing-22c55e?style=flat-square&logo=xunit)](#-tests)
 [![License](https://img.shields.io/badge/license-MIT-22c55e?style=flat-square)](#-licencias)
 [![Status](https://img.shields.io/badge/status-producción-22c55e?style=flat-square)](#estado)
 
@@ -33,29 +33,45 @@
 
 ## 📚 Tabla de contenidos
 
-1. [Novedades de la 1.4](#-novedades-de-la-14)
-2. [Novedades de la 1.3](#-novedades-de-la-13)
-3. [Novedades de la 1.2](#-novedades-de-la-12)
-4. [Novedades de la 1.1](#-novedades-de-la-11)
-5. [Filosofía y arquitectura](#-filosofía-y-arquitectura)
-6. [Características](#-características)
-7. [Pipeline visual](#-pipeline-visual)
-8. [Stack tecnológico](#-stack-tecnológico)
-9. [Estructura del repo](#-estructura-del-repo)
-10. [Quick start](#-quick-start)
-11. [Designer visual](#-designer-visual)
-12. [Visor de reportes](#️-visor-de-reportes-netreporterviewer)
-13. [Impresoras térmicas ESC/POS](#-impresoras-térmicas-escpos-netreporterescpos)
-14. [Sintaxis del template YAML](#-sintaxis-del-template-yaml)
-15. [Expresiones (DSL)](#-expresiones-dsl)
-16. [Gráficos](#-gráficos)
-17. [Renderers disponibles](#-renderers-disponibles)
-18. [Tamaños de papel](#-tamaños-de-papel)
-19. [Tests](#-tests)
-20. [Limitaciones conocidas](#-limitaciones-conocidas)
-21. [Completado](#-completado)
-22. [Roadmap](#-roadmap)
-23. [Licencias](#-licencias)
+1. [Novedades de la 1.5](#-novedades-de-la-15)
+2. [Novedades de la 1.4](#-novedades-de-la-14)
+3. [Novedades de la 1.3](#-novedades-de-la-13)
+4. [Novedades de la 1.2](#-novedades-de-la-12)
+5. [Novedades de la 1.1](#-novedades-de-la-11)
+6. [Filosofía y arquitectura](#-filosofía-y-arquitectura)
+7. [Características](#-características)
+8. [Pipeline visual](#-pipeline-visual)
+9. [Stack tecnológico](#-stack-tecnológico)
+10. [Estructura del repo](#-estructura-del-repo)
+11. [Quick start](#-quick-start)
+12. [Designer visual](#-designer-visual)
+13. [Visor de reportes](#️-visor-de-reportes-netreporterviewer)
+14. [Impresoras térmicas ESC/POS](#-impresoras-térmicas-escpos-netreporterescpos)
+15. [Sintaxis del template YAML](#-sintaxis-del-template-yaml)
+16. [Expresiones (DSL)](#-expresiones-dsl)
+17. [Gráficos](#-gráficos)
+18. [Renderers disponibles](#-renderers-disponibles)
+19. [Tamaños de papel](#-tamaños-de-papel)
+20. [Tests](#-tests)
+21. [Limitaciones conocidas](#-limitaciones-conocidas)
+22. [Completado](#-completado)
+23. [Roadmap](#-roadmap)
+24. [Licencias](#-licencias)
+
+---
+
+## 🆕 Novedades de la 1.5
+
+**Gráficos con un look moderno.** Tres opciones nuevas para gráficos — apagadas por defecto, así que los templates existentes se ven exactamente igual que antes:
+
+| Cambio | Detalle |
+|---|---|
+| 🟦 **Barras redondeadas** (`barRadius`) | `bar` / `horizontalBar` redondean el extremo libre de cada barra (solo el segmento exterior si están apiladas), limitado a la mitad del grosor de la barra |
+| 🔲 **Tarjeta del gráfico redondeada** (`cornerRadius`) | El `fill` / `borderLine` del gráfico tiene esquinas redondeadas, para combinar con tarjetas KPI redondeadas |
+| 🎨 **Colores suaves** (`colorScheme: soft`) | Paleta pastel para las series sin color explícito, con etiquetas oscuras dentro de las porciones y de las barras apiladas |
+| 🖱️ **Designer** | Nuevo bloque **Apariencia** en el panel del gráfico: colores intensos/suaves, radio de barras, color de fondo (se puede quitar) y su radio. Las series nuevas ya no fijan el color de la paleta en el YAML, así que cambiar de esquema las recolorea |
+
+Son comandos de dibujo normales con un radio, así que el costo de render no cambia y PDF, SVG, HTML y ESC/POS se ven igual. El sample `sales-dashboard` usa las tres. Ver [Gráficos](#-gráficos).
 
 ---
 
@@ -337,7 +353,7 @@ flowchart TB
 | CSS | **Tailwind CSS** (CDN play) | Utility-first |
 | Barcodes (opt-in) | **ZXing.Net** 0.16.11 | Apache 2.0 · QR / Code128 / Code39 / EAN-13 |
 | XLSX backend | **ClosedXML** 0.105 | MIT · OpenXML, Excel Tables nativas |
-| Tests | **xUnit** 2.9 | 570 tests en 9 proyectos |
+| Tests | **xUnit** 2.9 | 583 tests en 9 proyectos |
 | JSON | `System.Text.Json` (BCL) | Sin Newtonsoft |
 
 ---
@@ -556,7 +572,7 @@ La barra superior expone las acciones globales (y el selector de **idioma**: esp
 | `table` | Path de filas, alturas de header/fila, header mode, estilos de header/fila/alterna, editor de columnas inline (el binding acepta `= expr`) |
 | `image` | **Elegir imagen…** (subir → data URI embebido, advierte arriba de 2 MB), source por path o template, ajuste |
 | `barcode` | Formato (QR / Code 128 / Code 39 / EAN-13), valor (texto o template), colores de primer plano/fondo |
-| `chart` | Estilo, tipo, leyenda, título, path de filas, categoría, valores/porcentaje/apilado, formato de valores, **editor de series** (nombre, color, binding del valor) |
+| `chart` | Estilo, tipo, leyenda, título, path de filas, categoría, valores/porcentaje/apilado, formato de valores, **apariencia** (colores intensos / suaves, radio de barras, color y radio del fondo), **editor de series** (nombre, color, binding del valor) |
 
 Los campos de path sugieren bindings descubiertos en `data.json`: paths de arrays para `rows`, y los campos de la primera fila para columnas, categorías y series.
 
@@ -602,7 +618,7 @@ Los campos de path sugieren bindings descubiertos en `data.json`: paths de array
 | `keep-together` | `keepTogether` forzando page break limpio en un bloque "Términos & firmas" |
 | `invoice-complete` | 🚀 **Flagship** — todas las features Fase 1-4 combinadas: logo, word-wrap, autoHeight, tabla agrupada, QR, barcode, KeepTogether, cultura es-HN, fileName con template (el de la captura de arriba) |
 | `invoice-complete-pastel` | La misma factura flagship con una paleta pastel clara (header de tabla claro, filas de grupo y cajas con tinte) |
-| `sales-dashboard` | 📈 Tarjetas KPI calculadas con expresiones (verde/rojo con estilo dinámico), gráficos de barras agrupadas, líneas, dona, pastel y barras horizontales, tabla mensual con columnas calculadas y resumen |
+| `sales-dashboard` | 📈 Tarjetas KPI calculadas con expresiones (verde/rojo con estilo dinámico), gráficos de barras agrupadas, líneas, dona, pastel y barras horizontales con colores suaves y barras y tarjetas redondeadas, tabla mensual con columnas calculadas y resumen |
 | `nested-groups` | 🗂️ Grupos de dos niveles (región → categoría) con `group(0)`, pies con `min`/`max`/`avg` y un total general `summary` que abarca dos páginas |
 | `account-statement` | 🧮 Expresiones por todas partes: `upper`, `padLeft`, formatos de fecha, ternarios, columnas `= expr`, bloques de aviso/promoción con `visible:`, color de saldo dinámico |
 | `contracts-keep-together` | 🔒 Una banda Detail por cliente (tarjeta + tabla) con `keepTogether: true`: los bloques pasan enteros a la página siguiente |
@@ -1073,7 +1089,7 @@ var binding = BindingFactory.Create("= $.cantidad * $.precio", raiz);     // IDa
 
 ## 📈 Gráficos
 
-![Gráficos del sample sales-dashboard](docs/images/sales-dashboard.png)
+![Gráficos del sample sales-dashboard: colores suaves, barras redondeadas y tarjetas con esquinas redondeadas](docs/images/sales-dashboard.png)
 
 Un elemento `chart` lee sus filas con un JSON Path, toma una categoría por fila y un valor por serie:
 
@@ -1091,8 +1107,11 @@ Un elemento `chart` lee sus filas con un JSON Path, toma una categoría por fila
   stacked: false                  # bar, horizontalBar, area
   fill: "#FFFFFF"                 # fondo del gráfico (opcional)
   borderLine: { thickness: 0.5, color: "#E2E8F0" }
+  cornerRadius: 8                 # fondo / borde redondeado (opcional)
+  barRadius: 3                    # bar, horizontalBar: extremo libre de cada barra redondeado (opcional)
+  colorScheme: soft               # default | soft (opcional)
   series:
-    - { name: "{{ $.anio }}",     value: "= $.ventas / 1000",   color: "#2563EB" }
+    - { name: "{{ $.anio }}",     value: "= $.ventas / 1000" }   # sin color: lo da el esquema
     - { name: "{{ $.anio - 1 }}", value: "= $.anterior / 1000", color: "#CBD5E1" }
 ```
 
@@ -1103,6 +1122,16 @@ Un elemento `chart` lee sus filas con un JSON Path, toma una categoría por fila
 | `line` | Una polilínea por serie con marcadores (`showMarkers`, `lineWidth`); un valor `null` corta la línea |
 | `area` | Área rellena bajo cada línea (semitransparente), apilable |
 | `pie` / `donut` | Usa la primera serie; una porción por categoría; `showPercent: true` rotula las porciones con porcentajes; `innerRadius` (0–0.9) define el hueco de la dona, que muestra el total con `showValues` |
+
+**Look moderno (opcional).** Tres opciones dan a un gráfico un estilo más suave y actual. Todas están apagadas por defecto, así que los templates existentes se ven exactamente igual que antes:
+
+| Opción | Efecto |
+|---|---|
+| `cornerRadius` | Redondea el fondo y el borde del gráfico (`fill` / `borderLine`), por ejemplo para que combine con tarjetas KPI redondeadas |
+| `barRadius` | `bar` / `horizontalBar`: redondea el extremo libre de cada barra — arriba en una barra positiva, abajo en una negativa, a la derecha en una horizontal. En barras apiladas solo se redondea el segmento exterior. El radio se limita a la mitad del grosor de la barra y a su largo |
+| `colorScheme: soft` | Paleta pastel (`ChartElement.SoftPalette`) para las series — o porciones — sin color explícito, con etiquetas oscuras dentro de las porciones de pie/donut y de las barras apiladas (el blanco no se lee sobre colores claros). Un `palette:` explícito o el `color:` de una serie siguen mandando |
+
+Son comandos de dibujo normales con un radio (los mismos rectángulos redondeados de los elementos `rectangle`), así que no tienen un costo medible y se ven igual en PDF, SVG, HTML y ESC/POS. Desde C#: `CornerRadius`, `BarRadius` y `ColorScheme = ChartColorScheme.Soft` en `ChartElement`. En el Designer están en el panel del gráfico, bajo **Apariencia**.
 
 Otras opciones: `axisMin` / `axisMax` (por defecto el eje siempre incluye el cero y usa ticks "redondos"), `palette: ["#…", …]` (colores por serie — o por categoría en pie/donut), `showGrid`. Las etiquetas de categoría que no caben se espacian automáticamente para no encimarse, y las etiquetas de valor se mantienen dentro de la caja del gráfico.
 
@@ -1263,8 +1292,8 @@ dotnet test
 ┌─────────────────────────────────────┬───────┐
 │ Proyecto                            │ Tests │
 ├─────────────────────────────────────┼───────┤
-│ NetReporter.Core.Tests              │  124  │
-│ NetReporter.Templates.Tests         │  221  │
+│ NetReporter.Core.Tests              │  132  │
+│ NetReporter.Templates.Tests         │  226  │
 │ NetReporter.Html.Tests              │   20  │
 │ NetReporter.Svg.Tests               │   62  │
 │ NetReporter.Pdf.Tests               │   18  │
@@ -1273,7 +1302,7 @@ dotnet test
 │ NetReporter.Viewer.Tests            │   53  │
 │ NetReporter.EscPos.Tests            │   50  │
 ├─────────────────────────────────────┼───────┤
-│ Total                               │  570  │
+│ Total                               │  583  │
 └─────────────────────────────────────┴───────┘
 ```
 
@@ -1353,7 +1382,7 @@ El Designer (UI) no tiene tests automatizados; sus features de la 1.1 se verific
 - [x] **Fase 6.1 (v1.2)** — Renderer PDF sobre el backend PDF de SkiaSharp (se elimina QuestPDF), recortador TrueType propio, fuentes de respaldo, resolución de fuentes que conserva el estilo y métricas lineales en Linux
 - [x] **Fase 7 (v1.3)** — Fuentes registradas por la app (`SkiaFonts.RegisterFont*`), `NetReporter.Fonts.Liberation`, tokens de cancelación
 - [x] **Fase 8 (v1.4)** — `NetReporter.Viewer`, writer SVG directo, papel en rollo (`Roll80` / `Roll58`) + `NetReporter.EscPos`, herramientas de insertar/dibujar del Designer, reglas, cuadrícula, guías inteligentes, editores CodeMirror e interfaz ES/EN
-- [x] **Tests** — 570 tests verdes en 9 proyectos
+- [x] **Tests** — 583 tests verdes en 9 proyectos
 
 ---
 

@@ -248,4 +248,57 @@ public sealed class RoadmapFeaturesLoaderTests
         var report = YamlReportLoader.Parse("name: T\ntitle: \"Ventas {{ $.anio }}\"\nbands: []").Bind(Data);
         Assert.Equal("Ventas 2025", report.Title);
     }
+
+    [Fact]
+    public void Chart_RoundedBars_CornerRadius_AndSoftScheme()
+    {
+        var report = Load("""
+              - kind: ReportHeader
+                height: 200
+                elements:
+                  - type: chart
+                    chartType: bar
+                    bounds: { x: 0, y: 0, width: 300, height: 180 }
+                    rows: "$.ventas"
+                    category: "$.mes"
+                    fill: "#F8FAFC"
+                    cornerRadius: 8
+                    barRadius: 3
+                    colorScheme: Soft
+                    series: [ { value: "$.total" } ]
+            """);
+
+        var chart = Assert.IsType<ChartElement>(report.Bands[0].Elements[0]);
+        Assert.Equal(8, chart.CornerRadius);
+        Assert.Equal(3, chart.BarRadius);
+        Assert.Equal(ChartColorScheme.Soft, chart.ColorScheme);
+        Assert.Equal(ChartElement.SoftPalette[0], chart.ColorAt(0));
+    }
+
+    [Fact]
+    public void Chart_WithoutTheNewFields_KeepsTheDefaults()
+    {
+        var report = Load("""
+              - kind: ReportHeader
+                height: 100
+                elements:
+                  - { type: chart, rows: "$.ventas", category: "$.mes", series: [ { value: "$.total" } ], bounds: { x: 0, y: 0, width: 200, height: 100 } }
+            """);
+        var chart = (ChartElement)report.Bands[0].Elements[0];
+        Assert.Equal(0, chart.CornerRadius);
+        Assert.Equal(0, chart.BarRadius);
+        Assert.Equal(ChartColorScheme.Default, chart.ColorScheme);
+    }
+
+    [Fact]
+    public void Chart_UnknownColorScheme_Throws()
+    {
+        var ex = Assert.ThrowsAny<FormatException>(() => Load("""
+              - kind: ReportHeader
+                height: 100
+                elements:
+                  - { type: chart, colorScheme: neon, rows: "$.ventas", category: "$.mes", series: [ { value: "$.total" } ], bounds: { x: 0, y: 0, width: 200, height: 100 } }
+            """));
+        Assert.Contains("colorScheme", ex.Message);
+    }
 }

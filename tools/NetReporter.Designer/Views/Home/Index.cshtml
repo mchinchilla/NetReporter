@@ -30,6 +30,12 @@
     // UI strings for the browser side (Alpine expressions and JS messages): the same resources the view uses.
     window.NR_I18N = @Html.Raw(Json.Serialize(L.GetAllStrings(includeParentCultures: true).ToDictionary(s => s.Name, s => s.Value)));
     window.NR_DEFAULT_SIZES = @Html.Raw(Json.Serialize(defaultSizes));
+    // Chart palettes per colorScheme, from the engine (ChartElement), so new series match what is rendered.
+    window.NR_CHART_PALETTES = @Html.Raw(Json.Serialize(new Dictionary<string, string[]>
+    {
+        ["default"] = NetReporter.Core.Elements.ChartElement.DefaultPalette.Select(c => c.ToHexString()).ToArray(),
+        ["soft"] = NetReporter.Core.Elements.ChartElement.SoftPalette.Select(c => c.ToHexString()).ToArray()
+    }));
 </script>
 <style>
     .cm-host { position: relative; flex: 1 1 0; min-height: 0; }
@@ -922,6 +928,49 @@
                                        class="mt-0.5 border border-slate-300 rounded px-2 py-1 text-sm">
                             </label>
                             <div class="border border-slate-200 rounded p-1.5 space-y-1.5">
+                                <span class="text-[10px] uppercase text-slate-500 tracking-wide">@L["Chart.Appearance"]</span>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <label class="flex flex-col text-[11px] text-slate-600">
+                                        @L["Chart.ColorScheme"]
+                                        <select x-model="form.colorScheme" @@change="changeColorScheme(form.colorScheme)"
+                                                class="nr-select mt-0.5 border border-slate-300 rounded pl-2 py-1 text-sm bg-white">
+                                            <option value="">@L["Chart.SchemeDefault"]</option>
+                                            <option value="soft">@L["Chart.SchemeSoft"]</option>
+                                        </select>
+                                    </label>
+                                    <label class="flex flex-col text-[11px] text-slate-600"
+                                           x-show="form.chartType === 'bar' || form.chartType === 'horizontalBar'">
+                                        @L["Chart.BarRadius"]
+                                        <input type="number" step="1" min="0" x-model.number="form.barRadius"
+                                               @@input.debounce.400ms="applyPatch({BarRadius: form.barRadius || 0})"
+                                               class="mt-0.5 border border-slate-300 rounded px-2 py-1 text-sm">
+                                    </label>
+                                </div>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <label class="flex flex-col text-[11px] text-slate-600">
+                                        @L["Chart.Background"]
+                                        <span class="mt-0.5 flex items-center gap-1">
+                                            <input type="color" :value="form.chartFill || '#ffffff'"
+                                                   @@input.debounce.400ms="form.chartFill = $event.target.value; applyPatch({Fill: form.chartFill})"
+                                                   class="border border-slate-300 rounded h-8 flex-1 min-w-0"
+                                                   :class="form.chartFill ? '' : 'opacity-40'">
+                                            <button type="button" x-show="form.chartFill"
+                                                    @@click="form.chartFill = ''; applyPatch({Fill: ' '})"
+                                                    title="@L["Chart.NoBackground"]"
+                                                    class="text-[11px] text-red-500 hover:text-red-700 px-1">✕</button>
+                                        </span>
+                                    </label>
+                                    <label class="flex flex-col text-[11px] text-slate-600">
+                                        @L["Chart.CornerRadius"]
+                                        <input type="number" step="1" min="0" x-model.number="form.cornerRadius"
+                                               @@input.debounce.400ms="applyPatch({CornerRadius: form.cornerRadius || 0})"
+                                               :disabled="!form.chartFill && !form.chartHasBorder"
+                                               :title="!form.chartFill && !form.chartHasBorder ? t('Chart.CornerRadiusHint') : ''"
+                                               class="mt-0.5 border border-slate-300 rounded px-2 py-1 text-sm disabled:bg-slate-100 disabled:text-slate-400">
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="border border-slate-200 rounded p-1.5 space-y-1.5">
                                 <div class="flex items-center justify-between">
                                     <span class="text-[10px] uppercase text-slate-500 tracking-wide">
                                         @L["Chart.Series"] (<span x-text="form.series.length"></span>)
@@ -1145,7 +1194,8 @@
                 source: '', fit: 'contain',
                 value: '', barcodeFormat: 'qr', barcodeForeground: '#000000', barcodeBackground: '#ffffff',
                 chartType: 'bar', category: '', title: '', legend: '', showValues: false, showPercent: false,
-                stacked: false, valueFormat: '', series: []
+                stacked: false, valueFormat: '', series: [],
+                barRadius: 0, colorScheme: '', chartFill: '', chartHasBorder: false
             },
             // Multi-selección: [{ path, kind }]. `selected` es el elemento "primario" (el del drawer).
             selection: [],
@@ -2393,8 +2443,36 @@
                 reader.readAsDataURL(file);
             },
 
+            // Palette of the chart's colorScheme (emitted by the server from ChartElement).
+            chartPalette(scheme = this.form.colorScheme) {
+                const all = window.NR_CHART_PALETTES || {};
+                return all[scheme || 'default'] || all.default || ['#2563EB'];
+            },
+
+            // A series color equal to the scheme's color for its index is not written to the YAML,
+            // so the scheme keeps governing it (and switching schemes recolors it).
+            seriesColorForYaml(color, idx) {
+                const palette = this.chartPalette();
+                return color && color.toLowerCase() !== palette[idx % palette.length].toLowerCase() ? color : '';
+            },
+
+            async changeColorScheme(scheme) {
+                const before = this.chartPalette(this.selected?.el?.dataset?.colorScheme ?? '');
+                await this.applyPatch({ ColorScheme: scheme || 'default' });
+                // Series still on the old scheme's default colors move to the new scheme's colors.
+                const after = this.chartPalette(scheme);
+                let changed = false;
+                this.form.series.forEach((se, i) => {
+                    if ((se.color || '').toLowerCase() === before[i % before.length].toLowerCase()) {
+                        se.color = after[i % after.length];
+                        changed = true;
+                    }
+                });
+                if (changed) await this.flushSeries();
+            },
+
             addSeries() {
-                const palette = ['#2563EB', '#F59E0B', '#10B981', '#EF4444', '#8B5CF6', '#06B6D4'];
+                const palette = this.chartPalette();
                 this.form.series.push({
                     name: t('Chart.NewSeries', { n: this.form.series.length + 1 }),
                     value: this.rowPaths.find(p => p !== this.form.category) || '$.valor',
@@ -2417,8 +2495,8 @@
                 try {
                     const form = this.buildFormData();
                     form.append('Path', path);
-                    form.append('SeriesJson', JSON.stringify(this.form.series.map(se => ({
-                        name: se.name, value: se.value, color: se.color
+                    form.append('SeriesJson', JSON.stringify(this.form.series.map((se, i) => ({
+                        name: se.name, value: se.value, color: this.seriesColorForYaml(se.color, i)
                     }))));
                     const res = await fetch('/Home/UpdateSeries', { method: 'POST', body: form });
                     const data = await res.json();
@@ -2966,8 +3044,12 @@
                 this.form.showPercent       = ds.showPercent === 'true';
                 this.form.stacked           = ds.stacked === 'true';
                 this.form.valueFormat       = ds.valueFormat || '';
+                this.form.barRadius         = parseFloat(ds.barRadius) || 0;
+                this.form.colorScheme       = ds.colorScheme || '';
+                this.form.chartFill         = ds.fill || '';
+                this.form.chartHasBorder    = ds.hasBorder === 'true';
                 try {
-                    const palette = ['#2563EB', '#F59E0B', '#10B981', '#EF4444', '#8B5CF6', '#06B6D4'];
+                    const palette = this.chartPalette();
                     this.form.series = JSON.parse(ds.series || '[]').map((se, i) => ({
                         name: se.name ?? se.Name ?? '',
                         value: se.value ?? se.Value ?? '',
