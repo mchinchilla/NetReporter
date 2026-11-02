@@ -4,25 +4,30 @@
 
 # 🧾 NetReporter
 
-**Motor de reportes para .NET 10 con IR — un mismo template produce PDF, HTML, SVG y XLSX.**
+**Motor de reportes para .NET 10 con IR — un mismo template produce PDF, HTML, SVG, XLSX y tickets ESC/POS.**
 
 [![.NET 10](https://img.shields.io/badge/.NET-10.0-512BD4?style=flat-square&logo=dotnet)](https://dotnet.microsoft.com/)
 [![NuGet](https://img.shields.io/nuget/v/NetReporter?style=flat-square&logo=nuget&label=NuGet)](https://www.nuget.org/packages/NetReporter)
-[![Tests](https://img.shields.io/badge/tests-383%20passing-22c55e?style=flat-square&logo=xunit)](#-tests)
+[![Tests](https://img.shields.io/badge/tests-570%20passing-22c55e?style=flat-square&logo=xunit)](#-tests)
 [![License](https://img.shields.io/badge/license-MIT-22c55e?style=flat-square)](#-licencias)
 [![Status](https://img.shields.io/badge/status-producción-22c55e?style=flat-square)](#estado)
 
-🎨 Designer visual · 📄 PDF · 🌐 HTML · 🖼️ SVG · 📊 XLSX · 📦 Templates YAML · 📈 Gráficos · 🧮 Expresiones
+🎨 Designer visual · 🖥️ Visor web · 📄 PDF · 🌐 HTML · 🖼️ SVG · 📊 XLSX · 🧾 ESC/POS · 📦 Templates YAML · 📈 Gráficos · 🧮 Expresiones
 
 </div>
 
 ---
 
-## 🎬 NetReporter Designer
+## 🎬 Capturas
 
-![NetReporter Designer — editor YAML con preview SVG en vivo, drag/drop, zoom y export a PDF/HTML/XLSX](docs/images/designer.png)
+| 🎨 Designer — editas el YAML, ves la página | 🖥️ Visor — reportes dentro de tu app |
+|---|---|
+| [![NetReporter Designer: editor YAML, toolbox, preview SVG en vivo y el panel de propiedades de una tabla agrupada](docs/images/designer.jpg)](docs/images/designer.jpg) | [![Visor de NetReporter: la factura completa en su variante pastel, con miniaturas, zoom, impresión y descarga](docs/images/viewer.jpg)](docs/images/viewer.jpg) |
+| **🧾 Ticket en rollo de 80 mm en el Designer** | **🖨️ Configuración de la impresora térmica en el visor** |
+| [![Designer con el sample ticket-complete: página continua de 80 mm con logo, recuadro de cliente, QR y Code 128](docs/images/designer-ticket.jpg)](docs/images/designer-ticket.jpg) | [![Diálogo de impresora del visor: IP, puerto, papel, corte, copias, conversión a blanco y negro, gaveta](docs/images/viewer-escpos.jpg)](docs/images/viewer-escpos.jpg) |
 
-> El editor visual: paneles YAML/datos a la izquierda, un toolbox de elementos arrastrables y un preview SVG en vivo que refleja exactamente lo que producirán los renderers PDF/HTML/XLSX. Zoom de 25% a 400%, multi-selección, copiar/pegar, alinear, snap, nudge, undo/redo y export con un click — todo sin recompilar.
+> **Designer** (`tools/NetReporter.Designer`): editores YAML/datos a la izquierda, un toolbox del que arrastras o dibujas, y un preview SVG en vivo con la misma geometría que el PDF. Reglas, cuadrícula, guías inteligentes, multi-selección, copiar/pegar, deshacer/rehacer, zoom 25–400 % y export a PDF / HTML / XLSX / ESC/POS — todo sin recompilar.
+> **Visor** (`NetReporter.Viewer`): una línea de ASP.NET Core (`app.MapNetReporterViewer(…)`) da a tus usuarios un visor paginado con miniaturas, zoom, impresión, descargas y un botón "imprimir ticket" para impresoras térmicas.
 
 ---
 
@@ -332,7 +337,7 @@ flowchart TB
 | CSS | **Tailwind CSS** (CDN play) | Utility-first |
 | Barcodes (opt-in) | **ZXing.Net** 0.16.11 | Apache 2.0 · QR / Code128 / Code39 / EAN-13 |
 | XLSX backend | **ClosedXML** 0.105 | MIT · OpenXML, Excel Tables nativas |
-| Tests | **xUnit** 2.9 | 383 tests en 7 proyectos |
+| Tests | **xUnit** 2.9 | 570 tests en 9 proyectos |
 | JSON | `System.Text.Json` (BCL) | Sin Newtonsoft |
 
 ---
@@ -520,7 +525,7 @@ dotnet run --project samples/ViewerSample
 
 ## 🎨 Designer visual
 
-![Designer con el sample invoice-complete cargado](docs/images/designer.png)
+![Designer con el sample invoice-complete cargado y la tabla agrupada seleccionada](docs/images/designer.jpg)
 
 ### Lanzar
 
@@ -532,7 +537,7 @@ Abre `http://localhost:5296`.
 
 ### Layout
 
-El designer es una app web de tres paneles (visible en la captura de arriba):
+El designer es una app web de tres paneles (visible en la captura de arriba; el panel de propiedades se abre como una cuarta columna cuando hay algo seleccionado):
 
 - **Izquierda** — editor con tabs para `report.yaml` y `data.json`. Las ediciones hacen debounce y re-renderizan el preview. Arrastra el divisor para cambiar su ancho (se recuerda) u ocúltalo con `⇤` / `Ctrl+B`. Ambos paneles son editores de código (CodeMirror: números de línea, resaltado de sintaxis, plegado, búsqueda con `Ctrl/⌘+F`, `Alt+G` para ir a una línea). Seleccionar un elemento resalta su bloque en el YAML; poner el cursor dentro de un bloque marca ese elemento en el preview; doble clic en un elemento salta a su YAML. Los errores de parseo marcan la línea culpable en `report.yaml` o `data.json` y el panel de error enlaza a ella.
 - **Centro** — el **Toolbox** (`Text` / `Line` / `Rect` / `Table` / `Image` / `Code` / `Chart`) y la lista de **Bandas** con controles para reordenar/eliminar. Dos formas de insertar: **arrastra** una herramienta a la hoja (un fantasma muestra el tamaño del elemento; si sueltas en un margen, entre bandas o en el espacio vacío de la hoja cae en la banda más cercana), o **haz clic** en la herramienta y luego **clic** en la hoja para el tamaño por defecto o **arrastra para dibujar** sus límites (una línea más alta que ancha queda vertical; `Esc` cancela). Mientras insertas, la hoja muestra el nombre de cada banda.
@@ -632,6 +637,10 @@ Un visor para los usuarios finales de una aplicación ASP.NET Core (un ERP, un b
 miniaturas, impresión y descarga en PDF / Excel / HTML. Sin CDN ni framework de front-end: el web component
 `<netreporter-viewer>` es un único script embebido en el paquete.
 
+| Visor a página completa | Embebido en el layout de la propia app |
+|---|---|
+| [![Visor a página completa: el sample invoice-complete-pastel con miniaturas, navegación, zoom, impresión y descarga](docs/images/viewer.jpg)](docs/images/viewer.jpg) | [![El componente <netreporter-viewer> dentro de una página de un ERP, mostrando el dashboard de ventas de dos páginas](docs/images/viewer-embedded.jpg)](docs/images/viewer-embedded.jpg) |
+
 ```bash
 dotnet add package NetReporter.Viewer
 ```
@@ -696,13 +705,17 @@ app.MapNetReporterViewer("/reports", async (request, ct) =>
 - Las páginas SVG dibujan el texto con las fuentes **del navegador**, pero cada glifo va colocado donde lo midió el
   servidor, así que líneas y columnas quedan donde las pone el PDF. Instala las fuentes del reporte en los equipos
   cliente o usa el PDF (fuentes embebidas) cuando importe la forma exacta de los glifos.
-- No está en el meta-paquete `NetReporter` (trae ASP.NET Core). Demo: `dotnet run --project samples/ViewerSample` → `http://localhost:5297`.
+- No está en el meta-paquete `NetReporter` (trae ASP.NET Core). Demo: `dotnet run --project samples/ViewerSample` → `http://localhost:5297` (el reporte `ticket-completo` muestra los botones ESC/POS y el diálogo ⚙ de impresora de abajo).
+
+![Diálogo de impresora del visor sobre un ticket de 80 mm: IP, puerto, papel, corte, avance, copias, conversión a blanco y negro y gaveta](docs/images/viewer-escpos.jpg)
 
 ---
 
 ## 🧾 Impresoras térmicas ESC/POS (`NetReporter.EscPos`)
 
 Imprime tickets directamente en una impresora térmica de 58/80 mm. El reporte maquetado se rasteriza con el **mismo pintor que el PDF**, así que fuentes, códigos QR, códigos de barras, logos y líneas salen exactamente como en el PDF o en el preview del Designer, y se envía como bloques raster `GS v 0` seguidos de la alimentación, el corte y (opcionalmente) la apertura de la gaveta. `EscPosTcpPrinter` manda los bytes por TCP (puerto 9100); implementa `IEscPosTransport` para USB, serie o un spooler. Combínalo con una página continua ([`Roll80` / `Roll58`](#rollo-de-papel-impresoras-térmicas-pos)) para que un ticket largo sea una sola tira cortada al final.
+
+![El sample ticket-complete en el Designer: página continua de 80 mm con logo, recuadro de cliente, tabla de artículos, QR del CAI y Code 128](docs/images/designer-ticket.jpg)
 
 ```csharp
 using NetReporter.EscPos;
@@ -1338,7 +1351,9 @@ El Designer (UI) no tiene tests automatizados; sus features de la 1.1 se verific
 - [x] **Fase 5.6 (v1.1)** — Toolbox + pickers del Designer para imagen (subir), barcode y gráfico (editor de series), campo `visible:`, sugerencias de bindings desde `data.json`
 - [x] **Samples (v1.1)** — `sales-dashboard`, `nested-groups`, `account-statement`, `contracts-keep-together`
 - [x] **Fase 6.1 (v1.2)** — Renderer PDF sobre el backend PDF de SkiaSharp (se elimina QuestPDF), recortador TrueType propio, fuentes de respaldo, resolución de fuentes que conserva el estilo y métricas lineales en Linux
-- [x] **Tests** — 383 tests verdes en 7 proyectos
+- [x] **Fase 7 (v1.3)** — Fuentes registradas por la app (`SkiaFonts.RegisterFont*`), `NetReporter.Fonts.Liberation`, tokens de cancelación
+- [x] **Fase 8 (v1.4)** — `NetReporter.Viewer`, writer SVG directo, papel en rollo (`Roll80` / `Roll58`) + `NetReporter.EscPos`, herramientas de insertar/dibujar del Designer, reglas, cuadrícula, guías inteligentes, editores CodeMirror e interfaz ES/EN
+- [x] **Tests** — 570 tests verdes en 9 proyectos
 
 ---
 
@@ -1380,6 +1395,6 @@ Todos los ítems del roadmap de la 1.0 se entregaron en la **1.1.0**. Candidatos
 
 <div align="center">
 
-**Hecho con .NET 10 · SkiaSharp · YamlDotNet · ZXing.Net · ClosedXML · HTMX · Alpine.js · Tailwind**
+**Hecho con .NET 10 · SkiaSharp · YamlDotNet · ZXing.Net · ClosedXML · HTMX · Alpine.js · Tailwind · CodeMirror**
 
 </div>

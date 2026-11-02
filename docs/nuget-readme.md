@@ -1,19 +1,26 @@
 # NetReporter
 
-**Reporting engine for .NET 10 with an intermediate representation: one template produces PDF, HTML, SVG and XLSX.**
+**Reporting engine for .NET 10 with an intermediate representation: one template produces PDF, HTML, SVG, XLSX and ESC/POS thermal tickets.**
 
 [![NuGet](https://img.shields.io/nuget/v/NetReporter?style=flat-square&logo=nuget&label=NuGet)](https://www.nuget.org/packages/NetReporter)
 [![.NET 10](https://img.shields.io/badge/.NET-10.0-512BD4?style=flat-square&logo=dotnet)](https://dotnet.microsoft.com/)
 [![License](https://img.shields.io/badge/license-MIT-22c55e?style=flat-square)](https://github.com/mchinchilla/NetReporter/blob/main/LICENSE)
 
-![NetReporter Designer: YAML editor with live SVG preview, drag/drop, zoom and PDF/HTML/XLSX export](https://raw.githubusercontent.com/mchinchilla/NetReporter/main/docs/images/designer.png)
+![NetReporter Designer: YAML editor, toolbox, live SVG preview and the properties drawer of a grouped table](https://raw.githubusercontent.com/mchinchilla/NetReporter/main/docs/images/designer.jpg)
+
+![NetReporter Viewer: the pastel variant of the complete invoice with thumbnails, zoom, print and download inside an ASP.NET Core app](https://raw.githubusercontent.com/mchinchilla/NetReporter/main/docs/images/viewer.jpg)
+
+Write a report once — in C# or as a YAML template bound to JSON — and render it as a vector PDF with embedded font
+subsets, paginated HTML, SVG pages, a native Excel workbook or a raster ticket for 58/80 mm receipt printers. A visual
+web designer edits the templates, and an embeddable viewer shows them to the users of your ASP.NET Core app.
 
 Full documentation (English and Spanish), the YAML schema reference, thirteen sample templates and the
 visual web designer live on GitHub: <https://github.com/mchinchilla/NetReporter>
 
-**New in 1.1:** expression DSL (`{{ $.qty * $.price : N2 }}`, `if()`, `sum($.lines[*].total)`), multi-level
-grouped tables with grand totals, KeepTogether on detail bands, charts (bar, line, area, pie, donut,
-horizontal bar), `visible:` conditions and dynamic styles. See the GitHub README for the list of
+**New in 1.4:** `NetReporter.Viewer` (paginated report viewer for ASP.NET Core apps), an SVG writer that is ~10× faster
+and scales across threads, continuous roll pages (`Roll80` / `Roll58`) and `NetReporter.EscPos` for thermal printers
+(raster `GS v 0`, cut, cash drawer, printer status). **1.3** added app-registered fonts and `NetReporter.Fonts.Liberation`
+for hosts without system fonts; **1.2** removed the QuestPDF dependency. See the GitHub README for the list of
 behavior changes before upgrading production templates.
 
 ## Install
@@ -34,8 +41,8 @@ Or reference only the pieces you need. All packages share the same version numbe
 | `NetReporter.Xlsx` | Semantic XLSX renderer via ClosedXML: text becomes cells, tables become native Excel Tables |
 | `NetReporter.Barcodes` | QR / Code 128 / Code 39 / EAN-13 via ZXing.Net (opt-in) |
 | `NetReporter.Fonts.Liberation` | Liberation Sans / Serif / Mono embedded (SIL OFL 1.1), for hosts where SkiaSharp sees no system fonts (opt-in, not in the meta-package) |
-| `NetReporter.Viewer` | Report viewer for ASP.NET Core apps: `app.MapNetReporterViewer("/reports", …)` serves a paginated viewer (`<netreporter-viewer>` web component, no CDN) with thumbnails, zoom, print, PDF/XLSX/HTML download and, with `options.EscPos`, ESC/POS download and a "print ticket" button that sends the document to the thermal printer resolved per request (or, with `AllowClientSettings`, to the printer each browser configures in the component's settings dialog, filtered by `IsPrinterAllowed`), checking its status first (opt-in, not in the meta-package) |
-| `NetReporter.EscPos` | ESC/POS output for 58/80 mm thermal receipt printers: the laid-out report (ideally a continuous `PageSetup.Roll80`/`Roll58` page) is rasterized with the same painter as the PDF and sent as `GS v 0` blocks with feed, cut and cash-drawer commands; `EscPosTcpPrinter` sends it over TCP (port 9100). Every setting (dots per line, dpi, threshold/dithering, cut, drawer, host, port, timeouts) is an option set at runtime (opt-in, not in the meta-package) |
+| `NetReporter.Viewer` | Report viewer for ASP.NET Core apps: `app.MapNetReporterViewer("/reports", …)` serves a paginated viewer (`<netreporter-viewer>` web component, no CDN) with thumbnails, zoom, print and PDF/XLSX/HTML download. With `options.EscPos` it adds the ESC/POS download and a "print ticket" button that checks the printer status first; the printer is resolved per request on the server or, with `AllowClientSettings`, configured per browser (filtered by `IsPrinterAllowed`) (opt-in, not in the meta-package) |
+| `NetReporter.EscPos` | ESC/POS output for 58/80 mm thermal receipt printers: the laid-out report (ideally a continuous `Roll80`/`Roll58` page) is rasterized with the same painter as the PDF and sent as `GS v 0` blocks with feed, cut and cash-drawer commands; `EscPosTcpPrinter` sends it over TCP (port 9100) and reads the printer status. Every setting is a runtime option (opt-in, not in the meta-package) |
 
 ## How it works
 
@@ -158,6 +165,24 @@ app.MapNetReporterViewer("/reports", async (request, ct) =>
 
 The report is laid out once per open; pages are rendered to SVG on demand and print/downloads reuse the same layout. The viewer ships in Spanish and English (negotiated from `Accept-Language`, or pinned with `options.Language`); other languages can be registered with `NetReporterViewer.registerLanguage` (see the README).
 
+## Thermal tickets (ESC/POS)
+
+```csharp
+using NetReporter.EscPos;
+
+// page.size: roll80 in YAML, or PageSetup.Roll80 in C#: one continuous page, cut once at the end
+var layout = new LayoutEngine(SkiaTextMeasurer.Instance, ZXingBarcodeGenerator.Instance).Layout(report);
+
+var renderer = new EscPosRenderer(EscPosRendererOptions.ForRoll80());   // or ForRoll58()
+var printer  = new EscPosTcpPrinter(new EscPosTcpPrinterOptions { Host = "192.168.1.50" });
+
+var status = await printer.QueryStatusAsync(ct);                       // ready / paper-end / cover-open / offline
+if (status.ReadyToPrint)
+    await printer.PrintAsync(layout, renderer, ct);
+```
+
+![The ticket-complete sample: an 80 mm continuous ticket with logo, item table, QR and Code 128, as shown in the Designer](https://raw.githubusercontent.com/mchinchilla/NetReporter/main/docs/images/designer-ticket.jpg)
+
 ## Features
 
 - Layout engine with pagination, repeated table headers and Report/Page Header/Footer + Detail bands.
@@ -169,7 +194,8 @@ The report is laid out once per open; pages are rendered to SVG on demand and pr
 - Charts: bar, horizontal bar, line, area, pie and donut, drawn as vector primitives (XLSX gets the data table).
 - Embedded images (PNG/JPEG/GIF/WebP), vector barcodes and QR codes.
 - Inheritable style sheet (`basedOn`) with cycle detection, per-report culture for number and date formats.
-- Page sizes: Letter, Legal, A3-A6, B4-B5, Tabloid and custom sizes such as 80 mm / 58 mm receipts.
+- Page sizes: Letter, Legal, A3-A6, B4-B5, Tabloid, custom sizes and continuous 80 mm / 58 mm roll pages that grow with the content.
+- Visual web designer (drag, draw, resize, rulers, smart guides, live preview) and an embeddable viewer for ASP.NET Core apps.
 - No reflection in hot paths: bindings are typed `Func<TRow, TValue>` delegates.
 
 ## Requirements and notes
