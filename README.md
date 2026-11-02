@@ -68,10 +68,14 @@
 |---|---|
 | 🟦 **Rounded bars** (`barRadius`) | `bar` / `horizontalBar` round the free end of each bar (only the outer segment when stacked), capped at half the bar's thickness |
 | 🔲 **Rounded chart card** (`cornerRadius`) | The chart's `fill` / `borderLine` get rounded corners, to match rounded KPI cards |
-| 🎨 **Soft colors** (`colorScheme: soft`) | Pastel palette for series without an explicit color, with dark labels inside slices and stacked bars |
+| 🎨 **Soft colors** (`colorScheme: soft`) | Soft, mid-tone palette (light but not washed out) for series without an explicit color, with dark labels inside slices and stacked bars |
 | 🖱️ **Designer** | New **Appearance** block in the chart drawer: vivid/soft colors, bar radius, background color (removable) and radius. New series no longer pin the palette color in the YAML, so switching schemes recolors them |
 
 They are ordinary draw commands with a radius, so rendering cost is unchanged and PDF, SVG, HTML and ESC/POS look the same. The `sales-dashboard` sample uses all three. See [Charts](#-charts).
+
+### ⚠️ Behavior changes in 1.5
+
+1. **Since 1.5.1 `colorScheme: soft` uses livelier colors.** The 1.5.0 pastels looked washed out in print; `ChartElement.SoftPalette` is now a set of soft mid-tones (`#5B9BEA`, `#F5A25D`, `#4CC495`, `#F07B7B`, `#9B87E8`, `#4FBFD6`, `#EC7FB5`, `#A6CF5A`), each with ≥ 4.5:1 contrast against the dark inside labels. Charts that use `colorScheme: soft` without an explicit `palette:` / series `color:` change color; pin the old values in `palette:` to keep them. Charts on the default scheme are unaffected.
 
 ---
 
@@ -1128,7 +1132,7 @@ A `chart` element reads its rows with a JSON Path, takes one category per row an
 |---|---|
 | `cornerRadius` | Rounds the chart's background and border (`fill` / `borderLine`), e.g. to match rounded KPI cards |
 | `barRadius` | `bar` / `horizontalBar`: rounds the free end of each bar — the top of a positive bar, the bottom of a negative one, the right end of a horizontal bar. In stacked bars only the outer segment is rounded. The radius is capped at half the bar's thickness and at its length |
-| `colorScheme: soft` | Pastel palette (`ChartElement.SoftPalette`) for series — or slices — without an explicit color, with dark labels inside pie/donut slices and stacked bars (white does not read on light colors). An explicit `palette:` or series `color:` still wins |
+| `colorScheme: soft` | Soft mid-tone palette (`ChartElement.SoftPalette`) for series — or slices — without an explicit color, with dark labels inside pie/donut slices and stacked bars (white does not read on light colors). An explicit `palette:` or series `color:` still wins |
 
 These are plain draw commands with a radius (the same rounded rectangles as `rectangle` elements), so they cost nothing measurable and look the same in PDF, SVG, HTML and ESC/POS. From C#: `CornerRadius`, `BarRadius` and `ColorScheme = ChartColorScheme.Soft` on `ChartElement`. In the Designer they live in the chart drawer under **Appearance**.
 

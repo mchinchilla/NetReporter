@@ -116,11 +116,11 @@ public sealed record ChartElement : ReportElement
         Color.FromHex("#8B5CF6"), Color.FromHex("#06B6D4"), Color.FromHex("#EC4899"), Color.FromHex("#84CC16")
     ];
 
-    /// <summary>Paleta suave (<see cref="ChartColorScheme.Soft"/>): tonos pastel que siguen distinguiéndose entre sí.</summary>
+    /// <summary>Paleta suave (<see cref="ChartColorScheme.Soft"/>): tonos medios, suaves pero vivos, que se distinguen entre sí y mantienen contraste ≥ 4.5:1 con las etiquetas oscuras.</summary>
     public static IReadOnlyList<Color> SoftPalette { get; } =
     [
-        Color.FromHex("#8AB4F8"), Color.FromHex("#F6C28B"), Color.FromHex("#8ED1B2"), Color.FromHex("#F2A1A1"),
-        Color.FromHex("#B8A4F0"), Color.FromHex("#86CFDC"), Color.FromHex("#F1A6CC"), Color.FromHex("#C3DB8C")
+        Color.FromHex("#5B9BEA"), Color.FromHex("#F5A25D"), Color.FromHex("#4CC495"), Color.FromHex("#F07B7B"),
+        Color.FromHex("#9B87E8"), Color.FromHex("#4FBFD6"), Color.FromHex("#EC7FB5"), Color.FromHex("#A6CF5A")
     ];
 
     /// <summary>Color de las etiquetas dibujadas dentro de porciones y barras apiladas.</summary>

@@ -219,7 +219,7 @@ bands:
         borderLine: { thickness: 0.5, color: "#E2E8F0" }
         cornerRadius: 8                 # mismo radio que las tarjetas KPI
         colorScheme: soft               # paleta suave; etiquetas oscuras dentro de las porciones
-        palette: ["#8ED1B2"]
+        palette: ["#4CC495"]
         barRadius: 3
         series:
           - { name: "Ventas", value: "= $.ventas / 1000" }

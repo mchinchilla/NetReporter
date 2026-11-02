@@ -68,10 +68,14 @@
 |---|---|
 | 🟦 **Barras redondeadas** (`barRadius`) | `bar` / `horizontalBar` redondean el extremo libre de cada barra (solo el segmento exterior si están apiladas), limitado a la mitad del grosor de la barra |
 | 🔲 **Tarjeta del gráfico redondeada** (`cornerRadius`) | El `fill` / `borderLine` del gráfico tiene esquinas redondeadas, para combinar con tarjetas KPI redondeadas |
-| 🎨 **Colores suaves** (`colorScheme: soft`) | Paleta pastel para las series sin color explícito, con etiquetas oscuras dentro de las porciones y de las barras apiladas |
+| 🎨 **Colores suaves** (`colorScheme: soft`) | Paleta de tonos medios suaves (claros pero no deslavados) para las series sin color explícito, con etiquetas oscuras dentro de las porciones y de las barras apiladas |
 | 🖱️ **Designer** | Nuevo bloque **Apariencia** en el panel del gráfico: colores intensos/suaves, radio de barras, color de fondo (se puede quitar) y su radio. Las series nuevas ya no fijan el color de la paleta en el YAML, así que cambiar de esquema las recolorea |
 
 Son comandos de dibujo normales con un radio, así que el costo de render no cambia y PDF, SVG, HTML y ESC/POS se ven igual. El sample `sales-dashboard` usa las tres. Ver [Gráficos](#-gráficos).
+
+### ⚠️ Cambios de comportamiento en la 1.5
+
+1. **Desde la 1.5.1 `colorScheme: soft` usa colores más vivos.** Los pasteles de la 1.5.0 se veían deslavados impresos; `ChartElement.SoftPalette` ahora son tonos medios suaves (`#5B9BEA`, `#F5A25D`, `#4CC495`, `#F07B7B`, `#9B87E8`, `#4FBFD6`, `#EC7FB5`, `#A6CF5A`), todos con contraste ≥ 4.5:1 contra las etiquetas oscuras interiores. Los gráficos con `colorScheme: soft` sin `palette:` ni `color:` explícito cambian de color; para conservar los anteriores, fíjalos en `palette:`. Los gráficos con el esquema por defecto no cambian.
 
 ---
 
@@ -1129,7 +1133,7 @@ Un elemento `chart` lee sus filas con un JSON Path, toma una categoría por fila
 |---|---|
 | `cornerRadius` | Redondea el fondo y el borde del gráfico (`fill` / `borderLine`), por ejemplo para que combine con tarjetas KPI redondeadas |
 | `barRadius` | `bar` / `horizontalBar`: redondea el extremo libre de cada barra — arriba en una barra positiva, abajo en una negativa, a la derecha en una horizontal. En barras apiladas solo se redondea el segmento exterior. El radio se limita a la mitad del grosor de la barra y a su largo |
-| `colorScheme: soft` | Paleta pastel (`ChartElement.SoftPalette`) para las series — o porciones — sin color explícito, con etiquetas oscuras dentro de las porciones de pie/donut y de las barras apiladas (el blanco no se lee sobre colores claros). Un `palette:` explícito o el `color:` de una serie siguen mandando |
+| `colorScheme: soft` | Paleta de tonos medios suaves (`ChartElement.SoftPalette`) para las series — o porciones — sin color explícito, con etiquetas oscuras dentro de las porciones de pie/donut y de las barras apiladas (el blanco no se lee sobre colores claros). Un `palette:` explícito o el `color:` de una serie siguen mandando |
 
 Son comandos de dibujo normales con un radio (los mismos rectángulos redondeados de los elementos `rectangle`), así que no tienen un costo medible y se ven igual en PDF, SVG, HTML y ESC/POS. Desde C#: `CornerRadius`, `BarRadius` y `ColorScheme = ChartColorScheme.Soft` en `ChartElement`. En el Designer están en el panel del gráfico, bajo **Apariencia**.
 
