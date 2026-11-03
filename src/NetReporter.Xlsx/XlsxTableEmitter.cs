@@ -243,12 +243,32 @@ internal static class XlsxTableEmitter
             var cell = ws.Cell(rowNumber, c + 1);
             var value = col.Binding.Evaluate(row);
 
-            // Estilo: row + per-column alignment.
+            // Valor con tipo preservado; el formato numérico va en el estilo.
+            var numberFormat = XlsxValueWriter.WriteValue(cell, value, col.Format, report.Culture);
+
+            // Estilo: row + per-column alignment + number format. ClosedXML re-keys the style on every property set
+            // (8–9 per cell): a 50 000 × 12 table spent ~6 s there. Each distinct (style, alignment, format) is built
+            // once on the first cell that needs it and then assigned whole, which is one lookup per cell.
+            var key = (rowStyle, col.Align, numberFormat);
+            if (StyleCache.TryGetValue(ws, out var cache) && cache.TryGetValue(key, out var cached))
+            {
+                cell.Style = cached;
+                continue;
+            }
             var styleWithAlign = rowStyle with { TextAlign = col.Align };
             XlsxStyleApplier.Apply(cell.Style, styleWithAlign);
-
-            // Valor con tipo preservado.
-            XlsxValueWriter.Write(cell, value, col.Format, report.Culture);
+            if (numberFormat is not null)
+                cell.Style.NumberFormat.Format = numberFormat;
+            if (cache is null)
+            {
+                cache = new Dictionary<(NetReporter.Core.Styles.ResolvedStyle, NetReporter.Core.Styles.TextAlignment, string?), IXLStyle>();
+                StyleCache.AddOrUpdate(ws, cache);
+            }
+            cache[key] = cell.Style;
         }
     }
+
+    // Per-worksheet cache of the built ClosedXML styles (weak: dies with the workbook).
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<IXLWorksheet,
+        Dictionary<(NetReporter.Core.Styles.ResolvedStyle, NetReporter.Core.Styles.TextAlignment, string?), IXLStyle>> StyleCache = new();
 }

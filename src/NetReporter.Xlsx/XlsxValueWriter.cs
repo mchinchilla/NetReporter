@@ -12,83 +12,64 @@ internal static class XlsxValueWriter
 {
     public static void Write(IXLCell cell, object? value, string? netFormat, CultureInfo culture)
     {
-        if (value is null)
-        {
-            cell.Value = string.Empty;
-            return;
-        }
+        var format = WriteValue(cell, value, netFormat, culture);
+        if (format is not null)
+            cell.Style.NumberFormat.Format = format;
+    }
 
+    /// <summary>
+    /// Writes the value with its type preserved and returns the Excel number format the cell needs (null = General)
+    /// WITHOUT touching the cell's style, so a caller writing many cells can apply one cached style per distinct
+    /// (style, format) instead of re-keying the style of every cell (see <see cref="XlsxTableEmitter"/>).
+    /// </summary>
+    public static string? WriteValue(IXLCell cell, object? value, string? netFormat, CultureInfo culture)
+    {
         switch (value)
         {
+            case null:
+                cell.Value = string.Empty;
+                return null;
             case bool b:
                 cell.Value = b;
-                break;
-
+                return null;
             case DateTime dt:
                 cell.Value = dt;
-                cell.Style.NumberFormat.Format = MapDateFormat(netFormat) ?? "yyyy-mm-dd";
-                break;
-
+                return MapDateFormat(netFormat) ?? "yyyy-mm-dd";
             case DateTimeOffset dto:
                 cell.Value = dto.LocalDateTime;
-                cell.Style.NumberFormat.Format = MapDateFormat(netFormat) ?? "yyyy-mm-dd";
-                break;
-
+                return MapDateFormat(netFormat) ?? "yyyy-mm-dd";
             case decimal m:
                 cell.Value = (double)m;
-                ApplyNumberFormat(cell, netFormat);
-                break;
-
+                return MapNumberFormat(netFormat);
             case double d:
                 cell.Value = d;
-                ApplyNumberFormat(cell, netFormat);
-                break;
-
+                return MapNumberFormat(netFormat);
             case float f:
                 cell.Value = f;
-                ApplyNumberFormat(cell, netFormat);
-                break;
-
+                return MapNumberFormat(netFormat);
             case int i:
                 cell.Value = i;
-                ApplyNumberFormat(cell, netFormat);
-                break;
-
+                return MapNumberFormat(netFormat);
             case long l:
                 cell.Value = l;
-                ApplyNumberFormat(cell, netFormat);
-                break;
-
+                return MapNumberFormat(netFormat);
             case short sh:
                 cell.Value = sh;
-                ApplyNumberFormat(cell, netFormat);
-                break;
-
+                return MapNumberFormat(netFormat);
             case string s:
                 // Si el string parsea como número y hay un format numérico, escribir como número.
                 if (netFormat is not null && IsNumericFormat(netFormat) &&
                     double.TryParse(s, NumberStyles.Any, culture, out var parsed))
                 {
                     cell.Value = parsed;
-                    ApplyNumberFormat(cell, netFormat);
+                    return MapNumberFormat(netFormat);
                 }
-                else
-                {
-                    cell.Value = s;
-                }
-                break;
-
+                cell.Value = s;
+                return null;
             default:
                 cell.Value = value.ToString() ?? string.Empty;
-                break;
+                return null;
         }
-    }
-
-    private static void ApplyNumberFormat(IXLCell cell, string? netFormat)
-    {
-        var mapped = MapNumberFormat(netFormat);
-        if (mapped is not null)
-            cell.Style.NumberFormat.Format = mapped;
     }
 
     /// <summary>
