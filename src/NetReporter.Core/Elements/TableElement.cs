@@ -25,6 +25,12 @@ public interface ITableLayoutHints
 {
     /// <summary>See <see cref="TableElement{TRow}.SuppressAdvance"/>.</summary>
     bool SuppressAdvance { get; }
+
+    /// <summary>See <see cref="TableElement{TRow}.MinRowsBeforeBreak"/>.</summary>
+    int MinRowsBeforeBreak { get; }
+
+    /// <summary>See <see cref="TableElement{TRow}.StartHeight"/>.</summary>
+    double StartHeight { get; }
 }
 
 /// <summary>
@@ -81,6 +87,33 @@ public sealed record TableElement<TRow> : ReportElement, ITableElement
     /// Use for two-column layouts like a T-account balance sheet. Default false. Note: a suppressed table
     /// is expected to fit on one page (it does not drive pagination).</summary>
     public bool SuppressAdvance { get; init; }
+
+    /// <summary>
+    /// Orphan control: the minimum number of data rows that must fit under the header on the page
+    /// where the table starts. When the header plus these rows don't fit in what is left of the page,
+    /// the table (and, inside a detail band, the elements above it such as its title) starts on the
+    /// next page instead of leaving a header with no rows at the bottom. A table with this many rows
+    /// or fewer is kept whole together with its <see cref="Summary"/>. Default 2; 0 disables the check
+    /// (the header may be left alone at the bottom of a page, the pre-1.6 behavior).
+    /// </summary>
+    public int MinRowsBeforeBreak { get; init; } = 2;
+
+    /// <summary>
+    /// Height the table needs on the page where it starts to honour <see cref="MinRowsBeforeBreak"/>:
+    /// header + the first group headers + the minimum rows (+ the summary when that is every row).
+    /// Equals <see cref="HeaderHeight"/> when the check is disabled.
+    /// </summary>
+    public double StartHeight
+    {
+        get
+        {
+            if (MinRowsBeforeBreak <= 0) return HeaderHeight;
+            var rows = Math.Min(Rows.Count, MinRowsBeforeBreak);
+            var groupHeaders = rows > 0 ? EffectiveGroups.Sum(g => g.Header?.Height ?? 0) : 0;
+            var summary = Rows.Count <= MinRowsBeforeBreak ? Summary?.Height ?? 0 : 0;
+            return HeaderHeight + groupHeaders + rows * RowHeight + summary;
+        }
+    }
 
     /// <summary>
     /// Si está presente, las filas consecutivas con el mismo valor de <see cref="GroupBy"/>

@@ -246,7 +246,39 @@ public sealed class LayoutEngine
                     NewPage();
             }
 
+            // Orphan control: a band whose table will page by row still must not start with only its
+            // title and the table header at the bottom of the page (MinRowsBeforeBreak). Covers bands
+            // without KeepTogether and KeepTogether bands taller than a page.
+            if (!_measuring && !PageIsEmpty && hasTable)
+            {
+                var lead = TableLeadHeight(band);
+                if (_cursorY + lead > _maxY && lead <= _usableHeight + 0.01)
+                    NewPage();
+            }
+
             EmitDetailBand(band);
+        }
+
+        /// <summary>
+        /// Height from the band top that must fit for the band's first table to start with its minimum
+        /// rows: the table's offset plus <see cref="ITableLayoutHints.StartHeight"/>, or the bottom of a
+        /// fixed element placed before it (the section title), whichever is lower. 0 when the first
+        /// table opts out (MinRowsBeforeBreak = 0 or SuppressAdvance).
+        /// </summary>
+        private double TableLeadHeight(DetailBand band)
+        {
+            var aboveBottom = 0d;
+            foreach (var element in band.Elements)
+            {
+                if (!IsVisible(element)) continue;
+                if (element is ITableElement table)
+                {
+                    if (table.MinRowsBeforeBreak <= 0 || table.SuppressAdvance) return 0;
+                    return Math.Max(aboveBottom, Math.Max(0, element.Bounds.Y) + table.StartHeight);
+                }
+                aboveBottom = Math.Max(aboveBottom, element.Bounds.Y + element.Bounds.Height);
+            }
+            return 0;
         }
 
         private void EmitDetailBand(DetailBand band)
@@ -352,6 +384,19 @@ public sealed class LayoutEngine
                 {
                     var ruleY = y + table.HeaderHeight;
                     Add(new DrawLineCommand(new Point(tableX, ruleY), new Point(tableX + tableWidth, ruleY), hr.Thickness, hr.Color));
+                }
+            }
+
+            // Orphan control for a table that starts mid-page on its own (or not first in its band): if
+            // the header and its minimum rows don't fit, the table starts on the next page. Suppressed
+            // (side-by-side) tables don't drive pagination.
+            if (!_measuring && !PageIsEmpty && !table.SuppressAdvance && table.MinRowsBeforeBreak > 0)
+            {
+                var start = table.StartHeight;
+                if (_cursorY + start > _maxY && start <= _usableHeight + 0.01)
+                {
+                    NewPage();
+                    segmentTop = _cursorY;
                 }
             }
 

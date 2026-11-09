@@ -422,6 +422,9 @@ public sealed class TemplateReport
                 : null,
             FullRowBackground = e.FullRowBackground ?? false,
             SuppressAdvance = e.SuppressAdvance ?? false,
+            MinRowsBeforeBreak = e.MinRowsBeforeBreak is { } minRows
+                ? (minRows >= 0 ? minRows : throw new FormatException($"minRowsBeforeBreak no puede ser negativo: {minRows}."))
+                : 2,
             OuterBorder = e.OuterBorder is not null ? ResolveBorderLine(e.OuterBorder) : null,
             CornerRadius = e.CornerRadius ?? 0
         };

@@ -26,7 +26,7 @@ src/
 tests/
   NetReporter.Core.Tests/  NetReporter.Templates.Tests/  NetReporter.Html.Tests/  NetReporter.Svg.Tests/
   NetReporter.Pdf.Tests/   NetReporter.Xlsx.Tests/       NetReporter.Barcodes.Tests/
-  NetReporter.Viewer.Tests/ (TestServer)  NetReporter.EscPos.Tests/                       — 583 tests total
+  NetReporter.Viewer.Tests/ (TestServer)  NetReporter.EscPos.Tests/                       — 594 tests total
   TestAssets/Fonts/        Lato-Regular.ttf (SIL OFL) — font tests use it instead of system fonts (CI has almost none)
 tools/
   NetReporter.Designer/    ASP.NET Core MVC + Alpine.js + HTMX + Tailwind (CDN)
@@ -48,7 +48,7 @@ Solution file is `NetReporter.slnx` (the newer XML format — not classic `.sln`
 
 ```bash
 dotnet build
-dotnet test                                                # 583 tests
+dotnet test                                                # 594 tests
 dotnet run --project samples/InvoiceSample                 # → factura.pdf
 dotnet run --project samples/TemplateSample                # → 14 PDF + 14 XLSX
 dotnet run --project tools/NetReporter.Designer            # → http://localhost:5296
@@ -79,6 +79,7 @@ The pipeline is **IR → LayoutEngine → RenderList → Renderer** (PDF/HTML/SV
 - The engine uses only the **first** `ReportHeaderBand`, `ReportFooterBand`, `PageHeaderBand` and `PageFooterBand` (`OfType<>().FirstOrDefault()`); extra bands of those kinds are silently ignored, so sample templates group their blocks into one band each (all `DetailBand`s are emitted, in order).
 - **Continuous pages** (`PageSetup.Continuous`, set by `Roll80`/`Roll58`/`Roll(width)`; YAML `page.size: roll80|roll58|roll`): `_maxY = double.MaxValue` so nothing ever breaks, the footer is placed at `_contentBottom`, and the returned `RenderList.Page` is the setup `with` the computed height (content + footer + bottom margin). Renderers, the Designer and the Viewer must take the page size from `RenderList.Page`, never from `ReportDefinition.Page` (nominal height 0 on rolls). The paginated path only pays a bool check; keep it that way.
 - A table's `Bounds.Y` is an offset from the current flow position. Detail bands without tables move whole to the next page when they don't fit.
+- Orphan control (`TableElement.MinRowsBeforeBreak`, default 2, YAML `minRowsBeforeBreak`): before a detail band whose first table pages by row, `TableLeadHeight` checks that the elements above the table plus `StartHeight` (header + first group headers + min rows, + summary when that is every row) fit, else `NewPage()`; `RenderTable` repeats the check for tables that start mid-page on their own. Never on an empty page, while measuring, or for `SuppressAdvance` tables.
 
 ## Renderers — when to consume what
 

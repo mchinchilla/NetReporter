@@ -8,7 +8,7 @@
 
 [![.NET 10](https://img.shields.io/badge/.NET-10.0-512BD4?style=flat-square&logo=dotnet)](https://dotnet.microsoft.com/)
 [![NuGet](https://img.shields.io/nuget/v/NetReporter?style=flat-square&logo=nuget&label=NuGet)](https://www.nuget.org/packages/NetReporter)
-[![Tests](https://img.shields.io/badge/tests-583%20passing-22c55e?style=flat-square&logo=xunit)](#-tests)
+[![Tests](https://img.shields.io/badge/tests-594%20passing-22c55e?style=flat-square&logo=xunit)](#-tests)
 [![License](https://img.shields.io/badge/license-MIT-22c55e?style=flat-square)](#-licenses)
 [![Status](https://img.shields.io/badge/status-production-22c55e?style=flat-square)](#-completed)
 
@@ -357,7 +357,7 @@ flowchart TB
 | CSS | **Tailwind CSS** (CDN play) | Utility-first |
 | Barcodes (opt-in) | **ZXing.Net** 0.16.11 | Apache 2.0 · QR / Code128 / Code39 / EAN-13 |
 | XLSX backend | **ClosedXML** 0.105 | MIT · OpenXML, native Excel tables |
-| Tests | **xUnit** 2.9 | 583 tests across 9 projects |
+| Tests | **xUnit** 2.9 | 594 tests across 9 projects |
 | JSON | `System.Text.Json` (BCL) | No Newtonsoft |
 
 ---
@@ -820,7 +820,7 @@ bands:
 | `text` | `content` (template), `style`, `wordWrap`, `autoHeight` |
 | `line` | `orientation` (horizontal/vertical), `color`, `thickness` |
 | `rectangle` | `fill`, `borderLine: { thickness, color }`, `cornerRadius`, `roundedCorners` |
-| `table` | `rows` (JSON Path), `columns[]`, `headerStyle`, `rowStyle`, `alternateRowStyle`, `headerHeight`, `rowHeight`, `headerMode`, `groupBy`, `groupHeader`, `groupFooter`, `groups`, `summary`, `headerRule`, `rowSeparator`, `rowStyleBinding`, `rowStyleMap`, `fullRowBackground`, `outerBorder`, `cornerRadius`, `suppressAdvance` |
+| `table` | `rows` (JSON Path), `columns[]`, `headerStyle`, `rowStyle`, `alternateRowStyle`, `headerHeight`, `rowHeight`, `headerMode`, `groupBy`, `groupHeader`, `groupFooter`, `groups`, `summary`, `headerRule`, `rowSeparator`, `rowStyleBinding`, `rowStyleMap`, `fullRowBackground`, `outerBorder`, `cornerRadius`, `suppressAdvance`, `minRowsBeforeBreak` |
 | `image` | `source` (file path, `data:image/png;base64,...` or template such as `{{ $.logo }}`), `fit` (contain/fill) |
 | `barcode` | `value` (template), `format` (qr/code128/code39/ean13), `barcodeForeground`, `barcodeBackground` |
 | `chart` | `chartType`, `rows`, `category`, `series[]`, `title`, `legend`, `showValues`, `showPercent`, `stacked`, `valueFormat`, `axisMin`/`axisMax`, `palette`, `innerRadius`, `lineWidth`, `showGrid`, `showMarkers`, `fill`, `borderLine` — see [Charts](#-charts) |
@@ -917,10 +917,13 @@ The table starts at the current flow position plus `bounds.y` — use it to leav
   fullRowBackground: true                               # paint styled row backgrounds edge to edge (no cell seams)
 
   suppressAdvance: true                                 # don't move the band cursor: the next table starts at the same Y
+  minRowsBeforeBreak: 2                                 # orphan control: rows that must fit under the header (default 2, 0 = off)
   columns: [...]
 ```
 
 `suppressAdvance` enables side-by-side tables (e.g. a T-account balance sheet): give each table its own `bounds.x`/`width`. The band's auto-height still grows to contain it, but a suppressed table must fit on one page — it does not drive pagination.
+
+`minRowsBeforeBreak` is orphan control for tables that page by row. If the header plus that many rows (and the first group headers) don't fit in what is left of the page, the table starts on the next page instead of leaving a lone header at the bottom. Inside a detail band, the elements placed above the first table, such as the section title, move with it. A table with that many rows or fewer is kept whole together with its `summary`. A table that already starts at the top of a page never moves. The default is 2; `0` restores the old behavior.
 
 ### Rounded rectangles
 
@@ -1295,17 +1298,17 @@ dotnet test
 ┌─────────────────────────────────────┬───────┐
 │ Project                             │ Tests │
 ├─────────────────────────────────────┼───────┤
-│ NetReporter.Core.Tests              │  132  │
-│ NetReporter.Templates.Tests         │  226  │
+│ NetReporter.Core.Tests              │  140  │
+│ NetReporter.Templates.Tests         │  228  │
 │ NetReporter.Html.Tests              │   20  │
 │ NetReporter.Svg.Tests               │   62  │
 │ NetReporter.Pdf.Tests               │   18  │
-│ NetReporter.Xlsx.Tests              │   15  │
+│ NetReporter.Xlsx.Tests              │   16  │
 │ NetReporter.Barcodes.Tests          │    7  │
 │ NetReporter.Viewer.Tests            │   53  │
 │ NetReporter.EscPos.Tests            │   50  │
 ├─────────────────────────────────────┼───────┤
-│ Total                               │  583  │
+│ Total                               │  594  │
 └─────────────────────────────────────┴───────┘
 ```
 
@@ -1385,7 +1388,7 @@ The Designer (UI) has no automated tests; its 1.1 features were verified manuall
 - [x] **Phase 6.1 (v1.2)** — PDF renderer on SkiaSharp's PDF backend (QuestPDF removed), own TrueType subsetter, fallback fonts, style-preserving font resolution and linear metrics on Linux
 - [x] **Phase 7 (v1.3)** — Fonts registered by the app (`SkiaFonts.RegisterFont*`), `NetReporter.Fonts.Liberation`, cancellation tokens
 - [x] **Phase 8 (v1.4)** — `NetReporter.Viewer`, direct SVG writer, roll paper (`Roll80` / `Roll58`) + `NetReporter.EscPos`, Designer insert/draw tools, rulers, grid, smart guides, CodeMirror editors and ES/EN UI
-- [x] **Tests** — 583 passing tests across 9 projects
+- [x] **Tests** — 594 passing tests across 9 projects
 
 ---
 

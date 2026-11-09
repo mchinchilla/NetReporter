@@ -301,4 +301,33 @@ public sealed class RoadmapFeaturesLoaderTests
             """));
         Assert.Contains("colorScheme", ex.Message);
     }
+
+    private static ITableElement LoadTable(string extra) =>
+        Assert.IsAssignableFrom<ITableElement>(Load($$"""
+              - kind: Detail
+                height: 0
+                elements:
+                  - type: table
+                    bounds: { x: 0, y: 0, width: 200, height: 0 }
+                    rows: "$.ventas"
+                    {{extra}}
+                    columns:
+                      - { header: "Mes", binding: "$.mes", width: 200 }
+            """).Bands[0].Elements[0]);
+
+    [Fact]
+    public void Table_MinRowsBeforeBreak_DefaultsToTwo_AndCanBeSetOrDisabled()
+    {
+        Assert.Equal(2, LoadTable("headerMode: RepeatOnPageBreak").MinRowsBeforeBreak);
+        Assert.Equal(4, LoadTable("minRowsBeforeBreak: 4").MinRowsBeforeBreak);
+        Assert.Equal(0, LoadTable("minRowsBeforeBreak: 0").MinRowsBeforeBreak);
+    }
+
+    [Fact]
+    public void Table_NegativeMinRowsBeforeBreak_FailsAtLoadTime()
+    {
+        var ex = Assert.ThrowsAny<FormatException>(() => LoadTable("minRowsBeforeBreak: -1"));
+        Assert.Contains("minRowsBeforeBreak", ex.Message);
+    }
 }
+

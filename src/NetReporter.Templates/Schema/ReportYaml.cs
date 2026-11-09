@@ -126,6 +126,9 @@ public sealed class ElementYaml
     /// <summary>Draw the table but don't advance the vertical cursor (side-by-side tables).</summary>
     public bool? SuppressAdvance { get; set; }
 
+    /// <summary>Orphan control: minimum data rows under the header where the table starts (default 2; 0 = off).</summary>
+    public int? MinRowsBeforeBreak { get; set; }
+
     /// <summary>Border drawn around the whole table, with optional corner radius (a "card").</summary>
     public BorderLineYaml? OuterBorder { get; set; }
 
