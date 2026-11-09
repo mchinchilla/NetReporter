@@ -183,7 +183,8 @@ public static class YamlReportRewriter
                 patch.RowHeight is not null ||
                 patch.HeaderStyle is not null ||
                 patch.RowStyle is not null ||
-                patch.AlternateRowStyle is not null)
+                patch.AlternateRowStyle is not null ||
+                patch.MinRowsBeforeBreak is not null)
             {
                 if (kind != "table")
                     throw new InvalidOperationException(
@@ -197,6 +198,13 @@ public static class YamlReportRewriter
                 if (patch.RowStyle is not null)          e.RowStyle = patch.RowStyle;
                 if (patch.AlternateRowStyle is not null) e.AlternateRowStyle =
                     string.IsNullOrWhiteSpace(patch.AlternateRowStyle) ? null : patch.AlternateRowStyle;
+                // The default (2) is left out of the YAML, like any other default.
+                if (patch.MinRowsBeforeBreak is int minRows) e.MinRowsBeforeBreak = minRows switch
+                {
+                    < 0 => throw new InvalidOperationException($"minRowsBeforeBreak no puede ser negativo: {minRows}."),
+                    2 => null,
+                    _ => minRows
+                };
             }
 
             // Resize redistributivo: si cambió el ancho de una tabla, escalar columnas proporcionalmente.

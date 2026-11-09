@@ -14,10 +14,12 @@ Write a report once — in C# or as a YAML template bound to JSON — and render
 subsets, paginated HTML, SVG pages, a native Excel workbook or a raster ticket for 58/80 mm receipt printers. A visual
 web designer edits the templates, and an embeddable viewer shows them to the users of your ASP.NET Core app.
 
-Full documentation (English and Spanish), the YAML schema reference, fourteen sample templates and the
+Full documentation (English and Spanish), the YAML schema reference, fifteen sample templates and the
 visual web designer live on GitHub: <https://github.com/mchinchilla/NetReporter>
 
-**New in 1.5:** charts with an optional modern look — rounded bars (`barRadius`), rounded chart cards (`cornerRadius`) and a soft, mid-tone color scheme (`colorScheme: soft`).
+**New in 1.6:** table orphan control — a table never starts with a lone header (and section title) at the bottom of a page: `minRowsBeforeBreak` rows (default 2) must fit under it, and short tables stay whole with their total. This changes page breaks of existing reports; set `minRowsBeforeBreak: 0` to keep the previous pagination.
+
+**1.5:** charts with an optional modern look — rounded bars (`barRadius`), rounded chart cards (`cornerRadius`) and a soft, mid-tone color scheme (`colorScheme: soft`).
 
 **1.4:** `NetReporter.Viewer` (paginated report viewer for ASP.NET Core apps), an SVG writer that is ~10× faster
 and scales across threads, continuous roll pages (`Roll80` / `Roll58`) and `NetReporter.EscPos` for thermal printers
@@ -189,6 +191,7 @@ if (status.ReadyToPrint)
 
 - Layout engine with pagination, repeated table headers and Report/Page Header/Footer + Detail bands.
 - Real word wrap, auto-height bands and `keepTogether` blocks (report and detail bands) that never split across pages.
+- Table orphan control (`minRowsBeforeBreak`): a table and its section title move to the next page instead of leaving a lone header at the bottom.
 - Typed tables (`TableElement<TRow>`), multi-level grouped tables with `sum` / `count` / `avg` / `min` / `max`
   subtotals and a grand-total row, computed columns (`binding: "= $.qty * $.price"`).
 - Expression DSL compiled once to delegates: arithmetic, comparisons, ternaries, 40+ text/number/date/aggregate

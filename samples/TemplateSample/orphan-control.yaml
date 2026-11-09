@@ -1,0 +1,136 @@
+# Demo de control de huérfanos de tablas (minRowsBeforeBreak).
+#
+# Cada zona es una sección: título + resumen + tabla con su total. Sin control de huérfanos, una
+# sección que empieza al pie de la página deja ahí su título y el encabezado de la tabla, con las
+# filas en la página siguiente. Con `minRowsBeforeBreak: 2` (el valor por defecto, aquí explícito):
+#
+#   · Zona Centro: al final de la página 1 solo cabe el título + el encabezado → la sección entera
+#     (título incluido) empieza en la página 2.
+#   · Zona Occidente: tiene solo 2 facturas (≤ minRowsBeforeBreak), así que la tabla viaja junto
+#     con su total: caben el encabezado y las 2 filas al pie de la página 2, pero no el total →
+#     la sección entera pasa a la página 3.
+#   · Zona Sur: tabla larga que pagina por fila con normalidad (el encabezado se repite).
+#
+# TemplateSample genera orphan-control.pdf y, cambiando minRowsBeforeBreak a 0 en memoria,
+# orphan-control-off.pdf con el comportamiento anterior para comparar: ahí la Zona Centro deja su
+# título y encabezado solos al pie de la página 1 (el resto del flujo se corre y la Zona Occidente
+# cabe entera en la página 2).
+
+name: OrphanControl
+title: "Cartera vencida por zona"
+fileName: "cartera-vencida-{{ $.corte }}"
+
+page:
+  size: Letter
+  margins: { all: 1.5cm }
+
+culture: es-HN
+
+styles:
+  Default:       { fontFamily: Helvetica, fontSize: 9, foreground: "#0F172A" }
+  Title:         { basedOn: Default, fontSize: 18, bold: true }
+  Caption:       { basedOn: Default, fontSize: 7.5, foreground: "#64748B" }
+  CaptionCenter: { basedOn: Caption, align: center }
+  Note:          { basedOn: Default, fontSize: 8, foreground: "#075985", padding: { horizontal: 10, vertical: 0 } }
+  Section:       { basedOn: Default, fontSize: 13, bold: true, foreground: "#0369A1" }
+  TableHeader:   { basedOn: Default, bold: true, foreground: "#334155", background: "#F1F5F9", padding: { horizontal: 6, vertical: 4 } }
+  TableRow:      { basedOn: Default, padding: { horizontal: 6, vertical: 3 } }
+  TableSummary:  { basedOn: TableRow, bold: true, border: { top: { thickness: 0.75, color: "#0F172A" } } }
+
+bands:
+  - kind: ReportHeader
+    height: 64
+    elements:
+      - { type: text, bounds: { x: 0, y: 0, width: 527, height: 22 }, content: "Cartera vencida por zona", style: Title }
+      - { type: text, bounds: { x: 0, y: 24, width: 527, height: 12 }, content: "{{ $.empresa }} · corte al {{ $.corte : dd 'de' MMMM 'de' yyyy }} · {{ count($.zonas[*].clientes[*]) }} facturas · L {{ sum($.zonas[*].clientes[*].saldo) : N2 }}", style: Caption }
+      - { type: rectangle, bounds: { x: 0, y: 42, width: 527, height: 18 }, fill: "#E0F2FE", cornerRadius: 5 }
+      - { type: text, bounds: { x: 0, y: 46, width: 527, height: 10 }, content: "Con control de huérfanos (minRowsBeforeBreak: 2): ninguna sección deja su título y encabezado solos al pie de una página.", style: Note }
+
+  - kind: Detail
+    height: 0
+    autoHeight: true
+    elements:
+      - { type: text, bounds: { x: 0, y: 14, width: 527, height: 16 }, content: "{{ $.zonas[0].nombre }}", style: Section }
+      - { type: text, bounds: { x: 0, y: 32, width: 527, height: 12 }, content: "Gestor: {{ $.zonas[0].gestor }} · {{ count($.zonas[0].clientes[*]) }} facturas · L {{ sum($.zonas[0].clientes[*].saldo) : N2 }}", style: Caption }
+      - type: table
+        bounds: { x: 0, y: 50, width: 527, height: 0 }
+        rows: "$.zonas[0].clientes"
+        minRowsBeforeBreak: 2
+        headerStyle: TableHeader
+        rowStyle: TableRow
+        headerRule: { thickness: 0.75, color: "#94A3B8" }
+        rowSeparator: { thickness: 0.25, color: "#E2E8F0" }
+        headerHeight: 20
+        rowHeight: 16
+        columns: &cols
+          - { header: "Cliente",  binding: "$.cliente", width: 207 }
+          - { header: "Factura",  binding: "$.factura", width: 70 }
+          - { header: "Vence",    binding: "= format($.vence, 'dd/MM/yyyy')", width: 70 }
+          - { header: "Días",     binding: "$.dias",    width: 50, format: "N0", align: right }
+          - { header: "Saldo",    binding: "$.saldo",   width: 130, format: "N2", align: right }
+        summary: &sum
+          height: 18
+          style: TableSummary
+          cells: [ { content: "{{ #count }} facturas" }, null, null, null, { aggregate: sum, format: "N2", align: right } ]
+
+  - kind: Detail
+    height: 0
+    autoHeight: true
+    elements:
+      - { type: text, bounds: { x: 0, y: 14, width: 527, height: 16 }, content: "{{ $.zonas[1].nombre }}", style: Section }
+      - { type: text, bounds: { x: 0, y: 32, width: 527, height: 12 }, content: "Gestor: {{ $.zonas[1].gestor }} · {{ count($.zonas[1].clientes[*]) }} facturas · L {{ sum($.zonas[1].clientes[*].saldo) : N2 }}", style: Caption }
+      - type: table
+        bounds: { x: 0, y: 50, width: 527, height: 0 }
+        rows: "$.zonas[1].clientes"
+        minRowsBeforeBreak: 2
+        headerStyle: TableHeader
+        rowStyle: TableRow
+        headerRule: { thickness: 0.75, color: "#94A3B8" }
+        rowSeparator: { thickness: 0.25, color: "#E2E8F0" }
+        headerHeight: 20
+        rowHeight: 16
+        columns: *cols
+        summary: *sum
+
+  - kind: Detail
+    height: 0
+    autoHeight: true
+    elements:
+      - { type: text, bounds: { x: 0, y: 14, width: 527, height: 16 }, content: "{{ $.zonas[2].nombre }}", style: Section }
+      - { type: text, bounds: { x: 0, y: 32, width: 527, height: 12 }, content: "Gestor: {{ $.zonas[2].gestor }} · {{ count($.zonas[2].clientes[*]) }} facturas · L {{ sum($.zonas[2].clientes[*].saldo) : N2 }}", style: Caption }
+      - type: table
+        bounds: { x: 0, y: 50, width: 527, height: 0 }
+        rows: "$.zonas[2].clientes"
+        minRowsBeforeBreak: 2
+        headerStyle: TableHeader
+        rowStyle: TableRow
+        headerRule: { thickness: 0.75, color: "#94A3B8" }
+        rowSeparator: { thickness: 0.25, color: "#E2E8F0" }
+        headerHeight: 20
+        rowHeight: 16
+        columns: *cols
+        summary: *sum
+
+  - kind: Detail
+    height: 0
+    autoHeight: true
+    elements:
+      - { type: text, bounds: { x: 0, y: 14, width: 527, height: 16 }, content: "{{ $.zonas[3].nombre }}", style: Section }
+      - { type: text, bounds: { x: 0, y: 32, width: 527, height: 12 }, content: "Gestor: {{ $.zonas[3].gestor }} · {{ count($.zonas[3].clientes[*]) }} facturas · L {{ sum($.zonas[3].clientes[*].saldo) : N2 }}", style: Caption }
+      - type: table
+        bounds: { x: 0, y: 50, width: 527, height: 0 }
+        rows: "$.zonas[3].clientes"
+        minRowsBeforeBreak: 2
+        headerStyle: TableHeader
+        rowStyle: TableRow
+        headerRule: { thickness: 0.75, color: "#94A3B8" }
+        rowSeparator: { thickness: 0.25, color: "#E2E8F0" }
+        headerHeight: 20
+        rowHeight: 16
+        columns: *cols
+        summary: *sum
+
+  - kind: PageFooter
+    height: 16
+    elements:
+      - { type: text, bounds: { x: 0, y: 4, width: 527, height: 10 }, content: "Página {{ pageNumber }} de {{ totalPages }} · documento generado con NetReporter", style: CaptionCenter }

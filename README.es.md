@@ -8,7 +8,7 @@
 
 [![.NET 10](https://img.shields.io/badge/.NET-10.0-512BD4?style=flat-square&logo=dotnet)](https://dotnet.microsoft.com/)
 [![NuGet](https://img.shields.io/nuget/v/NetReporter?style=flat-square&logo=nuget&label=NuGet)](https://www.nuget.org/packages/NetReporter)
-[![Tests](https://img.shields.io/badge/tests-594%20passing-22c55e?style=flat-square&logo=xunit)](#-tests)
+[![Tests](https://img.shields.io/badge/tests-597%20passing-22c55e?style=flat-square&logo=xunit)](#-tests)
 [![License](https://img.shields.io/badge/license-MIT-22c55e?style=flat-square)](#-licencias)
 [![Status](https://img.shields.io/badge/status-producción-22c55e?style=flat-square)](#-completado)
 
@@ -33,30 +33,51 @@
 
 ## 📚 Tabla de contenidos
 
-1. [Novedades de la 1.5](#-novedades-de-la-15)
-2. [Novedades de la 1.4](#-novedades-de-la-14)
-3. [Novedades de la 1.3](#-novedades-de-la-13)
-4. [Novedades de la 1.2](#-novedades-de-la-12)
-5. [Novedades de la 1.1](#-novedades-de-la-11)
-6. [Filosofía y arquitectura](#-filosofía-y-arquitectura)
-7. [Características](#-características)
-8. [Pipeline visual](#-pipeline-visual)
-9. [Stack tecnológico](#️-stack-tecnológico)
-10. [Estructura del repo](#-estructura-del-repo)
-11. [Quick start](#-quick-start)
-12. [Designer visual](#-designer-visual)
-13. [Visor de reportes](#️-visor-de-reportes-netreporterviewer)
-14. [Impresoras térmicas ESC/POS](#-impresoras-térmicas-escpos-netreporterescpos)
-15. [Sintaxis del template YAML](#-sintaxis-del-template-yaml)
-16. [Expresiones (DSL)](#-expresiones-dsl)
-17. [Gráficos](#-gráficos)
-18. [Renderers disponibles](#-renderers-disponibles)
-19. [Tamaños de papel](#-tamaños-de-papel)
-20. [Tests](#-tests)
-21. [Limitaciones conocidas](#️-limitaciones-conocidas)
-22. [Completado](#-completado)
-23. [Roadmap](#️-roadmap)
-24. [Licencias](#-licencias)
+1. [Novedades de la 1.6](#-novedades-de-la-16)
+2. [Novedades de la 1.5](#-novedades-de-la-15)
+3. [Novedades de la 1.4](#-novedades-de-la-14)
+4. [Novedades de la 1.3](#-novedades-de-la-13)
+5. [Novedades de la 1.2](#-novedades-de-la-12)
+6. [Novedades de la 1.1](#-novedades-de-la-11)
+7. [Filosofía y arquitectura](#-filosofía-y-arquitectura)
+8. [Características](#-características)
+9. [Pipeline visual](#-pipeline-visual)
+10. [Stack tecnológico](#️-stack-tecnológico)
+11. [Estructura del repo](#-estructura-del-repo)
+12. [Quick start](#-quick-start)
+13. [Designer visual](#-designer-visual)
+14. [Visor de reportes](#️-visor-de-reportes-netreporterviewer)
+15. [Impresoras térmicas ESC/POS](#-impresoras-térmicas-escpos-netreporterescpos)
+16. [Sintaxis del template YAML](#-sintaxis-del-template-yaml)
+17. [Expresiones (DSL)](#-expresiones-dsl)
+18. [Gráficos](#-gráficos)
+19. [Renderers disponibles](#-renderers-disponibles)
+20. [Tamaños de papel](#-tamaños-de-papel)
+21. [Tests](#-tests)
+22. [Limitaciones conocidas](#️-limitaciones-conocidas)
+23. [Completado](#-completado)
+24. [Roadmap](#️-roadmap)
+25. [Licencias](#-licencias)
+
+---
+
+## 🆕 Novedades de la 1.6
+
+**Control de huérfanos en tablas.** Una tabla que pagina por fila ya no empieza con solo su encabezado — y, dentro de una banda de detalle, el título de la sección que va arriba — al pie de una página con todas las filas en la siguiente.
+
+| Cambio | Detalle |
+|---|---|
+| 📄 **`minRowsBeforeBreak`** (tabla, `2` por defecto) | El encabezado y esa cantidad de filas (más los primeros encabezados de grupo) deben caber donde empieza la tabla; si no, la tabla empieza en la página siguiente. En una banda de detalle, los elementos arriba de la primera tabla (su título) se mueven con ella |
+| 🧾 **Las tablas cortas no se parten** | Una tabla con `minRowsBeforeBreak` filas o menos se mantiene junto con su `summary`, así que una tabla de dos líneas nunca deja su total en la página siguiente |
+| 🖱️ **Designer** | Campo **Filas mínimas antes del salto** en el drawer de la tabla (ver [Designer visual](#-designer-visual)) |
+| 🧪 **Sample** | `orphan-control.yaml` (cartera vencida por zona), que también se renderiza con el control apagado como `orphan-control-off.pdf` para comparar |
+
+El chequeo corre una vez por banda de detalle y por tabla, nunca por fila: el tiempo de layout y las asignaciones no cambian (benchmarks de una tabla de 50 000 filas y de 2 000 secciones, dentro del ruido). Ver [Sintaxis del template YAML](#-sintaxis-del-template-yaml).
+
+### ⚠️ Cambios de comportamiento en la 1.6
+
+1. **Las tablas aplican control de huérfanos por defecto** (`minRowsBeforeBreak: 2`; salió primero en la 1.5.3). Una sección cuyo título y encabezado de tabla quedaban solos al pie de una página ahora empieza en la siguiente, y una tabla de dos filas o menos se mueve entera con su `summary`, así que los saltos de página — y a veces la cantidad de páginas — pueden cambiar. No afecta a las tablas que empiezan al tope de una página, a las tablas lado a lado (`suppressAdvance`) ni a las páginas continuas de rollo. Con `minRowsBeforeBreak: 0` (o `MinRowsBeforeBreak = 0` en C#) se conserva la paginación anterior.
+2. `ITableLayoutHints` ganó `MinRowsBeforeBreak` y `StartHeight`. `TableElement<TRow>` los implementa; una implementación propia de esa interfaz debe agregarlos.
 
 ---
 
@@ -245,6 +266,7 @@ NetReporter separa el reporte en cuatro capas con interfaces claras. **El templa
 - 📐 **Layout engine** con paginación, repetición de headers de tabla, bandas (Report/Page Header/Footer + Detail)
 - 📝 **Word wrap real** + auto-height — el texto se rompe naturalmente, las bandas crecen para acomodar el contenido
 - 🔒 **KeepTogether** — los bloques atómicos no se parten entre páginas, **incluidas las bandas Detail con tablas** (medidas con un layout en seco)
+- 📄 **Control de huérfanos** — una tabla nunca empieza con su encabezado (y el título de la sección) solo al pie de una página: deben caber `minRowsBeforeBreak` filas, y las tablas cortas se mantienen enteras con su total
 - 🗂️ **Tablas agrupadas multinivel** — `groups:` (región → categoría → …), encabezado/pie por nivel, total general `summary:`, `sum`/`count`/`avg`/`min`/`max`
 - 📈 **Gráficos** — barras, barras horizontales, líneas, área, pastel y dona, dibujados como primitivas vectoriales
 - 🧮 **DSL de expresiones** — aritmética, comparaciones, ternarios, `if()`, funciones de texto/números/fechas/agregados; se compila una vez y se evalúa como cadena de delegates
@@ -357,7 +379,7 @@ flowchart TB
 | CSS | **Tailwind CSS** (CDN play) | Utility-first |
 | Barcodes (opt-in) | **ZXing.Net** 0.16.11 | Apache 2.0 · QR / Code128 / Code39 / EAN-13 |
 | XLSX backend | **ClosedXML** 0.105 | MIT · OpenXML, Excel Tables nativas |
-| Tests | **xUnit** 2.9 | 594 tests en 9 proyectos |
+| Tests | **xUnit** 2.9 | 597 tests en 9 proyectos |
 | JSON | `System.Text.Json` (BCL) | Sin Newtonsoft |
 
 ---
@@ -394,7 +416,7 @@ NetReporter/
 └── 🎯 samples/
     ├── InvoiceSample/           Factura con API C# (sin YAML)
     ├── ViewerSample/            ERP mínimo que aloja NetReporter.Viewer (página completa + embebido)
-    └── TemplateSample/          Demo con YAML (14 templates exportados por Program.cs)
+    └── TemplateSample/          Demo con YAML (15 templates exportados por Program.cs)
         ├── report.yaml                   Reporte de clientes
         ├── invoice-laser.yaml            📄 Factura Letter (laser)
         ├── invoice-paperoll.yaml         🧾 Recibo 80mm (rollo continuo, POS térmico)
@@ -528,7 +550,7 @@ File.WriteAllBytes("factura.xlsx", new NetReporter.Xlsx.XlsxRenderer().Render(re
 dotnet run --project samples/InvoiceSample
 # → samples/InvoiceSample/bin/Debug/net10.0/factura.pdf
 
-# Sample con YAML — emite PDF + XLSX por cada template (14 reportes × 2 outputs)
+# Sample con YAML — emite PDF + XLSX por cada template (15 templates, más orphan-control con el control apagado)
 dotnet run --project samples/TemplateSample
 # → samples/TemplateSample/bin/Debug/net10.0/*.pdf y *.xlsx
 
@@ -573,12 +595,24 @@ La barra superior expone las acciones globales (y el selector de **idioma**: esp
 | `text` | Estilo, contenido (template strings + expresiones) |
 | `line` | Color, grosor |
 | `rectangle` | Estilo, fill, radio de esquinas |
-| `table` | Path de filas, alturas de header/fila, header mode, estilos de header/fila/alterna, editor de columnas inline (el binding acepta `= expr`) |
+| `table` | Path de filas, alturas de header/fila, header mode, **filas mínimas antes del salto** (control de huérfanos), estilos de header/fila/alterna, editor de columnas inline (el binding acepta `= expr`) |
 | `image` | **Elegir imagen…** (subir → data URI embebido, advierte arriba de 2 MB), source por path o template, ajuste |
 | `barcode` | Formato (QR / Code 128 / Code 39 / EAN-13), valor (texto o template), colores de primer plano/fondo |
 | `chart` | Estilo, tipo, leyenda, título, path de filas, categoría, valores/porcentaje/apilado, formato de valores, **apariencia** (colores intensos / suaves, radio de barras, color y radio del fondo), **editor de series** (nombre, color, binding del valor) |
 
 Los campos de path sugieren bindings descubiertos en `data.json`: paths de arrays para `rows`, y los campos de la primera fila para columnas, categorías y series.
+
+#### Tabla: filas mínimas antes del salto
+
+El campo **Filas mínimas antes del salto** del drawer de la tabla edita [`minRowsBeforeBreak`](#-sintaxis-del-template-yaml), el control de huérfanos de la tabla: cuántas filas deben caber bajo el encabezado en la página donde empieza la tabla. Si no caben, la tabla — y, en una banda de detalle, el título de la sección que va arriba — empieza en la página siguiente, así que el preview muestra el cambio mientras escribes.
+
+| Valor | Efecto | YAML |
+|---|---|---|
+| `2` (por defecto) | Deben caber el encabezado y 2 filas; una tabla con ≤ 2 filas se mantiene entera con su `summary` | Se quita la clave (una tabla sin ella ya usa 2) |
+| `3`, `4`, … | Más estricto: deben caber más filas para que la tabla pueda empezar al pie de una página | `minRowsBeforeBreak: 3` |
+| `0` | Apagado: el encabezado puede quedar solo al pie de una página (paginación anterior a la 1.6) | `minRowsBeforeBreak: 0` |
+
+Los valores negativos se rechazan. Una tabla sin la clave muestra `2`; un `0` explícito se conserva como `0`.
 
 ### Atajos de teclado
 
@@ -924,7 +958,7 @@ La tabla empieza en la posición actual del flujo más `bounds.y` — úsalo par
 
 `suppressAdvance` permite tablas lado a lado (p. ej. un balance en forma de T): da a cada tabla su propio `bounds.x`/`width`. El auto-height de la banda sigue creciendo para contenerla, pero una tabla con `suppressAdvance` debe caber en una página — no maneja la paginación.
 
-`minRowsBeforeBreak` es el control de huérfanos de las tablas que paginan por fila. Si el encabezado y esa cantidad de filas (más los primeros encabezados de grupo) no caben en lo que queda de la página, la tabla empieza en la siguiente en lugar de dejar el encabezado solo al pie. Dentro de una banda de detalle, los elementos que van arriba de la primera tabla, como el título de la sección, se mueven con ella. Una tabla con esa cantidad de filas o menos se mantiene entera junto con su `summary`. Una tabla que ya empieza al tope de una página nunca se mueve. El valor por defecto es 2; con `0` vuelve el comportamiento anterior.
+`minRowsBeforeBreak` es el control de huérfanos de las tablas que paginan por fila. Si el encabezado y esa cantidad de filas (más los primeros encabezados de grupo) no caben en lo que queda de la página, la tabla empieza en la siguiente en lugar de dejar el encabezado solo al pie. Dentro de una banda de detalle, los elementos que van arriba de la primera tabla, como el título de la sección, se mueven con ella. Una tabla con esa cantidad de filas o menos se mantiene entera junto con su `summary`. Una tabla que ya empieza al tope de una página nunca se mueve. El valor por defecto es 2; con `0` vuelve el comportamiento anterior. `samples/TemplateSample/orphan-control.yaml` muestra ambos casos y también se renderiza con el control apagado (`orphan-control-off.pdf`) para comparar.
 
 ### Rectángulos redondeados
 
@@ -1008,7 +1042,7 @@ El Designer ya lo cablea — los barcodes funcionan out-of-the-box en preview/ex
 
 - Agregadores: `sum` · `count` · `avg` · `min` · `max`. Cada celda del pie agrega el **binding de la columna en su mismo índice** (incluidas las columnas calculadas `= expr`) sobre las filas de su propio grupo. Conversión numérica segura desde `int`/`long`/`decimal`/`double`/`float`/strings parseables.
 - En encabezados y pies: `{{ #group }}` = clave del nivel actual, `{{ #count }}` = filas del grupo, `{{ group(0) }}` = clave del nivel externo (`group(1)`, … para los más profundos). En `summary`, `#count` es el total de filas.
-- El encabezado de grupo se mantiene con su primera fila (nunca queda huérfano al pie de la página); el header de la tabla se repite en cada página.
+- El encabezado de grupo se mantiene con su primera fila (nunca queda huérfano al pie de la página); el header de la tabla se repite en cada página. La tabla misma solo empieza donde caben su encabezado y sus primeras filas (`minRowsBeforeBreak`, ver arriba).
 - En XLSX, las filas de detalle de cada grupo se agrupan en el **outline** de Excel (colapsables).
 - El atajo de un nivel de la 1.0 sigue funcionando: `groupBy` + `groupHeader` + `groupFooter`.
 
@@ -1300,7 +1334,7 @@ dotnet test
 │ Proyecto                            │ Tests │
 ├─────────────────────────────────────┼───────┤
 │ NetReporter.Core.Tests              │  140  │
-│ NetReporter.Templates.Tests         │  228  │
+│ NetReporter.Templates.Tests         │  231  │
 │ NetReporter.Html.Tests              │   20  │
 │ NetReporter.Svg.Tests               │   62  │
 │ NetReporter.Pdf.Tests               │   18  │
@@ -1309,7 +1343,7 @@ dotnet test
 │ NetReporter.Viewer.Tests            │   53  │
 │ NetReporter.EscPos.Tests            │   50  │
 ├─────────────────────────────────────┼───────┤
-│ Total                               │  594  │
+│ Total                               │  597  │
 └─────────────────────────────────────┴───────┘
 ```
 
@@ -1389,7 +1423,9 @@ El Designer (UI) no tiene tests automatizados; sus features de la 1.1 se verific
 - [x] **Fase 6.1 (v1.2)** — Renderer PDF sobre el backend PDF de SkiaSharp (se elimina QuestPDF), recortador TrueType propio, fuentes de respaldo, resolución de fuentes que conserva el estilo y métricas lineales en Linux
 - [x] **Fase 7 (v1.3)** — Fuentes registradas por la app (`SkiaFonts.RegisterFont*`), `NetReporter.Fonts.Liberation`, tokens de cancelación
 - [x] **Fase 8 (v1.4)** — `NetReporter.Viewer`, writer SVG directo, papel en rollo (`Roll80` / `Roll58`) + `NetReporter.EscPos`, herramientas de insertar/dibujar del Designer, reglas, cuadrícula, guías inteligentes, editores CodeMirror e interfaz ES/EN
-- [x] **Tests** — 594 tests verdes en 9 proyectos
+- [x] **Fase 9 (v1.5)** — Look de gráficos: barras redondeadas (`barRadius`), tarjeta redondeada (`cornerRadius`), esquema de color suave (`colorScheme: soft`) + bloque de apariencia en el Designer
+- [x] **Fase 10 (v1.6)** — Control de huérfanos en tablas (`minRowsBeforeBreak`) + sample `orphan-control`
+- [x] **Tests** — 597 tests verdes en 9 proyectos
 
 ---
 

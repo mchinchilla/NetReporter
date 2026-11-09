@@ -26,13 +26,13 @@ src/
 tests/
   NetReporter.Core.Tests/  NetReporter.Templates.Tests/  NetReporter.Html.Tests/  NetReporter.Svg.Tests/
   NetReporter.Pdf.Tests/   NetReporter.Xlsx.Tests/       NetReporter.Barcodes.Tests/
-  NetReporter.Viewer.Tests/ (TestServer)  NetReporter.EscPos.Tests/                       — 594 tests total
+  NetReporter.Viewer.Tests/ (TestServer)  NetReporter.EscPos.Tests/                       — 597 tests total
   TestAssets/Fonts/        Lato-Regular.ttf (SIL OFL) — font tests use it instead of system fonts (CI has almost none)
 tools/
   NetReporter.Designer/    ASP.NET Core MVC + Alpine.js + HTMX + Tailwind (CDN)
 samples/
   InvoiceSample/           Imperative C# API
-  TemplateSample/          14 YAML templates exporting PDF + XLSX
+  TemplateSample/          15 YAML templates exporting PDF + XLSX
   ViewerSample/            Minimal ERP hosting NetReporter.Viewer (http://localhost:5297)
 ```
 
@@ -48,9 +48,9 @@ Solution file is `NetReporter.slnx` (the newer XML format — not classic `.sln`
 
 ```bash
 dotnet build
-dotnet test                                                # 594 tests
+dotnet test                                                # 597 tests
 dotnet run --project samples/InvoiceSample                 # → factura.pdf
-dotnet run --project samples/TemplateSample                # → 14 PDF + 14 XLSX
+dotnet run --project samples/TemplateSample                # → 16 PDF + 16 XLSX
 dotnet run --project tools/NetReporter.Designer            # → http://localhost:5296
 dotnet run --project samples/ViewerSample                  # → http://localhost:5297 (report viewer)
 ```

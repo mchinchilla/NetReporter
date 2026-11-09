@@ -46,6 +46,8 @@
     <None Update="account-statement-data.json" CopyToOutputDirectory="PreserveNewest" />
     <None Update="contracts-keep-together.yaml" CopyToOutputDirectory="PreserveNewest" />
     <None Update="contracts-data.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="orphan-control.yaml" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="orphan-control-data.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

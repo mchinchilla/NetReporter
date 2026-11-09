@@ -94,6 +94,7 @@ else
                              data-header-style="@(el.HeaderStyle ?? "")"
                              data-row-style="@(el.RowStyle ?? "")"
                              data-alternate-row-style="@(el.AlternateRowStyle ?? "")"
+                             data-min-rows-before-break="@(el.MinRowsBeforeBreak?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "")"
                              data-column-count="@(el.ColumnCount?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "")"
                              data-columns="@(el.Columns is null ? "[]" : System.Text.Json.JsonSerializer.Serialize(el.Columns))"
                              data-visible="@(el.Visible ?? "")"

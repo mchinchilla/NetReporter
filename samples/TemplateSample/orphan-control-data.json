@@ -1,0 +1,814 @@
+{
+  "empresa": "Distribuidora Ejemplo S.A.",
+  "corte": "2026-10-31",
+  "zonas": [
+    {
+      "nombre": "Zona Norte",
+      "gestor": "Andrea Mejía",
+      "clientes": [
+        {
+          "cliente": "Taller Bella Vista",
+          "factura": "F-004100",
+          "vence": "2026-07-14",
+          "dias": 103,
+          "saldo": 11806.97
+        },
+        {
+          "cliente": "Agroservicio Las Lomas",
+          "factura": "F-004101",
+          "vence": "2026-06-21",
+          "dias": 15,
+          "saldo": 11609.73
+        },
+        {
+          "cliente": "Supermercado La Esperanza",
+          "factura": "F-004102",
+          "vence": "2026-10-05",
+          "dias": 88,
+          "saldo": 45738.68
+        },
+        {
+          "cliente": "Comercial El Centro",
+          "factura": "F-004103",
+          "vence": "2026-09-09",
+          "dias": 88,
+          "saldo": 2153.47
+        },
+        {
+          "cliente": "Mueblería El Progreso",
+          "factura": "F-004104",
+          "vence": "2026-08-15",
+          "dias": 45,
+          "saldo": 29218.58
+        },
+        {
+          "cliente": "Farmacia Altamira",
+          "factura": "F-004105",
+          "vence": "2026-07-09",
+          "dias": 88,
+          "saldo": 20869.16
+        },
+        {
+          "cliente": "Librería Bella Vista",
+          "factura": "F-004106",
+          "vence": "2026-08-17",
+          "dias": 31,
+          "saldo": 31293.45
+        },
+        {
+          "cliente": "Boutique La Ceiba",
+          "factura": "F-004107",
+          "vence": "2026-07-03",
+          "dias": 88,
+          "saldo": 40164.3
+        },
+        {
+          "cliente": "Panadería Miramontes",
+          "factura": "F-004108",
+          "vence": "2026-06-16",
+          "dias": 15,
+          "saldo": 8431.04
+        },
+        {
+          "cliente": "Librería El Prado",
+          "factura": "F-004109",
+          "vence": "2026-08-03",
+          "dias": 88,
+          "saldo": 8887.18
+        },
+        {
+          "cliente": "Constructora El Progreso",
+          "factura": "F-004110",
+          "vence": "2026-08-27",
+          "dias": 181,
+          "saldo": 41648.87
+        },
+        {
+          "cliente": "Hotel Bella Vista",
+          "factura": "F-004111",
+          "vence": "2026-10-26",
+          "dias": 15,
+          "saldo": 6953.59
+        },
+        {
+          "cliente": "Taller El Progreso",
+          "factura": "F-004112",
+          "vence": "2026-06-23",
+          "dias": 31,
+          "saldo": 12069.84
+        },
+        {
+          "cliente": "Hotel Miramontes",
+          "factura": "F-004113",
+          "vence": "2026-05-18",
+          "dias": 120,
+          "saldo": 3212.35
+        },
+        {
+          "cliente": "Boutique La Esperanza",
+          "factura": "F-004114",
+          "vence": "2026-08-17",
+          "dias": 120,
+          "saldo": 32486.18
+        },
+        {
+          "cliente": "Farmacia La Esperanza",
+          "factura": "F-004115",
+          "vence": "2026-05-23",
+          "dias": 31,
+          "saldo": 5558.38
+        },
+        {
+          "cliente": "Farmacia El Progreso",
+          "factura": "F-004116",
+          "vence": "2026-08-21",
+          "dias": 38,
+          "saldo": 3380.7
+        },
+        {
+          "cliente": "Constructora La Ceiba",
+          "factura": "F-004117",
+          "vence": "2026-08-05",
+          "dias": 38,
+          "saldo": 43308.05
+        },
+        {
+          "cliente": "Farmacia Del Valle",
+          "factura": "F-004118",
+          "vence": "2026-09-01",
+          "dias": 74,
+          "saldo": 12381.4
+        },
+        {
+          "cliente": "Hotel Los Pinos",
+          "factura": "F-004119",
+          "vence": "2026-05-21",
+          "dias": 67,
+          "saldo": 8090.72
+        },
+        {
+          "cliente": "Agroservicio La Ceiba",
+          "factura": "F-004120",
+          "vence": "2026-08-15",
+          "dias": 120,
+          "saldo": 42553.05
+        },
+        {
+          "cliente": "Taller Las Lomas",
+          "factura": "F-004121",
+          "vence": "2026-05-02",
+          "dias": 158,
+          "saldo": 2619.34
+        },
+        {
+          "cliente": "Agroservicio Las Lomas",
+          "factura": "F-004122",
+          "vence": "2026-09-13",
+          "dias": 61,
+          "saldo": 6034.02
+        },
+        {
+          "cliente": "Distribuidora San José",
+          "factura": "F-004123",
+          "vence": "2026-10-04",
+          "dias": 61,
+          "saldo": 14480.16
+        },
+        {
+          "cliente": "Agroservicio Santa Rosa",
+          "factura": "F-004124",
+          "vence": "2026-08-08",
+          "dias": 158,
+          "saldo": 7091.24
+        },
+        {
+          "cliente": "Hotel Los Robles",
+          "factura": "F-004125",
+          "vence": "2026-08-17",
+          "dias": 45,
+          "saldo": 11724.19
+        },
+        {
+          "cliente": "Librería Bella Vista",
+          "factura": "F-004126",
+          "vence": "2026-06-28",
+          "dias": 52,
+          "saldo": 20295.18
+        },
+        {
+          "cliente": "Clínica El Progreso",
+          "factura": "F-004127",
+          "vence": "2026-08-10",
+          "dias": 134,
+          "saldo": 27991.32
+        },
+        {
+          "cliente": "Clínica San Miguel",
+          "factura": "F-004128",
+          "vence": "2026-07-24",
+          "dias": 38,
+          "saldo": 24552.46
+        }
+      ]
+    },
+    {
+      "nombre": "Zona Centro",
+      "gestor": "Luis Fernández",
+      "clientes": [
+        {
+          "cliente": "Farmacia El Prado",
+          "factura": "F-004200",
+          "vence": "2026-09-05",
+          "dias": 181,
+          "saldo": 24146.86
+        },
+        {
+          "cliente": "Mueblería Los Pinos",
+          "factura": "F-004201",
+          "vence": "2026-10-22",
+          "dias": 31,
+          "saldo": 15860.85
+        },
+        {
+          "cliente": "Distribuidora Bella Vista",
+          "factura": "F-004202",
+          "vence": "2026-10-25",
+          "dias": 158,
+          "saldo": 3655.1
+        },
+        {
+          "cliente": "Panadería Del Valle",
+          "factura": "F-004203",
+          "vence": "2026-05-23",
+          "dias": 95,
+          "saldo": 18252.01
+        },
+        {
+          "cliente": "Agroservicio San Miguel",
+          "factura": "F-004204",
+          "vence": "2026-06-07",
+          "dias": 88,
+          "saldo": 22452.67
+        },
+        {
+          "cliente": "Óptica El Progreso",
+          "factura": "F-004205",
+          "vence": "2026-06-11",
+          "dias": 15,
+          "saldo": 19694.35
+        },
+        {
+          "cliente": "Comercial Las Lomas",
+          "factura": "F-004206",
+          "vence": "2026-10-01",
+          "dias": 61,
+          "saldo": 19275.82
+        },
+        {
+          "cliente": "Ferretería La Paz",
+          "factura": "F-004207",
+          "vence": "2026-10-08",
+          "dias": 22,
+          "saldo": 10880.6
+        },
+        {
+          "cliente": "Panadería El Progreso",
+          "factura": "F-004208",
+          "vence": "2026-09-20",
+          "dias": 74,
+          "saldo": 38558.08
+        },
+        {
+          "cliente": "Taller Bella Vista",
+          "factura": "F-004209",
+          "vence": "2026-07-05",
+          "dias": 61,
+          "saldo": 34623.45
+        },
+        {
+          "cliente": "Distribuidora Palmira",
+          "factura": "F-004210",
+          "vence": "2026-05-03",
+          "dias": 52,
+          "saldo": 44783.79
+        },
+        {
+          "cliente": "Óptica Los Pinos",
+          "factura": "F-004211",
+          "vence": "2026-06-02",
+          "dias": 88,
+          "saldo": 9897.55
+        },
+        {
+          "cliente": "Constructora El Centro",
+          "factura": "F-004212",
+          "vence": "2026-07-07",
+          "dias": 38,
+          "saldo": 27746.01
+        },
+        {
+          "cliente": "Ferretería San Miguel",
+          "factura": "F-004213",
+          "vence": "2026-08-03",
+          "dias": 31,
+          "saldo": 42544.66
+        },
+        {
+          "cliente": "Ferretería Del Valle",
+          "factura": "F-004214",
+          "vence": "2026-06-14",
+          "dias": 45,
+          "saldo": 3194.82
+        },
+        {
+          "cliente": "Distribuidora Los Robles",
+          "factura": "F-004215",
+          "vence": "2026-08-09",
+          "dias": 103,
+          "saldo": 6947.08
+        },
+        {
+          "cliente": "Boutique Palmira",
+          "factura": "F-004216",
+          "vence": "2026-07-24",
+          "dias": 120,
+          "saldo": 21844.28
+        },
+        {
+          "cliente": "Comercial Miramontes",
+          "factura": "F-004217",
+          "vence": "2026-06-27",
+          "dias": 134,
+          "saldo": 4949.9
+        },
+        {
+          "cliente": "Agroservicio La Ceiba",
+          "factura": "F-004218",
+          "vence": "2026-09-07",
+          "dias": 120,
+          "saldo": 20498.25
+        },
+        {
+          "cliente": "Comercial Monte Verde",
+          "factura": "F-004219",
+          "vence": "2026-08-12",
+          "dias": 95,
+          "saldo": 2194.93
+        },
+        {
+          "cliente": "Agroservicio El Centro",
+          "factura": "F-004220",
+          "vence": "2026-07-06",
+          "dias": 45,
+          "saldo": 20126.94
+        },
+        {
+          "cliente": "Comercial Los Robles",
+          "factura": "F-004221",
+          "vence": "2026-10-28",
+          "dias": 120,
+          "saldo": 36292.32
+        },
+        {
+          "cliente": "Ferretería El Progreso",
+          "factura": "F-004222",
+          "vence": "2026-06-24",
+          "dias": 22,
+          "saldo": 42575.93
+        },
+        {
+          "cliente": "Óptica Altamira",
+          "factura": "F-004223",
+          "vence": "2026-09-22",
+          "dias": 61,
+          "saldo": 46651.49
+        },
+        {
+          "cliente": "Clínica El Progreso",
+          "factura": "F-004224",
+          "vence": "2026-05-04",
+          "dias": 134,
+          "saldo": 43281.9
+        },
+        {
+          "cliente": "Ferretería La Esperanza",
+          "factura": "F-004225",
+          "vence": "2026-09-20",
+          "dias": 15,
+          "saldo": 4940.93
+        },
+        {
+          "cliente": "Taller Santa Rosa",
+          "factura": "F-004226",
+          "vence": "2026-09-14",
+          "dias": 88,
+          "saldo": 45338.35
+        },
+        {
+          "cliente": "Panadería San Miguel",
+          "factura": "F-004227",
+          "vence": "2026-10-25",
+          "dias": 134,
+          "saldo": 44431.63
+        },
+        {
+          "cliente": "Supermercado Las Lomas",
+          "factura": "F-004228",
+          "vence": "2026-07-21",
+          "dias": 22,
+          "saldo": 46020.35
+        },
+        {
+          "cliente": "Hotel La Esperanza",
+          "factura": "F-004229",
+          "vence": "2026-05-27",
+          "dias": 158,
+          "saldo": 39510.12
+        },
+        {
+          "cliente": "Agroservicio Altamira",
+          "factura": "F-004230",
+          "vence": "2026-10-19",
+          "dias": 74,
+          "saldo": 37990.12
+        }
+      ]
+    },
+    {
+      "nombre": "Zona Occidente",
+      "gestor": "Karla Rivera",
+      "clientes": [
+        {
+          "cliente": "Distribuidora Los Pinos",
+          "factura": "F-004300",
+          "vence": "2026-07-13",
+          "dias": 15,
+          "saldo": 13976.64
+        },
+        {
+          "cliente": "Supermercado Palmira",
+          "factura": "F-004301",
+          "vence": "2026-07-01",
+          "dias": 158,
+          "saldo": 23405.44
+        }
+      ]
+    },
+    {
+      "nombre": "Zona Sur",
+      "gestor": "Óscar Martínez",
+      "clientes": [
+        {
+          "cliente": "Constructora Palmira",
+          "factura": "F-004400",
+          "vence": "2026-05-26",
+          "dias": 15,
+          "saldo": 20798.79
+        },
+        {
+          "cliente": "Hotel La Esperanza",
+          "factura": "F-004401",
+          "vence": "2026-08-19",
+          "dias": 67,
+          "saldo": 37203.04
+        },
+        {
+          "cliente": "Hotel El Progreso",
+          "factura": "F-004402",
+          "vence": "2026-07-06",
+          "dias": 74,
+          "saldo": 18685.33
+        },
+        {
+          "cliente": "Librería Palmira",
+          "factura": "F-004403",
+          "vence": "2026-06-21",
+          "dias": 88,
+          "saldo": 10684.03
+        },
+        {
+          "cliente": "Panadería San Miguel",
+          "factura": "F-004404",
+          "vence": "2026-07-01",
+          "dias": 22,
+          "saldo": 34285.24
+        },
+        {
+          "cliente": "Clínica Las Lomas",
+          "factura": "F-004405",
+          "vence": "2026-06-04",
+          "dias": 38,
+          "saldo": 6783.65
+        },
+        {
+          "cliente": "Librería El Progreso",
+          "factura": "F-004406",
+          "vence": "2026-05-03",
+          "dias": 181,
+          "saldo": 34296.22
+        },
+        {
+          "cliente": "Clínica Los Pinos",
+          "factura": "F-004407",
+          "vence": "2026-07-14",
+          "dias": 134,
+          "saldo": 29109.62
+        },
+        {
+          "cliente": "Hotel El Centro",
+          "factura": "F-004408",
+          "vence": "2026-09-07",
+          "dias": 120,
+          "saldo": 15460.81
+        },
+        {
+          "cliente": "Óptica Del Valle",
+          "factura": "F-004409",
+          "vence": "2026-06-13",
+          "dias": 67,
+          "saldo": 35771.98
+        },
+        {
+          "cliente": "Distribuidora Santa Rosa",
+          "factura": "F-004410",
+          "vence": "2026-05-21",
+          "dias": 103,
+          "saldo": 10746.67
+        },
+        {
+          "cliente": "Hotel San José",
+          "factura": "F-004411",
+          "vence": "2026-05-23",
+          "dias": 45,
+          "saldo": 13556.98
+        },
+        {
+          "cliente": "Hotel San José",
+          "factura": "F-004412",
+          "vence": "2026-07-23",
+          "dias": 88,
+          "saldo": 37798.78
+        },
+        {
+          "cliente": "Farmacia La Esperanza",
+          "factura": "F-004413",
+          "vence": "2026-06-15",
+          "dias": 120,
+          "saldo": 2353.02
+        },
+        {
+          "cliente": "Librería El Progreso",
+          "factura": "F-004414",
+          "vence": "2026-08-18",
+          "dias": 15,
+          "saldo": 20238.72
+        },
+        {
+          "cliente": "Hotel San Miguel",
+          "factura": "F-004415",
+          "vence": "2026-09-05",
+          "dias": 134,
+          "saldo": 33856.17
+        },
+        {
+          "cliente": "Comercial Del Valle",
+          "factura": "F-004416",
+          "vence": "2026-05-06",
+          "dias": 67,
+          "saldo": 13512.12
+        },
+        {
+          "cliente": "Taller La Ceiba",
+          "factura": "F-004417",
+          "vence": "2026-08-05",
+          "dias": 103,
+          "saldo": 40356.33
+        },
+        {
+          "cliente": "Librería Bella Vista",
+          "factura": "F-004418",
+          "vence": "2026-08-21",
+          "dias": 67,
+          "saldo": 18656.42
+        },
+        {
+          "cliente": "Farmacia Altamira",
+          "factura": "F-004419",
+          "vence": "2026-08-21",
+          "dias": 95,
+          "saldo": 1661.78
+        },
+        {
+          "cliente": "Hotel El Progreso",
+          "factura": "F-004420",
+          "vence": "2026-06-21",
+          "dias": 134,
+          "saldo": 31312.83
+        },
+        {
+          "cliente": "Comercial Palmira",
+          "factura": "F-004421",
+          "vence": "2026-09-20",
+          "dias": 45,
+          "saldo": 32144.19
+        },
+        {
+          "cliente": "Boutique Los Pinos",
+          "factura": "F-004422",
+          "vence": "2026-09-07",
+          "dias": 15,
+          "saldo": 29988.02
+        },
+        {
+          "cliente": "Supermercado El Progreso",
+          "factura": "F-004423",
+          "vence": "2026-08-02",
+          "dias": 120,
+          "saldo": 44144.44
+        },
+        {
+          "cliente": "Librería La Esperanza",
+          "factura": "F-004424",
+          "vence": "2026-06-08",
+          "dias": 88,
+          "saldo": 3096.96
+        },
+        {
+          "cliente": "Ferretería Las Lomas",
+          "factura": "F-004425",
+          "vence": "2026-07-27",
+          "dias": 88,
+          "saldo": 17616.38
+        },
+        {
+          "cliente": "Distribuidora Bella Vista",
+          "factura": "F-004426",
+          "vence": "2026-05-10",
+          "dias": 67,
+          "saldo": 30777.1
+        },
+        {
+          "cliente": "Clínica Las Lomas",
+          "factura": "F-004427",
+          "vence": "2026-08-17",
+          "dias": 67,
+          "saldo": 8484.32
+        },
+        {
+          "cliente": "Panadería La Ceiba",
+          "factura": "F-004428",
+          "vence": "2026-07-13",
+          "dias": 88,
+          "saldo": 1917.03
+        },
+        {
+          "cliente": "Distribuidora La Esperanza",
+          "factura": "F-004429",
+          "vence": "2026-07-12",
+          "dias": 103,
+          "saldo": 21278.39
+        },
+        {
+          "cliente": "Farmacia Los Pinos",
+          "factura": "F-004430",
+          "vence": "2026-06-20",
+          "dias": 88,
+          "saldo": 35003.74
+        },
+        {
+          "cliente": "Boutique Santa Rosa",
+          "factura": "F-004431",
+          "vence": "2026-08-18",
+          "dias": 31,
+          "saldo": 9892.53
+        },
+        {
+          "cliente": "Farmacia Del Valle",
+          "factura": "F-004432",
+          "vence": "2026-06-23",
+          "dias": 45,
+          "saldo": 35503.64
+        },
+        {
+          "cliente": "Panadería El Centro",
+          "factura": "F-004433",
+          "vence": "2026-06-05",
+          "dias": 158,
+          "saldo": 21054.51
+        },
+        {
+          "cliente": "Comercial Los Pinos",
+          "factura": "F-004434",
+          "vence": "2026-06-26",
+          "dias": 88,
+          "saldo": 38615.42
+        },
+        {
+          "cliente": "Clínica La Paz",
+          "factura": "F-004435",
+          "vence": "2026-07-08",
+          "dias": 103,
+          "saldo": 30943.91
+        },
+        {
+          "cliente": "Boutique Los Pinos",
+          "factura": "F-004436",
+          "vence": "2026-05-03",
+          "dias": 22,
+          "saldo": 32185.91
+        },
+        {
+          "cliente": "Ferretería Santa Rosa",
+          "factura": "F-004437",
+          "vence": "2026-05-13",
+          "dias": 38,
+          "saldo": 21657.66
+        },
+        {
+          "cliente": "Farmacia La Paz",
+          "factura": "F-004438",
+          "vence": "2026-06-06",
+          "dias": 88,
+          "saldo": 17260.28
+        },
+        {
+          "cliente": "Óptica Los Robles",
+          "factura": "F-004439",
+          "vence": "2026-10-19",
+          "dias": 103,
+          "saldo": 20776.16
+        },
+        {
+          "cliente": "Panadería Altamira",
+          "factura": "F-004440",
+          "vence": "2026-08-23",
+          "dias": 67,
+          "saldo": 8378.9
+        },
+        {
+          "cliente": "Agroservicio Los Robles",
+          "factura": "F-004441",
+          "vence": "2026-08-12",
+          "dias": 38,
+          "saldo": 7860.55
+        },
+        {
+          "cliente": "Agroservicio San José",
+          "factura": "F-004442",
+          "vence": "2026-09-25",
+          "dias": 67,
+          "saldo": 38158.48
+        },
+        {
+          "cliente": "Farmacia San José",
+          "factura": "F-004443",
+          "vence": "2026-09-03",
+          "dias": 52,
+          "saldo": 37015.82
+        },
+        {
+          "cliente": "Panadería San José",
+          "factura": "F-004444",
+          "vence": "2026-05-01",
+          "dias": 120,
+          "saldo": 25363.29
+        },
+        {
+          "cliente": "Taller La Esperanza",
+          "factura": "F-004445",
+          "vence": "2026-07-26",
+          "dias": 67,
+          "saldo": 22681.62
+        },
+        {
+          "cliente": "Supermercado San Miguel",
+          "factura": "F-004446",
+          "vence": "2026-05-20",
+          "dias": 52,
+          "saldo": 18489.36
+        },
+        {
+          "cliente": "Boutique Monte Verde",
+          "factura": "F-004447",
+          "vence": "2026-07-20",
+          "dias": 95,
+          "saldo": 4050.53
+        },
+        {
+          "cliente": "Agroservicio Los Pinos",
+          "factura": "F-004448",
+          "vence": "2026-07-14",
+          "dias": 61,
+          "saldo": 12270.29
+        },
+        {
+          "cliente": "Distribuidora San José",
+          "factura": "F-004449",
+          "vence": "2026-08-08",
+          "dias": 95,
+          "saldo": 43985.67
+        }
+      ]
+    }
+  ]
+}

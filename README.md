@@ -8,7 +8,7 @@
 
 [![.NET 10](https://img.shields.io/badge/.NET-10.0-512BD4?style=flat-square&logo=dotnet)](https://dotnet.microsoft.com/)
 [![NuGet](https://img.shields.io/nuget/v/NetReporter?style=flat-square&logo=nuget&label=NuGet)](https://www.nuget.org/packages/NetReporter)
-[![Tests](https://img.shields.io/badge/tests-594%20passing-22c55e?style=flat-square&logo=xunit)](#-tests)
+[![Tests](https://img.shields.io/badge/tests-597%20passing-22c55e?style=flat-square&logo=xunit)](#-tests)
 [![License](https://img.shields.io/badge/license-MIT-22c55e?style=flat-square)](#-licenses)
 [![Status](https://img.shields.io/badge/status-production-22c55e?style=flat-square)](#-completed)
 
@@ -33,30 +33,51 @@
 
 ## 📚 Table of contents
 
-1. [What's new in 1.5](#-whats-new-in-15)
-2. [What's new in 1.4](#-whats-new-in-14)
-3. [What's new in 1.3](#-whats-new-in-13)
-4. [What's new in 1.2](#-whats-new-in-12)
-5. [What's new in 1.1](#-whats-new-in-11)
-6. [Philosophy and architecture](#-philosophy-and-architecture)
-7. [Features](#-features)
-8. [Visual pipeline](#-visual-pipeline)
-9. [Tech stack](#️-tech-stack)
-10. [Repository layout](#-repository-layout)
-11. [Quick start](#-quick-start)
-12. [Visual designer](#-visual-designer)
-13. [Report viewer](#️-report-viewer-netreporterviewer)
-14. [ESC/POS thermal printers](#-escpos-thermal-printers-netreporterescpos)
-15. [YAML template syntax](#-yaml-template-syntax)
-16. [Expressions (DSL)](#-expressions-dsl)
-17. [Charts](#-charts)
-18. [Available renderers](#-available-renderers)
-19. [Page sizes](#-page-sizes)
-20. [Tests](#-tests)
-21. [Known limitations](#️-known-limitations)
-22. [Completed](#-completed)
-23. [Roadmap](#️-roadmap)
-24. [Licenses](#-licenses)
+1. [What's new in 1.6](#-whats-new-in-16)
+2. [What's new in 1.5](#-whats-new-in-15)
+3. [What's new in 1.4](#-whats-new-in-14)
+4. [What's new in 1.3](#-whats-new-in-13)
+5. [What's new in 1.2](#-whats-new-in-12)
+6. [What's new in 1.1](#-whats-new-in-11)
+7. [Philosophy and architecture](#-philosophy-and-architecture)
+8. [Features](#-features)
+9. [Visual pipeline](#-visual-pipeline)
+10. [Tech stack](#️-tech-stack)
+11. [Repository layout](#-repository-layout)
+12. [Quick start](#-quick-start)
+13. [Visual designer](#-visual-designer)
+14. [Report viewer](#️-report-viewer-netreporterviewer)
+15. [ESC/POS thermal printers](#-escpos-thermal-printers-netreporterescpos)
+16. [YAML template syntax](#-yaml-template-syntax)
+17. [Expressions (DSL)](#-expressions-dsl)
+18. [Charts](#-charts)
+19. [Available renderers](#-available-renderers)
+20. [Page sizes](#-page-sizes)
+21. [Tests](#-tests)
+22. [Known limitations](#️-known-limitations)
+23. [Completed](#-completed)
+24. [Roadmap](#️-roadmap)
+25. [Licenses](#-licenses)
+
+---
+
+## 🆕 What's new in 1.6
+
+**Table orphan control.** A table that pages by row no longer starts with only its header — and, inside a detail band, the section title above it — at the bottom of a page with every row on the next one.
+
+| Change | Detail |
+|---|---|
+| 📄 **`minRowsBeforeBreak`** (table, default `2`) | The header plus that many rows (and the first group headers) must fit where the table starts; otherwise the table starts on the next page. In a detail band, the elements above the first table (its title) move with it |
+| 🧾 **Short tables stay whole** | A table with `minRowsBeforeBreak` rows or fewer is kept together with its `summary`, so a two-line table never leaves its total on the next page |
+| 🖱️ **Designer** | **Minimum rows before a break** field in the table drawer (see [Visual designer](#-visual-designer)) |
+| 🧪 **Sample** | `orphan-control.yaml` (sectioned aging report), also rendered with the check off as `orphan-control-off.pdf` for comparison |
+
+The check runs once per detail band and table, never per row: layout time and allocations are unchanged (50 000-row table and 2 000-section benchmarks within noise). See [YAML template syntax](#-yaml-template-syntax).
+
+### ⚠️ Behavior changes in 1.6
+
+1. **Tables now apply orphan control by default** (`minRowsBeforeBreak: 2`; first shipped in 1.5.3). A section whose title and table header used to sit alone at the bottom of a page now starts on the next page, and a table with two rows or fewer moves whole with its `summary`, so page breaks — and sometimes the page count — can change. Tables that start at the top of a page, side-by-side tables (`suppressAdvance`) and continuous roll pages are unaffected. Set `minRowsBeforeBreak: 0` (or `MinRowsBeforeBreak = 0` in C#) to keep the previous pagination.
+2. `ITableLayoutHints` gained `MinRowsBeforeBreak` and `StartHeight`. `TableElement<TRow>` implements them; a custom implementation of that interface must add them.
 
 ---
 
@@ -245,6 +266,7 @@ NetReporter splits the report into four layers with clear interfaces. **The temp
 - 📐 **Layout engine** with pagination, table-header repetition, bands (Report/Page Header/Footer + Detail)
 - 📝 **Real word wrap** + auto-height — text breaks naturally, bands grow to fit content
 - 🔒 **KeepTogether** — atomic blocks don't split across pages, **including Detail bands with tables** (measured with a dry-run layout)
+- 📄 **Orphan control** — a table never starts with a lone header (and section title) at the bottom of a page: `minRowsBeforeBreak` rows must fit under it, short tables stay whole with their total
 - 🗂️ **Grouped tables, multi-level** — `groups:` (region → category → …), header/footer per level, `summary:` grand total, `sum`/`count`/`avg`/`min`/`max`
 - 📈 **Charts** — bar, horizontal bar, line, area, pie and donut, drawn as vector primitives
 - 🧮 **Expression DSL** — arithmetic, comparisons, ternaries, `if()`, text/number/date/aggregate functions; compiled once, evaluated as delegate chains
@@ -357,7 +379,7 @@ flowchart TB
 | CSS | **Tailwind CSS** (CDN play) | Utility-first |
 | Barcodes (opt-in) | **ZXing.Net** 0.16.11 | Apache 2.0 · QR / Code128 / Code39 / EAN-13 |
 | XLSX backend | **ClosedXML** 0.105 | MIT · OpenXML, native Excel tables |
-| Tests | **xUnit** 2.9 | 594 tests across 9 projects |
+| Tests | **xUnit** 2.9 | 597 tests across 9 projects |
 | JSON | `System.Text.Json` (BCL) | No Newtonsoft |
 
 ---
@@ -394,7 +416,7 @@ NetReporter/
 └── 🎯 samples/
     ├── InvoiceSample/           Invoice using the C# API (no YAML)
     ├── ViewerSample/            Minimal ERP hosting NetReporter.Viewer (full page + embedded)
-    └── TemplateSample/          YAML demo (14 templates exported by Program.cs)
+    └── TemplateSample/          YAML demo (15 templates exported by Program.cs)
         ├── report.yaml                   Customer report
         ├── invoice-laser.yaml            📄 Letter invoice (laser)
         ├── invoice-paperoll.yaml         🧾 80mm receipt (continuous roll, thermal POS)
@@ -528,7 +550,7 @@ File.WriteAllBytes("invoice.xlsx", new NetReporter.Xlsx.XlsxRenderer().Render(re
 dotnet run --project samples/InvoiceSample
 # → samples/InvoiceSample/bin/Debug/net10.0/factura.pdf
 
-# YAML sample — emits PDF + XLSX for every template (14 reports × 2 outputs)
+# YAML sample — emits PDF + XLSX for every template (15 templates, plus orphan-control with the check off)
 dotnet run --project samples/TemplateSample
 # → samples/TemplateSample/bin/Debug/net10.0/*.pdf and *.xlsx
 
@@ -573,12 +595,24 @@ The header strip exposes the global actions: template picker, **Import**, **Save
 | `text` | Style, content (template strings + expressions) |
 | `line` | Color, thickness |
 | `rectangle` | Style, fill, corner radius |
-| `table` | Rows path, header/row heights, header mode, header/row/alt styles, inline column editor (binding accepts `= expr`) |
+| `table` | Rows path, header/row heights, header mode, **minimum rows before a break** (orphan control), header/row/alt styles, inline column editor (binding accepts `= expr`) |
 | `image` | **Choose image…** (upload → embedded data URI, warns above 2 MB), path or template source, fit |
 | `barcode` | Format (QR / Code 128 / Code 39 / EAN-13), value (text or template), foreground/background colors |
 | `chart` | Style, type, legend, title, rows path, category, values/percent/stacked, value format, **appearance** (vivid / soft colors, bar radius, background color and radius), **series editor** (name, color, value binding) |
 
 Path inputs suggest bindings discovered in `data.json`: array paths for `rows`, and the fields of the first row for columns, categories and series.
+
+#### Table: minimum rows before a break
+
+The **Minimum rows before a break** field of the table drawer edits [`minRowsBeforeBreak`](#-yaml-template-syntax), the table's orphan control: how many rows must fit under the header on the page where the table starts. When they don't, the table — and, in a detail band, the section title above it — starts on the next page, so the preview shows the move as you type.
+
+| Value | Effect | YAML |
+|---|---|---|
+| `2` (default) | Header + 2 rows must fit; a table with ≤ 2 rows stays whole with its `summary` | The key is removed (a table without it already uses 2) |
+| `3`, `4`, … | Stricter: more rows must fit before the table may start at the bottom of a page | `minRowsBeforeBreak: 3` |
+| `0` | Off: the header may sit alone at the bottom of a page (pre-1.6 pagination) | `minRowsBeforeBreak: 0` |
+
+Negative values are rejected. A table without the key shows `2`; an explicit `0` is kept as `0`.
 
 ### Keyboard shortcuts
 
@@ -923,7 +957,7 @@ The table starts at the current flow position plus `bounds.y` — use it to leav
 
 `suppressAdvance` enables side-by-side tables (e.g. a T-account balance sheet): give each table its own `bounds.x`/`width`. The band's auto-height still grows to contain it, but a suppressed table must fit on one page — it does not drive pagination.
 
-`minRowsBeforeBreak` is orphan control for tables that page by row. If the header plus that many rows (and the first group headers) don't fit in what is left of the page, the table starts on the next page instead of leaving a lone header at the bottom. Inside a detail band, the elements placed above the first table, such as the section title, move with it. A table with that many rows or fewer is kept whole together with its `summary`. A table that already starts at the top of a page never moves. The default is 2; `0` restores the old behavior.
+`minRowsBeforeBreak` is orphan control for tables that page by row. If the header plus that many rows (and the first group headers) don't fit in what is left of the page, the table starts on the next page instead of leaving a lone header at the bottom. Inside a detail band, the elements placed above the first table, such as the section title, move with it. A table with that many rows or fewer is kept whole together with its `summary`. A table that already starts at the top of a page never moves. The default is 2; `0` restores the old behavior. `samples/TemplateSample/orphan-control.yaml` shows both cases and is also rendered with the check off (`orphan-control-off.pdf`) for comparison.
 
 ### Rounded rectangles
 
@@ -1007,7 +1041,7 @@ The Designer already wires this up — barcodes work out-of-the-box in preview/e
 
 - Aggregates: `sum` · `count` · `avg` · `min` · `max`. Each footer cell aggregates the **same column's binding** (including computed `= expr` columns) over the rows of its own group. Numeric conversion is safe across `int`/`long`/`decimal`/`double`/`float`/parseable strings.
 - In headers and footers: `{{ #group }}` = key of the current level, `{{ #count }}` = rows in the group, `{{ group(0) }}` = key of the outer level (`group(1)`, … for deeper ones). In `summary`, `#count` is the total row count.
-- A group header is kept with its first row (never orphaned at the bottom of a page); the table header repeats on every page.
+- A group header is kept with its first row (never orphaned at the bottom of a page); the table header repeats on every page. The table itself only starts where its header and first rows fit (`minRowsBeforeBreak`, see above).
 - In XLSX, each group's detail rows are grouped in the Excel **outline** (collapsible).
 - The single-level shortcut from 1.0 still works: `groupBy` + `groupHeader` + `groupFooter`.
 
@@ -1299,7 +1333,7 @@ dotnet test
 │ Project                             │ Tests │
 ├─────────────────────────────────────┼───────┤
 │ NetReporter.Core.Tests              │  140  │
-│ NetReporter.Templates.Tests         │  228  │
+│ NetReporter.Templates.Tests         │  231  │
 │ NetReporter.Html.Tests              │   20  │
 │ NetReporter.Svg.Tests               │   62  │
 │ NetReporter.Pdf.Tests               │   18  │
@@ -1308,7 +1342,7 @@ dotnet test
 │ NetReporter.Viewer.Tests            │   53  │
 │ NetReporter.EscPos.Tests            │   50  │
 ├─────────────────────────────────────┼───────┤
-│ Total                               │  594  │
+│ Total                               │  597  │
 └─────────────────────────────────────┴───────┘
 ```
 
@@ -1388,7 +1422,9 @@ The Designer (UI) has no automated tests; its 1.1 features were verified manuall
 - [x] **Phase 6.1 (v1.2)** — PDF renderer on SkiaSharp's PDF backend (QuestPDF removed), own TrueType subsetter, fallback fonts, style-preserving font resolution and linear metrics on Linux
 - [x] **Phase 7 (v1.3)** — Fonts registered by the app (`SkiaFonts.RegisterFont*`), `NetReporter.Fonts.Liberation`, cancellation tokens
 - [x] **Phase 8 (v1.4)** — `NetReporter.Viewer`, direct SVG writer, roll paper (`Roll80` / `Roll58`) + `NetReporter.EscPos`, Designer insert/draw tools, rulers, grid, smart guides, CodeMirror editors and ES/EN UI
-- [x] **Tests** — 594 passing tests across 9 projects
+- [x] **Phase 9 (v1.5)** — Chart look: rounded bars (`barRadius`), rounded chart cards (`cornerRadius`), soft color scheme (`colorScheme: soft`) + Designer appearance block
+- [x] **Phase 10 (v1.6)** — Table orphan control (`minRowsBeforeBreak`) + `orphan-control` sample
+- [x] **Tests** — 597 passing tests across 9 projects
 
 ---
 

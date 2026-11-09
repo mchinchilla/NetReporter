@@ -484,6 +484,15 @@
   <data name="Table.PrintOnce" xml:space="preserve">
     <value>Solo la primera vez</value>
   </data>
+  <data name="Table.MinRowsBeforeBreak" xml:space="preserve">
+    <value>Filas mínimas antes del salto</value>
+  </data>
+  <data name="Table.MinRowsBeforeBreakHint" xml:space="preserve">
+    <value>Control de huérfanos: el encabezado y esta cantidad de filas deben caber donde empieza la tabla; si no, la tabla (y el título de su sección) pasa a la página siguiente. Una tabla con esta cantidad de filas o menos se mantiene entera con su total.</value>
+  </data>
+  <data name="Table.MinRowsBeforeBreakHelp" xml:space="preserve">
+    <value>2 por defecto · 0 = apagado</value>
+  </data>
   <data name="Table.HeaderStyle" xml:space="preserve">
     <value>Estilo del encabezado</value>
   </data>

@@ -124,6 +124,36 @@ public sealed class YamlReportRewriterTests
     }
 
     [Fact]
+    public void ApplyPatch_TableMinRowsBeforeBreak_WritesValue_AndZeroDisables()
+    {
+        var three = YamlReportRewriter.ApplyPatch(BasicYaml, "bands.1.elements.0", new ElementPatch { MinRowsBeforeBreak = 3 });
+        Assert.Equal(3, Parse(three).Bands![1].Elements![0].MinRowsBeforeBreak);
+
+        var off = YamlReportRewriter.ApplyPatch(BasicYaml, "bands.1.elements.0", new ElementPatch { MinRowsBeforeBreak = 0 });
+        Assert.Equal(0, Parse(off).Bands![1].Elements![0].MinRowsBeforeBreak);
+        Assert.Contains("minRowsBeforeBreak: 0", off, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ApplyPatch_TableMinRowsBeforeBreak_DefaultRemovesTheKey()
+    {
+        var three = YamlReportRewriter.ApplyPatch(BasicYaml, "bands.1.elements.0", new ElementPatch { MinRowsBeforeBreak = 3 });
+        var back = YamlReportRewriter.ApplyPatch(three, "bands.1.elements.0", new ElementPatch { MinRowsBeforeBreak = 2 });
+
+        Assert.Null(Parse(back).Bands![1].Elements![0].MinRowsBeforeBreak);
+        Assert.DoesNotContain("minRowsBeforeBreak", back, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ApplyPatch_TableMinRowsBeforeBreak_NegativeOrOnText_Throws()
+    {
+        Assert.Throws<InvalidOperationException>(() =>
+            YamlReportRewriter.ApplyPatch(BasicYaml, "bands.1.elements.0", new ElementPatch { MinRowsBeforeBreak = -1 }));
+        Assert.Throws<InvalidOperationException>(() =>
+            YamlReportRewriter.ApplyPatch(BasicYaml, "bands.0.elements.0", new ElementPatch { MinRowsBeforeBreak = 3 }));
+    }
+
+    [Fact]
     public void ApplyPatch_TableFieldOnText_Throws()
     {
         var patch = new ElementPatch { Rows = "$.x" };

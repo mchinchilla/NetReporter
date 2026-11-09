@@ -1037,6 +1037,15 @@
                                 </select>
                             </label>
 
+                            <label class="flex flex-col text-[11px] text-slate-600" title="@L["Table.MinRowsBeforeBreakHint"]">
+                                @L["Table.MinRowsBeforeBreak"]
+                                <input type="number" step="1" min="0"
+                                       x-model.number="form.minRowsBeforeBreak"
+                                       @@input.debounce.400ms="Number.isInteger(form.minRowsBeforeBreak) && form.minRowsBeforeBreak >= 0 && applyPatch({MinRowsBeforeBreak: form.minRowsBeforeBreak})"
+                                       class="mt-0.5 border border-slate-300 rounded px-2 py-1 text-sm">
+                                <span class="mt-0.5 text-[10px] text-slate-400">@L["Table.MinRowsBeforeBreakHelp"]</span>
+                            </label>
+
                             <label class="flex flex-col text-[11px] text-slate-600">
                                 @L["Table.HeaderStyle"]
                                 <input type="text" list="style-names"
@@ -1187,7 +1196,7 @@
             form: {
                 x: 0, y: 0, width: 0, height: 0,
                 style: '', content: '', color: '#000000', thickness: 0.5, fill: '#ffffff',
-                rows: '', headerMode: 'RepeatOnPageBreak', headerHeight: 22, rowHeight: 18,
+                rows: '', headerMode: 'RepeatOnPageBreak', headerHeight: 22, rowHeight: 18, minRowsBeforeBreak: 2,
                 headerStyle: '', rowStyle: '', alternateRowStyle: '', columnCount: 0,
                 columns: [],
                 visible: '', cornerRadius: 0,
@@ -3026,6 +3035,8 @@
                 this.form.headerStyle       = ds.headerStyle       || '';
                 this.form.rowStyle          = ds.rowStyle          || '';
                 this.form.alternateRowStyle = ds.alternateRowStyle || '';
+                // Absent from the YAML = the engine default (2); 0 is a valid value, so no `|| 2`.
+                this.form.minRowsBeforeBreak = ds.minRowsBeforeBreak ? parseInt(ds.minRowsBeforeBreak, 10) : 2;
                 this.form.columnCount       = parseInt(ds.columnCount, 10) || 0;
                 // v1.1
                 this.form.visible           = ds.visible || '';

@@ -41,6 +41,7 @@ public sealed class UpdateRequest
     public string? HeaderStyle { get; set; }
     public string? RowStyle { get; set; }
     public string? AlternateRowStyle { get; set; }
+    public int? MinRowsBeforeBreak { get; set; }
 
     // común
     /// <summary>A blank value removes the condition. Kept as " " (default binding would make it null, i.e. unchanged).</summary>
@@ -290,7 +291,9 @@ public sealed record InteractiveElement(
     double? BoundsX = null,
     double? BoundsY = null,
     double? BoundsWidth = null,
-    double? BoundsHeight = null);
+    double? BoundsHeight = null,
+    // Orphan control; null = not set in the YAML (default 2).
+    int? MinRowsBeforeBreak = null);
 
 public sealed record ChartSeriesView(string Name, string Value, string Color);
 

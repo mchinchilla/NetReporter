@@ -29,6 +29,8 @@ public sealed class ElementPatch
     public string? HeaderStyle { get; init; }
     public string? RowStyle { get; init; }
     public string? AlternateRowStyle { get; init; }
+    /// <summary>Orphan control (rows that must fit under the header). 2 (the default) removes the key; negative throws.</summary>
+    public int? MinRowsBeforeBreak { get; init; }
 
     // común: condición de visibilidad ("" la quita)
     public string? Visible { get; init; }

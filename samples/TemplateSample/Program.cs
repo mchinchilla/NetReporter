@@ -112,10 +112,30 @@ RenderToPdf(
     Path.Combine(baseDir, "contracts-data.json"),
     "contracts-keep-together.pdf");
 
+// === Control de huérfanos de tablas (minRowsBeforeBreak) ===
+RenderToPdf(
+    Path.Combine(baseDir, "orphan-control.yaml"),
+    Path.Combine(baseDir, "orphan-control-data.json"),
+    "orphan-control.pdf");
 
-void RenderToPdf(string templatePath, string dataPath, string outputName)
+// La misma plantilla con el control apagado (minRowsBeforeBreak: 0), para comparar: los títulos y
+// encabezados de las secciones quedan solos al pie de la página.
+// (La nota del encabezado se reemplaza primero: también contiene "minRowsBeforeBreak: 2".)
+var orphanOff = File.ReadAllText(Path.Combine(baseDir, "orphan-control.yaml"))
+    .Replace("Con control de huérfanos (minRowsBeforeBreak: 2): ninguna sección deja su título y encabezado solos al pie de una página.",
+             "Sin control de huérfanos (minRowsBeforeBreak: 0): el título y el encabezado de la Zona Centro quedan solos al pie de la página 1.")
+    .Replace("minRowsBeforeBreak: 2", "minRowsBeforeBreak: 0");
+RenderTemplateToPdf(
+    YamlReportLoader.Parse(orphanOff),
+    Path.Combine(baseDir, "orphan-control-data.json"),
+    "orphan-control-off.pdf");
+
+
+void RenderToPdf(string templatePath, string dataPath, string outputName) =>
+    RenderTemplateToPdf(YamlReportLoader.Load(templatePath), dataPath, outputName);
+
+void RenderTemplateToPdf(TemplateReport template, string dataPath, string outputName)
 {
-    var template = YamlReportLoader.Load(templatePath);
     var json = File.ReadAllText(dataPath);
     var report = template.Bind(json);
     var layout = new LayoutEngine(measurer, barcodeGen).Layout(report);

@@ -484,6 +484,15 @@
   <data name="Table.PrintOnce" xml:space="preserve">
     <value>Only the first time</value>
   </data>
+  <data name="Table.MinRowsBeforeBreak" xml:space="preserve">
+    <value>Minimum rows before a break</value>
+  </data>
+  <data name="Table.MinRowsBeforeBreakHint" xml:space="preserve">
+    <value>Orphan control: the header plus this many rows must fit where the table starts; otherwise the table (and its section title) moves to the next page. A table with this many rows or fewer is kept whole with its total.</value>
+  </data>
+  <data name="Table.MinRowsBeforeBreakHelp" xml:space="preserve">
+    <value>Default 2 · 0 = off</value>
+  </data>
   <data name="Table.HeaderStyle" xml:space="preserve">
     <value>Header style</value>
   </data>
