@@ -78,6 +78,7 @@ El chequeo corre una vez por banda de detalle y por tabla, nunca por fila: el ti
 
 1. **Las tablas aplican control de huérfanos por defecto** (`minRowsBeforeBreak: 2`; salió primero en la 1.5.3). Una sección cuyo título y encabezado de tabla quedaban solos al pie de una página ahora empieza en la siguiente, y una tabla de dos filas o menos se mueve entera con su `summary`, así que los saltos de página — y a veces la cantidad de páginas — pueden cambiar. No afecta a las tablas que empiezan al tope de una página, a las tablas lado a lado (`suppressAdvance`) ni a las páginas continuas de rollo. Con `minRowsBeforeBreak: 0` (o `MinRowsBeforeBreak = 0` en C#) se conserva la paginación anterior.
 2. `ITableLayoutHints` ganó `MinRowsBeforeBreak` y `StartHeight`. `TableElement<TRow>` los implementa; una implementación propia de esa interfaz debe agregarlos.
+3. **Desde la 1.6.1, los charts verticales con muchas categorías (`bar`, `line`, `area`) bajan un poco sus etiquetas de categoría.** Cuando una etiqueta es más ancha que su slot (muchas categorías, p. ej. 90 fechas diarias), la primera se extiende a la izquierda del eje de valores, bajo la etiqueta del tick inferior ("0"), y se pisaban por cerca de un punto — más con fuentes de interlineado más alto, como Helvetica en macOS. En ese caso la fila de categorías empieza ahora media línea debajo del eje en vez de a 3 pt, y el área del gráfico queda unos 3 pt más baja. Los charts cuya primera etiqueta no llega a la columna de ticks se ven exactamente igual que en la 1.6.0.
 
 ---
 

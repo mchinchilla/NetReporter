@@ -78,6 +78,7 @@ The check runs once per detail band and table, never per row: layout time and al
 
 1. **Tables now apply orphan control by default** (`minRowsBeforeBreak: 2`; first shipped in 1.5.3). A section whose title and table header used to sit alone at the bottom of a page now starts on the next page, and a table with two rows or fewer moves whole with its `summary`, so page breaks — and sometimes the page count — can change. Tables that start at the top of a page, side-by-side tables (`suppressAdvance`) and continuous roll pages are unaffected. Set `minRowsBeforeBreak: 0` (or `MinRowsBeforeBreak = 0` in C#) to keep the previous pagination.
 2. `ITableLayoutHints` gained `MinRowsBeforeBreak` and `StartHeight`. `TableElement<TRow>` implements them; a custom implementation of that interface must add them.
+3. **Since 1.6.1, crowded vertical charts (`bar`, `line`, `area`) drop their category labels a little lower.** When a category label is wider than its slot (many categories, e.g. 90 daily dates), the first one reaches left of the value axis, under the bottom tick label ("0"), and the two overlapped by about a point — more with fonts whose line height is taller, such as Helvetica on macOS. In that case the category row now starts half a line below the axis instead of 3 pt, and the plot is about 3 pt shorter. Charts whose first category label stays clear of the tick column render exactly as in 1.6.0.
 
 ---
 

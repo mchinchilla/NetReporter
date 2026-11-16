@@ -54,6 +54,42 @@ public sealed class ChartLayoutTests
             $"{c.GetType().Name} fuera del chart: {c.Bounds}"));
     }
 
+    [Theory]
+    [InlineData(ChartKind.Bar)]
+    [InlineData(ChartKind.Line)]
+    [InlineData(ChartKind.Area)]
+    public void ManyCategories_FirstCategoryLabel_ClearsTheBottomTickLabel(ChartKind kind)
+    {
+        // 92 daily labels: the slot is narrower than a label, so labels are thinned and each one is wider
+        // than its slot — the first reaches left of the value axis, under the "0" tick label.
+        var start = new DateOnly(2026, 8, 1);
+        var categories = Enumerable.Range(0, 92).Select(i => start.AddDays(i).ToString("MM-dd")).ToList();
+        var chart = Chart(kind, new ChartSeries("Ventas", categories.Select((_, i) => (double?)(50_000 + i % 17 * 1_000)).ToList()))
+            with { Categories = categories };
+
+        var texts = Layout(chart).OfType<DrawTextCommand>().Where(t => t.Text.Length > 0).ToList();
+        var zero = Assert.Single(texts, t => t.Text == "0");
+        var first = Assert.Single(texts, t => t.Text == "08-01");
+
+        Assert.True(first.Bounds.X < zero.Bounds.Right, "the first category should reach under the tick column (the case under test)");
+        Assert.True(first.Bounds.Y >= zero.Bounds.Bottom,
+            $"category label {first.Bounds} overlaps the bottom tick label {zero.Bounds}");
+    }
+
+    [Theory]
+    [InlineData(ChartKind.Bar)]
+    [InlineData(ChartKind.Line)]
+    public void FewCategories_KeepTheirLabelsThreePointsBelowTheAxis(ChartKind kind)
+    {
+        // The wider gap only applies when the first label reaches the tick column; a chart whose labels fit
+        // their slots keeps the 1.6.0 geometry exactly.
+        var cmds = Layout(Chart(kind));
+        var valueAxis = cmds.OfType<DrawLineCommand>().Single(l => l.From.X == l.To.X && l.Thickness == 0.75);
+        var first = cmds.OfType<DrawTextCommand>().Single(t => t.Text == "Ene");
+
+        Assert.Equal(valueAxis.Bounds.Bottom + 3, first.Bounds.Y, 6);
+    }
+
     [Fact]
     public void AllCommands_CarryTheElementSourcePath() =>
         Assert.All(Layout(Chart(ChartKind.Line)), c => Assert.Equal("bands.0.elements.0", c.SourcePath));

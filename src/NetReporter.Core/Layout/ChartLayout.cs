@@ -232,8 +232,22 @@ internal sealed class ChartLayout
         var tickLabelW = ticks.Max(t => _measurer.MeasureWidth(Format(t), tickStyle));
         // Con etiquetas de valor sobre barras/puntos se reserva una línea extra arriba para no salir del chart.
         var topPad = _chart.ShowValues ? lineH + 2 : lineH / 2;
-        var plot = new Rect(area.X + tickLabelW + 6, area.Y + topPad,
-            area.Width - tickLabelW - 10, area.Height - topPad - lineH - 4);
+        var plotX = area.X + tickLabelW + 6;
+        var plotWidth = area.Width - tickLabelW - 10;
+        var n = Math.Max(1, _chart.Categories.Count);
+        var slot = plotWidth / n;
+        var widestCategory = CategoryLabelWidth(_chart.Categories, catStyle);
+        // La etiqueta del tick inferior va centrada en el eje y baja lineH/2 por debajo de él. Cuando la primera
+        // categoría es más ancha que su slot (muchas categorías) se extiende a la izquierda del eje, bajo esa
+        // columna, y a 3 pt del eje las dos se pisan (el "0" y la primera fecha; con métricas de fuente más
+        // altas, por más de 1 pt). Solo entonces las categorías bajan a ras de esa media línea; los charts
+        // cuya primera etiqueta no llega a la columna de ticks quedan exactamente como antes.
+        var firstLabelLeft = plotX + slot / 2 - Math.Max(slot, widestCategory) / 2;
+        var categoryGap = _chart.Categories.Count > 0 && firstLabelLeft < area.X + tickLabelW
+            ? Math.Max(3, lineH / 2 + 1)
+            : 3;
+        var plot = new Rect(plotX, area.Y + topPad,
+            plotWidth, area.Height - topPad - categoryGap - lineH - 1);
         if (plot.Width <= 4 || plot.Height <= 4) return;
 
         double Y(double v) => plot.Bottom - (v - min) / (max - min) * plot.Height;
@@ -250,9 +264,7 @@ internal sealed class ChartLayout
         Add(new DrawLineCommand(new Point(plot.X, plot.Y), new Point(plot.X, plot.Bottom), 0.75, AxisColor));
         Add(new DrawLineCommand(new Point(plot.X, baseline), new Point(plot.Right, baseline), 0.75, AxisColor));
 
-        var n = Math.Max(1, _chart.Categories.Count);
-        var slot = plot.Width / n;
-        EmitCategoryLabels(_chart.Categories, i => plot.X + slot * i, slot, plot.Bottom + 3, lineH, catStyle);
+        EmitCategoryLabels(_chart.Categories, i => plot.X + slot * i, slot, widestCategory, plot.Bottom + categoryGap, lineH, catStyle);
 
         if (_chart.Kind == ChartKind.Bar)
             EmitVerticalBars(plot, slot, baseline, Y);
@@ -573,12 +585,15 @@ internal sealed class ChartLayout
 
     // === Helpers ===
 
+    /// <summary>Ancho de la categoría más ancha más 6 pt de aire; 0 sin categorías.</summary>
+    private double CategoryLabelWidth(IReadOnlyList<string> categories, ResolvedStyle style) =>
+        categories.Count == 0 ? 0 : categories.Max(c => _measurer.MeasureWidth(c, style)) + 6;
+
     private void EmitCategoryLabels(IReadOnlyList<string> categories, Func<int, double> slotX, double slot,
-        double top, double lineH, ResolvedStyle style)
+        double widest, double top, double lineH, ResolvedStyle style)
     {
         if (categories.Count == 0) return;
         // Si las etiquetas no caben, se muestra una de cada k para que no se encimen.
-        var widest = categories.Max(c => _measurer.MeasureWidth(c, style)) + 6;
         var every = Math.Max(1, (int)Math.Ceiling(widest / Math.Max(1, slot)));
         for (var i = 0; i < categories.Count; i += every)
         {
