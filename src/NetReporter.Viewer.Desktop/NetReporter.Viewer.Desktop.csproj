@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <Description>UI-agnostic core for NetReporter desktop viewers (WinForms, and later WPF/Avalonia/MAUI): lays a report out once, paints pages or tiles with the same Skia painter as the PDF, page-stack geometry, zoom/fit maths, a tile cache and PDF/XLSX/HTML export.</Description>
+    <PackageTags>$(PackageTags);viewer;desktop</PackageTags>
+    <!-- Not published until the WinForms viewer built on it has been tried on Windows -->
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\NetReporter.Core\NetReporter.Core.csproj" />
+    <ProjectReference Include="..\NetReporter.Svg\NetReporter.Svg.csproj" />
+    <ProjectReference Include="..\NetReporter.Pdf\NetReporter.Pdf.csproj" />
+    <ProjectReference Include="..\NetReporter.Html\NetReporter.Html.csproj" />
+    <ProjectReference Include="..\NetReporter.Xlsx\NetReporter.Xlsx.csproj" />
+    <ProjectReference Include="..\NetReporter.Barcodes\NetReporter.Barcodes.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="NetReporter.Viewer.Desktop.Tests" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <!-- Builds (not runs) on macOS/Linux too: CI and the publish workflow run on ubuntu-latest -->
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <Description>Windows Forms report viewer for NetReporter: a ReportViewer UserControl (toolbar, page navigation, zoom, PDF/XLSX/HTML export) that paints pages with the same Skia painter as the PDF.</Description>
+    <PackageTags>$(PackageTags);viewer;desktop;winforms</PackageTags>
+    <!-- Not published until it has been tried on Windows -->
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\NetReporter.Viewer.Desktop\NetReporter.Viewer.Desktop.csproj" />
+  </ItemGroup>
+
+</Project>

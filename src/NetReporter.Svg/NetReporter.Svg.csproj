@@ -13,6 +13,7 @@
   <ItemGroup>
     <InternalsVisibleTo Include="NetReporter.Svg.Tests" />
     <InternalsVisibleTo Include="NetReporter.Viewer" />
+    <InternalsVisibleTo Include="NetReporter.Viewer.Desktop" />
   </ItemGroup>
 
   <PropertyGroup>
