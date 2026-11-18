@@ -61,6 +61,10 @@
 
 ---
 
+### ⚠️ Cambios de comportamiento en la 1.6.3
+
+1. **Los códigos QR con texto fuera de ASCII se codifican en UTF-8, con marca ECI.** Antes ZXing los escribía en ISO-8859-1 sin decirlo: un lector que adivina la codificación (muchos teléfonos lo hacen) mostraba `Ferreter�a` por `Ferretería`, y lo que Latin-1 no tiene (`€`, `日本`) ni se podía codificar. El QR de ese texto tiene ahora otros módulos (y puede ser una versión más grande). Un texto sólo ASCII no lleva marca: su QR es el mismo de antes, módulo por módulo.
+
 ## 🆕 Novedades de la 1.6
 
 **Control de huérfanos en tablas.** Una tabla que pagina por fila ya no empieza con solo su encabezado — y, dentro de una banda de detalle, el título de la sección que va arriba — al pie de una página con todas las filas en la siguiente.

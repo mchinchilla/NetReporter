@@ -49,6 +49,15 @@ public sealed class ZXingBarcodeGenerator : IBarcodeMatrixGenerator
             [EncodeHintType.MARGIN] = 0,                 // sin margen — el LayoutEngine añade quiet zone si quiere
             [EncodeHintType.ERROR_CORRECTION] = ZXing.QrCode.Internal.ErrorCorrectionLevel.M
         };
+
+        // Fuera de ASCII, UTF-8 con su marca ECI: sin ella el QR va en ISO-8859-1 sin decirlo y un lector que adivina
+        // la codificación (muchos lo hacen) lee mal las tildes, y lo que Latin-1 no tiene (€, 日本) ni se puede escribir.
+        // Un texto sólo ASCII sigue sin marca: el mismo QR de antes, módulo por módulo.
+        if (!System.Text.Ascii.IsValid(value))
+        {
+            hints[EncodeHintType.CHARACTER_SET] = "UTF-8";
+        }
+
         // 1×1 → ZXing eleva al tamaño natural del QR para los datos.
         return writer.encode(value, ZXingFormat.QR_CODE, 1, 1, hints);
     }

@@ -61,6 +61,10 @@
 
 ---
 
+### ⚠️ Behavior changes in 1.6.3
+
+1. **QR codes with text beyond ASCII are encoded as UTF-8, with an ECI marker.** Before, ZXing wrote them in ISO-8859-1 without saying so: a reader that guesses the encoding (many phones do) showed `Ferreter�a` for `Ferretería`, and characters Latin-1 lacks (`€`, `日本`) could not be encoded at all. The QR of such a text now has different modules (and may be one version larger). A text that is only ASCII gets no marker: its QR is the same as before, module for module.
+
 ## 🆕 What's new in 1.6
 
 **Table orphan control.** A table that pages by row no longer starts with only its header — and, inside a detail band, the section title above it — at the bottom of a page with every row on the next one.
