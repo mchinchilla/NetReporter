@@ -31,6 +31,18 @@ public sealed class ReportRequest
     /// <summary>The current request: user, services, headers.</summary>
     public HttpContext HttpContext { get; }
 
+    /// <summary>
+    /// Download formats for this report, set by the resolver: the viewer offers and serves only those that are also in
+    /// <see cref="ReportViewerOptions.Formats"/>. <c>null</c> (default) keeps the options' formats.
+    /// </summary>
+    public ViewerFormats? Formats { get; set; }
+
+    /// <summary>
+    /// Any object the application wants back when the document is exported (<see cref="ViewerExportContext.State"/>):
+    /// the parameters or ids it needs for an audit record. The viewer never reads it.
+    /// </summary>
+    public object? State { get; set; }
+
     /// <summary>First value of a query parameter, or <c>null</c>.</summary>
     public string? this[string name] => Query.TryGetValue(name, out var v) && v.Count > 0 ? v[0] : null;
 }

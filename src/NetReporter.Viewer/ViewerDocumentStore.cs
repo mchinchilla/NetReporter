@@ -49,8 +49,17 @@ internal sealed class ViewerDocument : IDisposable
     public ReportDefinition Report { get; }
     public RlRenderList RenderList { get; }
 
-    /// <summary>User name of whoever opened the document (null when anonymous). Other users get 404.</summary>
+    /// <summary>
+    /// Who opened the document and under which viewer base URL (see <c>ReportViewerOptions.DocumentOwner</c>); a
+    /// request with another key gets 404.
+    /// </summary>
     public string? Owner { get; }
+
+    /// <summary>Download formats of this document: the options' formats narrowed by <see cref="ReportRequest.Formats"/>.</summary>
+    public ViewerFormats Formats { get; init; } = ViewerFormats.All;
+
+    /// <summary>The application's object attached at open (<see cref="ReportRequest.State"/>), handed back on export.</summary>
+    public object? State { get; init; }
 
     public int PageCount => RenderList.Pages.Count;
 

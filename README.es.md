@@ -33,33 +33,46 @@
 
 ## 📚 Tabla de contenidos
 
-1. [Novedades de la 1.6](#-novedades-de-la-16)
-2. [Novedades de la 1.5](#-novedades-de-la-15)
-3. [Novedades de la 1.4](#-novedades-de-la-14)
-4. [Novedades de la 1.3](#-novedades-de-la-13)
-5. [Novedades de la 1.2](#-novedades-de-la-12)
-6. [Novedades de la 1.1](#-novedades-de-la-11)
-7. [Filosofía y arquitectura](#-filosofía-y-arquitectura)
-8. [Características](#-características)
-9. [Pipeline visual](#-pipeline-visual)
-10. [Stack tecnológico](#️-stack-tecnológico)
-11. [Estructura del repo](#-estructura-del-repo)
-12. [Quick start](#-quick-start)
-13. [Designer visual](#-designer-visual)
-14. [Visor de reportes](#️-visor-de-reportes-netreporterviewer)
-15. [Impresoras térmicas ESC/POS](#-impresoras-térmicas-escpos-netreporterescpos)
-16. [Sintaxis del template YAML](#-sintaxis-del-template-yaml)
-17. [Expresiones (DSL)](#-expresiones-dsl)
-18. [Gráficos](#-gráficos)
-19. [Renderers disponibles](#-renderers-disponibles)
-20. [Tamaños de papel](#-tamaños-de-papel)
-21. [Tests](#-tests)
-22. [Limitaciones conocidas](#️-limitaciones-conocidas)
-23. [Completado](#-completado)
-24. [Roadmap](#️-roadmap)
-25. [Licencias](#-licencias)
+1. [Novedades de la 1.7](#-novedades-de-la-17)
+2. [Novedades de la 1.6](#-novedades-de-la-16)
+3. [Novedades de la 1.5](#-novedades-de-la-15)
+4. [Novedades de la 1.4](#-novedades-de-la-14)
+5. [Novedades de la 1.3](#-novedades-de-la-13)
+6. [Novedades de la 1.2](#-novedades-de-la-12)
+7. [Novedades de la 1.1](#-novedades-de-la-11)
+8. [Filosofía y arquitectura](#-filosofía-y-arquitectura)
+9. [Características](#-características)
+10. [Pipeline visual](#-pipeline-visual)
+11. [Stack tecnológico](#️-stack-tecnológico)
+12. [Estructura del repo](#-estructura-del-repo)
+13. [Quick start](#-quick-start)
+14. [Designer visual](#-designer-visual)
+15. [Visor de reportes](#️-visor-de-reportes-netreporterviewer)
+16. [Impresoras térmicas ESC/POS](#-impresoras-térmicas-escpos-netreporterescpos)
+17. [Sintaxis del template YAML](#-sintaxis-del-template-yaml)
+18. [Expresiones (DSL)](#-expresiones-dsl)
+19. [Gráficos](#-gráficos)
+20. [Renderers disponibles](#-renderers-disponibles)
+21. [Tamaños de papel](#-tamaños-de-papel)
+22. [Tests](#-tests)
+23. [Limitaciones conocidas](#️-limitaciones-conocidas)
+24. [Completado](#-completado)
+25. [Roadmap](#️-roadmap)
+26. [Licencias](#-licencias)
 
 ---
+
+## 🆕 Novedades de la 1.7
+
+**Ganchos del visor para aplicaciones con varios clientes** (`NetReporter.Viewer`, solo suma: el código existente se comporta igual).
+
+| Cambio | Detalle |
+|---|---|
+| Parámetros de ruta en el prefijo | `app.MapNetReporterViewer("/c/{tenant}/viewer", …)`: cada URL que entrega el visor (página, script, apertura, páginas, imágenes, exportaciones) lleva los valores de esta petición, y un documento abierto bajo un cliente no se sirve bajo otro |
+| `options.DocumentOwner` | Clave del usuario dueño del documento (por defecto `User.Identity.Name`). Usa un id estable cuando los nombres visibles se pueden repetir |
+| `ReportRequest.Formats` | El resolvedor acota los formatos de descarga de un reporte; el menú y el endpoint de exportación lo respetan (nunca más que `options.Formats`) |
+| `ReportRequest.State` + `options.OnExport` | El resolvedor adjunta cualquier objeto al abrir; `OnExport` lo recibe con el formato, el tamaño y si fue descarga o el PDF para imprimir. Para la auditoría: si el gancho lanza, no se envía nada (500). No se llama en `POST …/print` (ESC/POS) |
+| `options.LanguageResolver`, `options.HeadHtmlResolver` | Idioma por petición (la preferencia del usuario) y marcado extra en el `<head>` (una hoja de tema) del visor de página completa |
 
 ### ⚠️ Cambios de comportamiento en la 1.6.3
 
@@ -759,6 +772,7 @@ app.MapNetReporterViewer("/reports", async (request, ct) =>
   conecte — `NetReporterViewer.registerLanguage('pt', { ...NetReporterViewer.englishStrings, page: 'Página', … })` o,
   en el visor de página completa, `options.HeadHtml = "<script>globalThis.NetReporterViewerI18n = { pt: { … } }</script>"`
   más `options.SupportedLanguages.Add("pt")`. Las claves que falten caen al inglés.
+- **Aplicaciones con varios clientes (1.7).** El prefijo admite parámetros de ruta (`/c/{tenant}/viewer`); `DocumentOwner` asocia los documentos a un id de usuario estable; el resolvedor puede acotar `request.Formats` y adjuntar `request.State`, que `OnExport` recibe en cada descarga o impresión del PDF (si el gancho lanza, el archivo no sale; el `print` ESC/POS no lo llama); `LanguageResolver` y `HeadHtmlResolver` ajustan el visor de página completa por petición. Los documentos viven en la memoria del proceso que los abrió: con varias instancias, usa afinidad de sesión: una página o exportación que llega a otra instancia responde 404.
 - Los errores devuelven `{ "error": "not-found" | "render-failed" }`; el mensaje de la excepción solo se incluye con
   `IncludeErrorDetails = true` (desarrollo).
 - Las páginas SVG dibujan el texto con las fuentes **del navegador**, pero cada glifo va colocado donde lo midió el

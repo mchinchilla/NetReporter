@@ -33,33 +33,46 @@
 
 ## 📚 Table of contents
 
-1. [What's new in 1.6](#-whats-new-in-16)
-2. [What's new in 1.5](#-whats-new-in-15)
-3. [What's new in 1.4](#-whats-new-in-14)
-4. [What's new in 1.3](#-whats-new-in-13)
-5. [What's new in 1.2](#-whats-new-in-12)
-6. [What's new in 1.1](#-whats-new-in-11)
-7. [Philosophy and architecture](#-philosophy-and-architecture)
-8. [Features](#-features)
-9. [Visual pipeline](#-visual-pipeline)
-10. [Tech stack](#️-tech-stack)
-11. [Repository layout](#-repository-layout)
-12. [Quick start](#-quick-start)
-13. [Visual designer](#-visual-designer)
-14. [Report viewer](#️-report-viewer-netreporterviewer)
-15. [ESC/POS thermal printers](#-escpos-thermal-printers-netreporterescpos)
-16. [YAML template syntax](#-yaml-template-syntax)
-17. [Expressions (DSL)](#-expressions-dsl)
-18. [Charts](#-charts)
-19. [Available renderers](#-available-renderers)
-20. [Page sizes](#-page-sizes)
-21. [Tests](#-tests)
-22. [Known limitations](#️-known-limitations)
-23. [Completed](#-completed)
-24. [Roadmap](#️-roadmap)
-25. [Licenses](#-licenses)
+1. [What's new in 1.7](#-whats-new-in-17)
+2. [What's new in 1.6](#-whats-new-in-16)
+3. [What's new in 1.5](#-whats-new-in-15)
+4. [What's new in 1.4](#-whats-new-in-14)
+5. [What's new in 1.3](#-whats-new-in-13)
+6. [What's new in 1.2](#-whats-new-in-12)
+7. [What's new in 1.1](#-whats-new-in-11)
+8. [Philosophy and architecture](#-philosophy-and-architecture)
+9. [Features](#-features)
+10. [Visual pipeline](#-visual-pipeline)
+11. [Tech stack](#️-tech-stack)
+12. [Repository layout](#-repository-layout)
+13. [Quick start](#-quick-start)
+14. [Visual designer](#-visual-designer)
+15. [Report viewer](#️-report-viewer-netreporterviewer)
+16. [ESC/POS thermal printers](#-escpos-thermal-printers-netreporterescpos)
+17. [YAML template syntax](#-yaml-template-syntax)
+18. [Expressions (DSL)](#-expressions-dsl)
+19. [Charts](#-charts)
+20. [Available renderers](#-available-renderers)
+21. [Page sizes](#-page-sizes)
+22. [Tests](#-tests)
+23. [Known limitations](#️-known-limitations)
+24. [Completed](#-completed)
+25. [Roadmap](#️-roadmap)
+26. [Licenses](#-licenses)
 
 ---
+
+## 🆕 What's new in 1.7
+
+**Viewer hooks for multi-tenant applications** (`NetReporter.Viewer`, additive: existing code behaves the same).
+
+| Change | Detail |
+|---|---|
+| Route parameters in the prefix | `app.MapNetReporterViewer("/c/{tenant}/viewer", …)`: every URL the viewer hands out (page, script, open, pages, images, exports) carries this request's values, and a document opened under one tenant is not served under another |
+| `options.DocumentOwner` | Key of the user a document belongs to (default `User.Identity.Name`). Use a stable id when display names can repeat |
+| `ReportRequest.Formats` | The resolver narrows the download formats of one report; the menu and the export endpoint both honour it (never more than `options.Formats`) |
+| `ReportRequest.State` + `options.OnExport` | The resolver attaches any object at open; `OnExport` receives it with the format, size and whether it was a download or the PDF used to print. For audit records: if the hook throws, nothing is sent (500). Not called for `POST …/print` (ESC/POS) |
+| `options.LanguageResolver`, `options.HeadHtmlResolver` | Per-request language (the user's preference) and extra `<head>` markup (a theme stylesheet) for the full-page viewer |
 
 ### ⚠️ Behavior changes in 1.6.3
 
@@ -758,6 +771,7 @@ app.MapNetReporterViewer("/reports", async (request, ct) =>
   `NetReporterViewer.registerLanguage('pt', { ...NetReporterViewer.englishStrings, page: 'Página', … })` or, for the
   full-page viewer, `options.HeadHtml = "<script>globalThis.NetReporterViewerI18n = { pt: { … } }</script>"` plus
   `options.SupportedLanguages.Add("pt")`. Missing keys fall back to English.
+- **Multi-tenant hosts (1.7).** The prefix may contain route parameters (`/c/{tenant}/viewer`); `DocumentOwner` keys documents by a stable user id; the resolver can narrow `request.Formats` and attach `request.State`, which `OnExport` receives for each download or PDF print (a throwing hook blocks the file; ESC/POS `print` doesn't call it); `LanguageResolver` and `HeadHtmlResolver` customise the full-page viewer per request. Documents stay in the memory of the process that opened them: behind several instances, use session affinity: a page or export that reaches another instance answers 404.
 - Errors return `{ "error": "not-found" | "render-failed" }`; the exception message is only included with
   `IncludeErrorDetails = true` (development).
 - SVG pages draw text with the **browser's** fonts, but every glyph is positioned where the server measured it, so

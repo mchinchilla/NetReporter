@@ -5,6 +5,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.AspNetCore.Routing.Patterns;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Net.Http.Headers;
@@ -60,7 +61,7 @@ public static class ViewerEndpointExtensions
 
         var options = new ReportViewerOptions();
         configure?.Invoke(options);
-        var viewer = new Viewer(prefix, options, source, new ViewerDocumentStore(options));
+        var viewer = new Viewer(RoutePatternFactory.Parse(prefix), options, source, new ViewerDocumentStore(options));
 
         var group = endpoints.MapGroup(prefix);
         group.MapGet("/_viewer/viewer.js", ServeScript);
@@ -107,16 +108,51 @@ public static class ViewerEndpointExtensions
 
     internal static string ScriptVersion => ViewerScript.Value.ETag.Trim('"');
 
-    private sealed class Viewer(string prefix, ReportViewerOptions options, IReportSource? source, ViewerDocumentStore store)
+    private sealed class Viewer(RoutePattern prefix, ReportViewerOptions options, IReportSource? source, ViewerDocumentStore store)
     {
-        private static string? CurrentUser(HttpContext ctx)
-            => ctx.User.Identity?.IsAuthenticated == true ? ctx.User.Identity.Name : null;
+        /// <summary>
+        /// The document key of this request: the owner (<see cref="ReportViewerOptions.DocumentOwner"/>, or the user
+        /// name) plus the base URL, so a document opened under one value of a prefix route parameter isn't served
+        /// under another.
+        /// </summary>
+        private string CurrentUser(HttpContext ctx)
+        {
+            var owner = options.DocumentOwner is { } resolve
+                ? resolve(ctx)
+                : ctx.User.Identity?.IsAuthenticated == true ? ctx.User.Identity.Name : null;
+            return $"{owner}\u001f{BaseUrl(ctx)}";
+        }
 
         private static ILogger Logger(HttpContext ctx)
             => ctx.RequestServices.GetService<ILoggerFactory>()?.CreateLogger("NetReporter.Viewer")
                ?? Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance;
 
-        private string BaseUrl(HttpContext ctx) => ctx.Request.PathBase.Add(prefix).Value!;
+        /// <summary>
+        /// PathBase + the prefix with its route parameters (<c>/c/{tenant}/viewer</c>) replaced by this request's
+        /// values, so every URL the viewer hands out stays under the same tenant, customer…
+        /// </summary>
+        private string BaseUrl(HttpContext ctx)
+        {
+            if (prefix.Parameters.Count == 0) return ctx.Request.PathBase.Add(new PathString(prefix.RawText!)).Value!;
+
+            var sb = new StringBuilder();
+            foreach (var segment in prefix.PathSegments)
+            {
+                sb.Append('/');
+                foreach (var part in segment.Parts)
+                {
+                    sb.Append(part switch
+                    {
+                        RoutePatternLiteralPart literal => literal.Content,
+                        RoutePatternSeparatorPart separator => separator.Content,
+                        RoutePatternParameterPart parameter =>
+                            Uri.EscapeDataString(Convert.ToString(ctx.GetRouteValue(parameter.Name), System.Globalization.CultureInfo.InvariantCulture) ?? ""),
+                        _ => "",
+                    });
+                }
+            }
+            return ctx.Request.PathBase.Add(new PathString(sb.ToString())).Value!;
+        }
 
         public Task ServeViewerPage(HttpContext ctx)
         {
@@ -124,8 +160,9 @@ public static class ViewerEndpointExtensions
             var baseUrl = BaseUrl(ctx);
             var src = $"{baseUrl}/{Uri.EscapeDataString(reportId)}/open{ctx.Request.QueryString}";
             var lang = WebUtility.HtmlEncode(NegotiateLanguage(ctx, options));
+            var headHtml = options.HeadHtml + options.HeadHtmlResolver?.Invoke(ctx);
             ctx.Response.Headers.ContentLanguage = lang;
-            if (options.Language is null) ctx.Response.Headers.Vary = "Accept-Language";
+            if (options.Language is null && options.LanguageResolver is null) ctx.Response.Headers.Vary = "Accept-Language";
 
             var html = $$"""
                 <!doctype html>
@@ -135,7 +172,7 @@ public static class ViewerEndpointExtensions
                 <meta name="viewport" content="width=device-width, initial-scale=1">
                 <title>{{WebUtility.HtmlEncode(reportId)}}</title>
                 <style>html,body{margin:0;height:100%;background:#525659}netreporter-viewer{display:block;height:100%}</style>
-                {{options.HeadHtml}}
+                {{headHtml}}
                 <script type="module" src="{{WebUtility.HtmlEncode($"{baseUrl}/_viewer/viewer.js?v={ScriptVersion}")}}"></script>
                 </head>
                 <body>
@@ -156,10 +193,11 @@ public static class ViewerEndpointExtensions
 
             ReportDefinition? report;
             Core.RenderList.RenderList layout;
+            var request = new ReportRequest(reportId, ctx);
             try
             {
                 var resolver = source ?? ctx.RequestServices.GetRequiredService<IReportSource>();
-                report = await resolver.ResolveAsync(new ReportRequest(reportId, ctx), aborted);
+                report = await resolver.ResolveAsync(request, aborted);
                 if (report is null)
                 {
                     await WriteError(ctx, StatusCodes.Status404NotFound, "not-found", null);
@@ -183,7 +221,11 @@ public static class ViewerEndpointExtensions
                 return;
             }
 
-            var doc = new ViewerDocument(reportId, report, layout, CurrentUser(ctx));
+            var doc = new ViewerDocument(reportId, report, layout, CurrentUser(ctx))
+            {
+                Formats = options.Formats & (request.Formats ?? ViewerFormats.All),
+                State = request.State,
+            };
             var token = store.Add(doc);
             var docUrl = $"{BaseUrl(ctx)}/_doc/{token}";
             doc.SetImagesUrl(docUrl + "/images");
@@ -198,9 +240,9 @@ public static class ViewerEndpointExtensions
             json.WriteNumber("pageHeight", layout.Page.Size.Height);
             json.WriteString("pageUrl", docUrl + "/pages/");
             json.WriteStartObject("exports");
-            if (options.Formats.HasFlag(ViewerFormats.Pdf)) json.WriteString("pdf", docUrl + "/export/pdf");
-            if (options.Formats.HasFlag(ViewerFormats.Xlsx)) json.WriteString("xlsx", docUrl + "/export/xlsx");
-            if (options.Formats.HasFlag(ViewerFormats.Html)) json.WriteString("html", docUrl + "/export/html");
+            if (doc.Formats.HasFlag(ViewerFormats.Pdf)) json.WriteString("pdf", docUrl + "/export/pdf");
+            if (doc.Formats.HasFlag(ViewerFormats.Xlsx)) json.WriteString("xlsx", docUrl + "/export/xlsx");
+            if (doc.Formats.HasFlag(ViewerFormats.Html)) json.WriteString("html", docUrl + "/export/html");
             if (options.EscPos is { AllowDownload: true }) json.WriteString("escpos", docUrl + "/export/escpos");
             json.WriteEndObject();
             // Impresión directa: el componente muestra el botón solo cuando el servidor ofrece la URL; con
@@ -554,11 +596,11 @@ public static class ViewerEndpointExtensions
         {
             var doc = store.Get((string)ctx.GetRouteValue("token")!, CurrentUser(ctx));
             var format = ((string)ctx.GetRouteValue("format")!).ToLowerInvariant();
-            var allowed = format switch
+            var allowed = doc is not null && format switch
             {
-                "pdf" => options.Formats.HasFlag(ViewerFormats.Pdf),
-                "html" => options.Formats.HasFlag(ViewerFormats.Html),
-                "xlsx" => options.Formats.HasFlag(ViewerFormats.Xlsx),
+                "pdf" => doc.Formats.HasFlag(ViewerFormats.Pdf),
+                "html" => doc.Formats.HasFlag(ViewerFormats.Html),
+                "xlsx" => doc.Formats.HasFlag(ViewerFormats.Xlsx),
                 "escpos" => options.EscPos is { AllowDownload: true },
                 _ => false,
             };
@@ -597,6 +639,25 @@ public static class ViewerEndpointExtensions
             }
 
             var inline = ctx.Request.Query["inline"] == "1";
+            if (options.OnExport is { } onExport)
+            {
+                try
+                {
+                    await onExport(new ViewerExportContext(ctx, doc.ReportId, format, bytes.Length, inline, doc.State), aborted);
+                }
+                catch (OperationCanceledException) when (aborted.IsCancellationRequested)
+                {
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    // The application couldn't record the export (an audit, say): nothing leaves.
+                    Logger(ctx).LogError(ex, "NetReporter viewer export hook failed for report {ReportId} ({Format})", doc.ReportId, format);
+                    ctx.Response.StatusCode = StatusCodes.Status500InternalServerError;
+                    return;
+                }
+            }
+
             var disposition = new ContentDispositionHeaderValue(inline ? "inline" : "attachment");
             disposition.SetHttpFileName($"{FileBaseName(doc.Report)}.{format}");
             ctx.Response.Headers.ContentDisposition = disposition.ToString();
@@ -626,6 +687,8 @@ public static class ViewerEndpointExtensions
     /// </summary>
     internal static string NegotiateLanguage(HttpContext ctx, ReportViewerOptions options)
     {
+        if (options.LanguageResolver?.Invoke(ctx) is { } resolved && !string.IsNullOrWhiteSpace(resolved))
+            return resolved.Trim().ToLowerInvariant();
         if (!string.IsNullOrWhiteSpace(options.Language)) return options.Language.Trim().ToLowerInvariant();
 
         var supported = options.SupportedLanguages.Where(l => !string.IsNullOrWhiteSpace(l)).Select(l => l.Trim().ToLowerInvariant()).ToList();
