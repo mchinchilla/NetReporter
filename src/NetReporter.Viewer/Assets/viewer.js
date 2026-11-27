@@ -24,7 +24,7 @@ const I18N = {
         loading: 'Cargando reporte…', preparing: 'Preparando…', retry: 'Reintentar',
         notFound: 'El reporte no existe o no tienes acceso.', failed: 'No se pudo generar el reporte.',
         network: 'No se pudo conectar con el servidor.', empty: 'El reporte no tiene páginas.',
-        pdf: 'PDF', xlsx: 'Excel (XLSX)', html: 'HTML', escpos: 'Ticket ESC/POS', pageAlt: 'Página {n}',
+        pdf: 'PDF', xlsx: 'Excel (XLSX)', csv: 'CSV', html: 'HTML', escpos: 'Ticket ESC/POS', pageAlt: 'Página {n}',
         printTicket: 'Imprimir ticket', ticketSent: 'Ticket enviado a la impresora',
         ticketNoPrinter: 'No hay impresora de tickets configurada', ticketOffline: 'La impresora está fuera de línea',
         ticketCoverOpen: 'La impresora tiene la tapa abierta', ticketPaperEnd: 'La impresora no tiene papel',
@@ -51,7 +51,7 @@ const I18N = {
         loading: 'Loading report…', preparing: 'Preparing…', retry: 'Retry',
         notFound: 'The report does not exist or you do not have access to it.', failed: 'The report could not be generated.',
         network: 'Could not reach the server.', empty: 'The report has no pages.',
-        pdf: 'PDF', xlsx: 'Excel (XLSX)', html: 'HTML', escpos: 'ESC/POS ticket', pageAlt: 'Page {n}',
+        pdf: 'PDF', xlsx: 'Excel (XLSX)', csv: 'CSV', html: 'HTML', escpos: 'ESC/POS ticket', pageAlt: 'Page {n}',
         printTicket: 'Print ticket', ticketSent: 'Ticket sent to the printer',
         ticketNoPrinter: 'No ticket printer is configured', ticketOffline: 'The printer is offline',
         ticketCoverOpen: 'The printer cover is open', ticketPaperEnd: 'The printer is out of paper',
@@ -761,8 +761,8 @@ class NetReporterViewer extends HTMLElement {
         this._$title.title = doc.title || '';
         this._$total.textContent = `${this._t.of} ${doc.pageCount}`;
 
-        const menu = ['pdf', 'xlsx', 'html', 'escpos'].filter((f) => doc.exports?.[f]);
-        this._$menu.innerHTML = menu.map((f) => `<button role="menuitem" data-format="${f}">${this._t[f]}</button>`).join('');
+        const menu = ['pdf', 'xlsx', 'csv', 'html', 'escpos'].filter((f) => doc.exports?.[f]);
+        this._$menu.innerHTML = menu.map((f) => `<button role="menuitem" data-format="${f}">${this._t[f] || f.toUpperCase()}</button>`).join('');
         this._root.querySelector('[data-act="downloadMenu"]').disabled = menu.length === 0;
         this._root.querySelector('[data-act="print"]').disabled = !doc.exports?.pdf;
         this._root.querySelector('[data-act="printTicket"]').hidden = !doc.printer;

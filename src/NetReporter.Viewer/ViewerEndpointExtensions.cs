@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Net;
 using System.Security.Cryptography;
 using System.Text;
@@ -11,6 +12,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Net.Http.Headers;
 using NetReporter.Barcodes;
 using NetReporter.Core.Definition;
+using NetReporter.Core.Export;
 using NetReporter.EscPos;
 using NetReporter.Core.Layout;
 using NetReporter.Html;
@@ -223,7 +225,8 @@ public static class ViewerEndpointExtensions
 
             var doc = new ViewerDocument(reportId, report, layout, CurrentUser(ctx))
             {
-                Formats = options.Formats & (request.Formats ?? ViewerFormats.All),
+                Formats = options.Formats & (request.Formats ?? ViewerFormats.All)
+                          & (CsvRenderer.HasTable(report) ? ViewerFormats.All : ~ViewerFormats.Csv),
                 State = request.State,
             };
             var token = store.Add(doc);
@@ -243,6 +246,7 @@ public static class ViewerEndpointExtensions
             if (doc.Formats.HasFlag(ViewerFormats.Pdf)) json.WriteString("pdf", docUrl + "/export/pdf");
             if (doc.Formats.HasFlag(ViewerFormats.Xlsx)) json.WriteString("xlsx", docUrl + "/export/xlsx");
             if (doc.Formats.HasFlag(ViewerFormats.Html)) json.WriteString("html", docUrl + "/export/html");
+            if (doc.Formats.HasFlag(ViewerFormats.Csv)) json.WriteString("csv", docUrl + "/export/csv");
             if (options.EscPos is { AllowDownload: true }) json.WriteString("escpos", docUrl + "/export/escpos");
             json.WriteEndObject();
             // Impresión directa: el componente muestra el botón solo cuando el servidor ofrece la URL; con
@@ -601,6 +605,7 @@ public static class ViewerEndpointExtensions
                 "pdf" => doc.Formats.HasFlag(ViewerFormats.Pdf),
                 "html" => doc.Formats.HasFlag(ViewerFormats.Html),
                 "xlsx" => doc.Formats.HasFlag(ViewerFormats.Xlsx),
+                "csv" => doc.Formats.HasFlag(ViewerFormats.Csv),
                 "escpos" => options.EscPos is { AllowDownload: true },
                 _ => false,
             };
@@ -623,8 +628,10 @@ public static class ViewerEndpointExtensions
                               "text/html; charset=utf-8"),
                     "escpos" => (new EscPosRenderer(options.EscPos!.Renderer).Render(doc.RenderList, aborted),
                                  "application/octet-stream"),
-                    _ => (new XlsxRenderer().Render(doc.Report, options.XlsxOptions),
-                          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
+                    "csv" => (new CsvRenderer().Render(doc.Report, options.CsvOptions), "text/csv; charset=utf-8"),
+                    "xlsx" => (new XlsxRenderer().Render(doc.Report, options.XlsxOptions),
+                               "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
+                    _ => throw new UnreachableException(format),
                 };
             }
             catch (OperationCanceledException) when (aborted.IsCancellationRequested)

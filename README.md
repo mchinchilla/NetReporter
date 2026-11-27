@@ -8,7 +8,7 @@
 
 [![.NET 10](https://img.shields.io/badge/.NET-10.0-512BD4?style=flat-square&logo=dotnet)](https://dotnet.microsoft.com/)
 [![NuGet](https://img.shields.io/nuget/v/NetReporter?style=flat-square&logo=nuget&label=NuGet)](https://www.nuget.org/packages/NetReporter)
-[![Tests](https://img.shields.io/badge/tests-597%20passing-22c55e?style=flat-square&logo=xunit)](#-tests)
+[![Tests](https://img.shields.io/badge/tests-665%20passing-22c55e?style=flat-square&logo=xunit)](#-tests)
 [![License](https://img.shields.io/badge/license-MIT-22c55e?style=flat-square)](#-licenses)
 [![Status](https://img.shields.io/badge/status-production-22c55e?style=flat-square)](#-completed)
 
@@ -33,34 +33,44 @@
 
 ## 📚 Table of contents
 
-1. [What's new in 1.7](#-whats-new-in-17)
-2. [What's new in 1.6](#-whats-new-in-16)
-3. [What's new in 1.5](#-whats-new-in-15)
-4. [What's new in 1.4](#-whats-new-in-14)
-5. [What's new in 1.3](#-whats-new-in-13)
-6. [What's new in 1.2](#-whats-new-in-12)
-7. [What's new in 1.1](#-whats-new-in-11)
-8. [Philosophy and architecture](#-philosophy-and-architecture)
-9. [Features](#-features)
-10. [Visual pipeline](#-visual-pipeline)
-11. [Tech stack](#️-tech-stack)
-12. [Repository layout](#-repository-layout)
-13. [Quick start](#-quick-start)
-14. [Visual designer](#-visual-designer)
-15. [Report viewer](#️-report-viewer-netreporterviewer)
-16. [ESC/POS thermal printers](#-escpos-thermal-printers-netreporterescpos)
-17. [YAML template syntax](#-yaml-template-syntax)
-18. [Expressions (DSL)](#-expressions-dsl)
-19. [Charts](#-charts)
-20. [Available renderers](#-available-renderers)
-21. [Page sizes](#-page-sizes)
-22. [Tests](#-tests)
-23. [Known limitations](#️-known-limitations)
-24. [Completed](#-completed)
-25. [Roadmap](#️-roadmap)
-26. [Licenses](#-licenses)
+1. [What's new in 1.8](#-whats-new-in-18)
+2. [What's new in 1.7](#-whats-new-in-17)
+3. [What's new in 1.6](#-whats-new-in-16)
+4. [What's new in 1.5](#-whats-new-in-15)
+5. [What's new in 1.4](#-whats-new-in-14)
+6. [What's new in 1.3](#-whats-new-in-13)
+7. [What's new in 1.2](#-whats-new-in-12)
+8. [What's new in 1.1](#-whats-new-in-11)
+9. [Philosophy and architecture](#-philosophy-and-architecture)
+10. [Features](#-features)
+11. [Visual pipeline](#-visual-pipeline)
+12. [Tech stack](#️-tech-stack)
+13. [Repository layout](#-repository-layout)
+14. [Quick start](#-quick-start)
+15. [Visual designer](#-visual-designer)
+16. [Report viewer](#️-report-viewer-netreporterviewer)
+17. [ESC/POS thermal printers](#-escpos-thermal-printers-netreporterescpos)
+18. [YAML template syntax](#-yaml-template-syntax)
+19. [Expressions (DSL)](#-expressions-dsl)
+20. [Charts](#-charts)
+21. [Available renderers](#-available-renderers)
+22. [Page sizes](#-page-sizes)
+23. [Tests](#-tests)
+24. [Known limitations](#️-known-limitations)
+25. [Completed](#-completed)
+26. [Roadmap](#️-roadmap)
+27. [Licenses](#-licenses)
 
 ---
+
+## 🆕 What's new in 1.8
+
+**CSV export** (`NetReporter.Core`, `NetReporter.Viewer`; additive).
+
+| Change | Detail |
+|---|---|
+| `CsvRenderer` (`NetReporter.Core.Export`) | Data export of a report: its **first table** (in band order, hidden bands skipped) as CSV — headers, one line per row with raw invariant values (`1234.5`, `2026-11-03 08:30:00`), grouped tables flattened, the `Summary` as the last line. UTF-8 with BOM, RFC 4180 quoting and protection against formula injection (`=`, `@`, `+`/`-` not followed by a digit get a leading `'`). `CsvRenderOptions`: `Delimiter`, `ByteOrderMark`, `IncludeSummary`, `EscapeFormulas`, `Culture`, `NewLine` |
+| `ViewerFormats.Csv` | The viewer's download menu offers **CSV** (`…/export/csv`, `text/csv`) when the report has a table. `ViewerFormats.All` now includes it: hosts that set `options.Formats` explicitly are unchanged; hosts that rely on the default gain the item. `options.CsvOptions` tunes it, and `OnExport` receives `"csv"` like any other format |
 
 ## 🆕 What's new in 1.7
 
@@ -760,7 +770,7 @@ app.MapNetReporterViewer("/reports", async (request, ct) =>
 - **Printer chosen at the till.** With `AllowClientSettings = true` the component shows a **⚙ Printer settings** dialog, the same one the Designer has: IP, port, paper (auto / 80 / 58 mm), cut, feed, cash drawer and black-and-white conversion, with **Test connection** (`POST …/printer-status`). The settings live in that browser's `localStorage` and travel with each print, so every POS terminal prints on its own printer without server configuration. Because this makes the server open a TCP connection to an address the browser chose, it is **off by default** and `IsPrinterAllowed(host, port)` filters the targets: the default policy accepts only literal private, loopback and link-local IP addresses (`403 printer-not-allowed` otherwise); supply your own predicate for host names or specific subnets. Without a browser printer, the server-side `Printer` is used.
 - **Viewer UI:** first/previous/next/last, go to page, thumbnails, zoom 25–400 % (fit width, fit page, Ctrl/⌘ +
   wheel or trackpad pinch anchored at the cursor), Home/End and ←/→, print (Ctrl/⌘+P), download menu,
-  responsive toolbar. Theme it with `--nr-bg`, `--nr-toolbar-bg`, `--nr-toolbar-fg`, `--nr-accent`.
+  responsive toolbar. Downloads: PDF, XLSX, CSV (the first table, 1.8) and HTML. Theme it with `--nr-bg`, `--nr-toolbar-bg`, `--nr-toolbar-fg`, `--nr-accent`.
 - **Component API:** attributes `src`, `lang`, `zoom` (`page-width` | `page-fit` | number), `thumbnails`
   (`open` | `closed`), `set-title`; events `nr-load`, `nr-error`, `nr-pagechange`; methods `reload()`,
   `goToPage(n)`, `setZoom(z)`, `print()`, `download(format)`.
@@ -1283,6 +1293,21 @@ byte[] xlsx = new XlsxRenderer().Render(report, new XlsxRenderOptions
 - 📐 Page setup (paper size, orientation, margins) mapped to Excel page setup
 - 🖼️ Embedded images preserved (sized in points → pixels @ 96dpi)
 - 🌍 Per-report culture honored for number/date formatting
+
+---
+
+### 🧮 CSV — `NetReporter.Core`
+
+**Data** export: the report's first table, without layout. Titles, charts and images are not data and are left out; a report without a table gives an empty file (`CsvRenderer.HasTable(report)` tells beforehand).
+
+```csharp
+byte[] csv = new NetReporter.Core.Export.CsvRenderer().Render(report, new CsvRenderOptions
+{
+    Delimiter = ';',               // default ','
+    ByteOrderMark = true,          // so Excel opens accents correctly
+    IncludeSummary = true,         // the table's summary row as the last line
+});
+```
 
 ---
 

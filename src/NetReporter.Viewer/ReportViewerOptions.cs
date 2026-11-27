@@ -13,7 +13,10 @@ public enum ViewerFormats
     Pdf = 1,
     Html = 2,
     Xlsx = 4,
-    All = Pdf | Html | Xlsx,
+
+    /// <summary>The report's first table as CSV (<see cref="NetReporter.Core.Export.CsvRenderer"/>); only offered when the report has one.</summary>
+    Csv = 8,
+    All = Pdf | Html | Xlsx | Csv,
 }
 
 /// <summary>Options for <c>MapNetReporterViewer</c> (see <see cref="ViewerEndpointExtensions"/>).</summary>
@@ -96,6 +99,9 @@ public sealed class ReportViewerOptions
 
     /// <summary>Options for the XLSX download.</summary>
     public XlsxRenderOptions? XlsxOptions { get; set; }
+
+    /// <summary>Options for the CSV download (the report's first table).</summary>
+    public NetReporter.Core.Export.CsvRenderOptions? CsvOptions { get; set; }
 
     /// <summary>
     /// ESC/POS for thermal printers: <c>null</c> (default) offers nothing; an instance enables the

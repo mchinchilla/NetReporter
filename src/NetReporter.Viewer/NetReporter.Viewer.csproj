@@ -6,7 +6,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <Description>Report viewer for ASP.NET Core apps: app.MapNetReporterViewer("/reports", ...) serves a paginated, zoomable viewer (the &lt;netreporter-viewer&gt; web component, no CDN dependencies) with thumbnails, print and PDF/HTML/XLSX download. Pages are rendered as SVG on demand.</Description>
+    <Description>Report viewer for ASP.NET Core apps: app.MapNetReporterViewer("/reports", ...) serves a paginated, zoomable viewer (the &lt;netreporter-viewer&gt; web component, no CDN dependencies) with thumbnails, print and PDF/HTML/XLSX/CSV download. Pages are rendered as SVG on demand.</Description>
     <PackageTags>$(PackageTags);viewer;aspnetcore</PackageTags>
   </PropertyGroup>
 

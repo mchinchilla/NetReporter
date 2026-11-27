@@ -163,6 +163,7 @@ public sealed class ViewerEndpointTests : IAsyncLifetime
     [Theory]
     [InlineData("xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")]
     [InlineData("html", "text/html")]
+    [InlineData("csv", "text/csv")]
     public async Task Export_OtherFormats(string format, string mediaType)
     {
         var doc = await Open("/reports/clientes/open");
@@ -191,6 +192,21 @@ public sealed class ViewerEndpointTests : IAsyncLifetime
         Assert.False(exports.TryGetProperty("xlsx", out _));
         var xlsxUrl = exports.GetProperty("pdf").GetString()!.Replace("/pdf", "/xlsx");
         Assert.Equal(HttpStatusCode.NotFound, (await _client.GetAsync(xlsxUrl)).StatusCode);
+    }
+
+    [Fact]
+    public async Task Csv_IsTheFirstTable_AndOnlyOfferedWhenTheReportHasOne()
+    {
+        var doc = await Open("/reports/clientes/open?rows=2");
+        var csv = await _client.GetByteArrayAsync(doc.GetProperty("exports").GetProperty("csv").GetString());
+        var lines = Encoding.UTF8.GetString(csv).TrimStart('\uFEFF').Split("\r\n", StringSplitOptions.RemoveEmptyEntries);
+        Assert.Equal(3, lines.Length);
+        Assert.StartsWith("C001,", lines[2]);
+
+        var noTable = (await Open("/img/any/open")).GetProperty("exports");
+        Assert.True(noTable.TryGetProperty("pdf", out var pdf));
+        Assert.False(noTable.TryGetProperty("csv", out _));
+        Assert.Equal(HttpStatusCode.NotFound, (await _client.GetAsync(pdf.GetString()!.Replace("/pdf", "/csv"))).StatusCode);
     }
 
     [Fact]
