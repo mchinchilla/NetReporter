@@ -72,6 +72,8 @@
 | `CsvRenderer` (`NetReporter.Core.Export`) | Data export of a report: its **first table** (in band order, hidden bands skipped) as CSV — headers, one line per row with raw invariant values (`1234.5`, `2026-11-03 08:30:00`), grouped tables flattened, the `Summary` as the last line. UTF-8 with BOM, RFC 4180 quoting and protection against formula injection (`=`, `@`, `+`/`-` not followed by a digit get a leading `'`). `CsvRenderOptions`: `Delimiter`, `ByteOrderMark`, `IncludeSummary`, `EscapeFormulas`, `Culture`, `NewLine` |
 | `ViewerFormats.Csv` | The viewer's download menu offers **CSV** (`…/export/csv`, `text/csv`) when the report has a table. `ViewerFormats.All` now includes it: hosts that set `options.Formats` explicitly are unchanged; hosts that rely on the default gain the item. `options.CsvOptions` tunes it, and `OnExport` receives `"csv"` like any other format |
 
+**1.8.1:** the download menu showed nothing when the toolbar was at the right edge: the toolbar scrolls horizontally on narrow screens (`overflow-x: auto`), which clipped the menu hanging below it. The menu now lives outside the toolbar and opens right-aligned under the download button.
+
 ## 🆕 What's new in 1.7
 
 **Viewer hooks for multi-tenant applications** (`NetReporter.Viewer`, additive: existing code behaves the same).
@@ -781,6 +783,7 @@ app.MapNetReporterViewer("/reports", async (request, ct) =>
   `NetReporterViewer.registerLanguage('pt', { ...NetReporterViewer.englishStrings, page: 'Página', … })` or, for the
   full-page viewer, `options.HeadHtml = "<script>globalThis.NetReporterViewerI18n = { pt: { … } }</script>"` plus
   `options.SupportedLanguages.Add("pt")`. Missing keys fall back to English.
+- **Content-Security-Policy.** The component prints by loading the PDF into a hidden iframe from a `blob:` URL: a host with a CSP needs `frame-src 'self' blob:` (and `object-src 'self' blob:` for browsers that render the PDF as a plugin), besides `script-src 'self'`, `connect-src 'self'` and `style-src 'unsafe-inline'` (the component's shadow-DOM styles).
 - **Multi-tenant hosts (1.7).** The prefix may contain route parameters (`/c/{tenant}/viewer`); `DocumentOwner` keys documents by a stable user id; the resolver can narrow `request.Formats` and attach `request.State`, which `OnExport` receives for each download or PDF print (a throwing hook blocks the file; ESC/POS `print` doesn't call it); `LanguageResolver` and `HeadHtmlResolver` customise the full-page viewer per request. Documents stay in the memory of the process that opened them: behind several instances, use session affinity: a page or export that reaches another instance answers 404.
 - Errors return `{ "error": "not-found" | "render-failed" }`; the exception message is only included with
   `IncludeErrorDetails = true` (development).

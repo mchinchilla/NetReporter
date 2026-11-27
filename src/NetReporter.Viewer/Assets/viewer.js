@@ -159,8 +159,9 @@ select.zoom {
 }
 select.zoom option { color: #111; background: #fff; }
 .menu { position: relative; }
+/* Outside the toolbar (its overflow-x would clip it): placed under the download button when it opens. */
 .menu-list {
-    position: absolute; right: 0; top: 38px; min-width: 160px; padding: 4px 0; border-radius: 6px;
+    position: absolute; right: 8px; top: 44px; z-index: 5; min-width: 160px; padding: 4px 0; border-radius: 6px;
     background: #fff; color: #1f2328; box-shadow: 0 6px 24px rgba(0,0,0,.35); display: none;
 }
 .menu-list.open { display: block; }
@@ -611,10 +612,10 @@ class NetReporterViewer extends HTMLElement {
       <button data-act="printerSettings" hidden title="${t.psTitle}" aria-label="${t.psTitle}">${icon('gear')}</button>
       <div class="menu">
         <button data-act="downloadMenu" title="${t.download}" aria-label="${t.download}" aria-haspopup="menu" aria-expanded="false">${icon('download')}</button>
-        <div class="menu-list" data-ref="menu" role="menu"></div>
       </div>
     </div>
   </div>
+  <div class="menu-list" data-ref="menu" role="menu"></div>
   <div class="body">
     <nav class="thumbs" part="thumbnails" data-ref="thumbs" aria-label="${t.thumbnails}"></nav>
     <div class="scroller" part="scroller" data-ref="scroller" tabindex="0">
@@ -704,7 +705,10 @@ class NetReporterViewer extends HTMLElement {
             if (fmt) { this._toggleMenu(false); this.download(fmt); }
         });
         if (this._onDocPointerDown) document.removeEventListener('pointerdown', this._onDocPointerDown, true);
-        this._onDocPointerDown = (e) => { if (!e.composedPath().includes(this._$menu.parentElement)) this._toggleMenu(false); };
+        this._onDocPointerDown = (e) => {
+            const path = e.composedPath();
+            if (!path.includes(this._$menu) && !path.includes(this._root.querySelector('[data-act="downloadMenu"]'))) this._toggleMenu(false);
+        };
         document.addEventListener('pointerdown', this._onDocPointerDown, true);
 
         this._$page.addEventListener('change', () => this.goToPage(parseInt(this._$page.value, 10)));
@@ -1083,8 +1087,16 @@ class NetReporterViewer extends HTMLElement {
 
     _toggleMenu(force) {
         const open = force ?? !this._$menu.classList.contains('open');
+        const button = this._root.querySelector('[data-act="downloadMenu"]');
+        if (open) {
+            // Right-aligned under the button, inside the viewer (the toolbar may be scrolled on narrow screens).
+            const root = this._root.querySelector('.root').getBoundingClientRect();
+            const at = button.getBoundingClientRect();
+            this._$menu.style.top = `${at.bottom - root.top + 4}px`;
+            this._$menu.style.right = `${Math.max(4, root.right - at.right)}px`;
+        }
         this._$menu.classList.toggle('open', open);
-        this._root.querySelector('[data-act="downloadMenu"]').setAttribute('aria-expanded', String(open));
+        button.setAttribute('aria-expanded', String(open));
     }
 
     // ---------- overlays ----------
